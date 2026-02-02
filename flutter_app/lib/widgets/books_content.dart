@@ -1,0 +1,1086 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:data_table_2/data_table_2.dart';
+import 'package:file_picker/file_picker.dart';
+import '../providers/book_provider.dart';
+import '../providers/issue_provider.dart';
+import '../models/book.dart';
+import '../widgets/book_dialog.dart';
+import '../services/api_service.dart';
+import '../utils/hindi_text.dart';
+
+class BooksContent extends StatefulWidget {
+  const BooksContent({super.key});
+
+  @override
+  State<BooksContent> createState() => _BooksContentState();
+}
+
+class _BooksContentState extends State<BooksContent> {
+  final TextEditingController _searchController = TextEditingController();
+  String? _selectedCategory;
+  final Set<int> _selectedBookIds = <int>{};
+
+  bool _containsDevanagari(String text) {
+    return RegExp(r'[\u0900-\u097F]').hasMatch(text);
+  }
+
+  bool _looksLikeLegacyHindi(String text) {
+    final s = text.trim();
+    if (s.isEmpty) return false;
+    if (_containsDevanagari(s)) return false;
+
+    final letters = RegExp(r'[A-Za-z]').allMatches(s).length;
+    if (letters < 6) return false;
+    final special = RegExp(r'[;*]').allMatches(s).length;
+    if (special < 1) return false;
+    final ratio = letters / s.length.clamp(1, 1 << 30);
+    return ratio >= 0.55;
+  }
+
+  TextStyle _textStyleForHindi(String text, TextStyle base) {
+    final defaultSize = DefaultTextStyle.of(context).style.fontSize ?? 14;
+    final effectiveSize = base.fontSize ?? defaultSize;
+
+    // If the content is already Unicode Hindi, just help Windows pick a good font.
+    if (_containsDevanagari(text)) {
+      return base.copyWith(
+        // Devanagari often looks optically smaller at the same point size.
+        fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
+        fontFamilyFallback: const [
+          'Nirmala UI',
+          'Mangal',
+          'Noto Sans Devanagari',
+        ],
+      );
+    }
+
+    // If it looks like legacy Hindi (KrutiDev-style), try to render it using that font
+    // when installed on the machine.
+    if (_looksLikeLegacyHindi(text)) {
+      return base.copyWith(
+        fontSize: (effectiveSize * 1.10).clamp(10, 30).toDouble(),
+        fontFamily: 'Kruti Dev 010',
+        fontFamilyFallback: const ['Kruti Dev 010', 'Nirmala UI', 'Mangal'],
+      );
+    }
+
+    return base;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBooks();
+    });
+  }
+
+  void _loadBooks() {
+    try {
+      print('DEBUG [BooksContent]: Calling loadBooks');
+      context.read<BookProvider>().loadBooks().catchError((error) {
+        print('DEBUG [BooksContent]: Error caught in catchError: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading books: $error'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      print('DEBUG [BooksContent]: Error in try block: $e');
+    }
+  }
+
+  List<String> getUniqueCategories(List<Book> books) {
+    final predefinedCategories = [
+      'Fiction',
+      'Non-Fiction',
+      'Science',
+      'History',
+      'Biography',
+      'Literature',
+      'Philosophy',
+      'Psychology',
+      'Art',
+      'Music',
+      'Technology',
+      'Mathematics',
+      'Physics',
+      'Chemistry',
+      'Biology',
+      'Medicine',
+      'Engineering',
+      'Computer Science',
+      'Business',
+      'Economics',
+      'Politics',
+      'Law',
+      'Religion',
+      'Education',
+      'Sports',
+      'Travel',
+      'Cooking',
+      'Health',
+      'Self-Help',
+      'Poetry',
+      'Drama',
+      'Romance',
+      'Mystery',
+      'Thriller',
+      'Fantasy',
+      'Science Fiction',
+      'Horror',
+      'Adventure',
+      'Children',
+      'Young Adult',
+      'Reference',
+      'Dictionary',
+      'Encyclopedia',
+      'Atlas',
+      'Periodicals',
+      'Comics',
+      'Graphic Novels',
+      'GST',
+    ];
+
+    final bookCategories = books
+        .map((book) => book.category)
+        .where((category) => category != null && category.isNotEmpty)
+        .cast<String>()
+        .toSet();
+
+    final allCategories = {...predefinedCategories, ...bookCategories}.toList()
+      ..sort();
+    return ['All Categories', ...allCategories];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bookProvider = Provider.of<BookProvider>(context);
+    final selectedCount = _selectedBookIds.length;
+    final filteredBooks = getFilteredBooks(bookProvider.books);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Book Management'),
+        elevation: 0,
+        actions: [
+          if (selectedCount > 0) ...[
+            ElevatedButton.icon(
+              onPressed: _deleteSelectedBooks,
+              icon: const Icon(Icons.delete_forever),
+              label: Text('Delete ($selectedCount)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              tooltip: 'Clear selection',
+              onPressed: () {
+                setState(_selectedBookIds.clear);
+              },
+              icon: const Icon(Icons.clear),
+            ),
+            const SizedBox(width: 12),
+          ],
+          ElevatedButton.icon(
+            onPressed: _importBooks,
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Import CSV/Excel'),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            tooltip: 'Export Excel (CSV)',
+            onPressed: _exportBooksCsv,
+            icon: const Icon(Icons.download),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _showBookDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add Book'),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // Search and Filter
+            Container(
+              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        labelText: 'Search books...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      onChanged: (value) => _filterBooks(),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                      color: Theme.of(context).colorScheme.surface,
+                    ),
+                    child: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        setState(
+                          () => _selectedCategory = value == 'All Categories'
+                              ? null
+                              : value,
+                        );
+                        _filterBooks();
+                      },
+                      itemBuilder: (context) {
+                        final categories = getUniqueCategories(
+                          bookProvider.books,
+                        );
+                        return categories.map((category) {
+                          final isSelected =
+                              (_selectedCategory == null &&
+                                  category == 'All Categories') ||
+                              (_selectedCategory == category);
+                          return PopupMenuItem<String>(
+                            value: category,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  size: 20,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  category,
+                                  style: TextStyle(
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.filter_list,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _selectedCategory ?? 'All Categories',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Expanded(
+              child: Card(
+                elevation: 4,
+                child: bookProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : bookProvider.books.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.library_books_outlined,
+                              size: 80,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No books found',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Click "Add Book" to create a new book',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.grey[500]),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: _loadBooks,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Theme(
+                        data: Theme.of(context).copyWith(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          checkboxTheme: Theme.of(context).checkboxTheme
+                              .copyWith(
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                        ),
+                        child: DataTable2(
+                          columnSpacing: 10,
+                          horizontalMargin: 12,
+                          dataRowHeight: 62,
+                          headingRowHeight: 50,
+                          showCheckboxColumn: false,
+                          columns: [
+                            DataColumn2(
+                              fixedWidth: 44,
+                              label: Center(
+                                child: Transform.scale(
+                                  scale: 0.82,
+                                  child: Checkbox(
+                                    tristate: true,
+                                    value: filteredBooks.isEmpty
+                                        ? false
+                                        : filteredBooks.every(
+                                            (b) =>
+                                                _selectedBookIds.contains(b.id),
+                                          )
+                                        ? true
+                                        : filteredBooks.any(
+                                            (b) =>
+                                                _selectedBookIds.contains(b.id),
+                                          )
+                                        ? null
+                                        : false,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          for (final b in filteredBooks) {
+                                            _selectedBookIds.add(b.id);
+                                          }
+                                        } else {
+                                          for (final b in filteredBooks) {
+                                            _selectedBookIds.remove(b.id);
+                                          }
+                                        }
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const DataColumn2(
+                              label: Text('Cover'),
+                              fixedWidth: 56,
+                            ),
+                            const DataColumn2(
+                              label: Text('ISBN'),
+                              size: ColumnSize.S,
+                            ),
+                            const DataColumn2(
+                              label: Text('Title'),
+                              size: ColumnSize.L,
+                            ),
+                            const DataColumn2(
+                              label: Text('Author'),
+                              size: ColumnSize.M,
+                            ),
+                            const DataColumn2(
+                              label: Text('Rack'),
+                              size: ColumnSize.S,
+                            ),
+                            const DataColumn2(
+                              label: Text('Category'),
+                              size: ColumnSize.M,
+                            ),
+                            const DataColumn2(
+                              label: Text('Copies'),
+                              fixedWidth: 78,
+                            ),
+                            const DataColumn2(
+                              label: Text('Status'),
+                              size: ColumnSize.S,
+                            ),
+                            const DataColumn2(
+                              label: Text('Actions'),
+                              size: ColumnSize.S,
+                            ),
+                          ],
+                          rows: filteredBooks
+                              .map(
+                                (book) => DataRow(
+                                  selected: _selectedBookIds.contains(book.id),
+                                  onSelectChanged: (selected) {
+                                    if (selected == null) return;
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedBookIds.add(book.id);
+                                      } else {
+                                        _selectedBookIds.remove(book.id);
+                                      }
+                                    });
+                                  },
+                                  cells: [
+                                    DataCell(
+                                      Center(
+                                        child: Transform.scale(
+                                          scale: 0.82,
+                                          child: Checkbox(
+                                            value: _selectedBookIds.contains(
+                                              book.id,
+                                            ),
+                                            onChanged: (checked) {
+                                              setState(() {
+                                                if (checked == true) {
+                                                  _selectedBookIds.add(book.id);
+                                                } else {
+                                                  _selectedBookIds.remove(
+                                                    book.id,
+                                                  );
+                                                }
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(_buildCoverCell(book)),
+                                    DataCell(
+                                      Text(book.isbn.isEmpty ? '-' : book.isbn),
+                                    ),
+                                    DataCell(
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            normalizeHindiForDisplay(book.title),
+                                            style: _textStyleForHindi(
+                                              normalizeHindiForDisplay(book.title),
+                                              const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (book.description != null &&
+                                              book.description!.isNotEmpty)
+                                            Text(
+                                              normalizeHindiForDisplay(
+                                                book.description!,
+                                              ),
+                                              style: _textStyleForHindi(
+                                                normalizeHindiForDisplay(
+                                                  book.description!,
+                                                ),
+                                                TextStyle(
+                                                  fontSize: 11,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall?.color,
+                                                ),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        normalizeHindiForDisplay(book.author),
+                                        style: _textStyleForHindi(
+                                          normalizeHindiForDisplay(book.author),
+                                          const TextStyle(),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    DataCell(Text(book.rackNumber ?? '')),
+                                    DataCell(Text(book.category ?? '')),
+                                    DataCell(
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '${book.availableCopies}/${book.totalCopies}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: book.availableCopies > 0
+                                                  ? Colors.green
+                                                  : Colors.red,
+                                            ),
+                                          ),
+                                          Text(
+                                            'avail.',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall?.color,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Chip(
+                                        label: Text(
+                                          book.availableCopies > 0
+                                              ? 'Available'
+                                              : 'Borrowed',
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                        backgroundColor:
+                                            book.availableCopies > 0
+                                            ? Colors.green.withValues(
+                                                alpha: 0.2,
+                                              )
+                                            : Colors.orange.withValues(
+                                                alpha: 0.2,
+                                              ),
+                                        side: BorderSide.none,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit),
+                                            onPressed: () =>
+                                                _showBookDialog(book: book),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete),
+                                            onPressed: () =>
+                                                _deleteBook(book.id),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _filterBooks() {
+    final bookProvider = Provider.of<BookProvider>(context, listen: false);
+    bookProvider.loadBooks(
+      search: _searchController.text.isEmpty ? null : _searchController.text,
+      category: _selectedCategory,
+    );
+  }
+
+  void _showBookDialog({Book? book}) async {
+    final result = await showDialog(
+      context: context,
+      builder: (context) => BookDialog(book: book),
+    );
+    if (mounted && result == true) {
+      await context.read<BookProvider>().loadBooks();
+      await context.read<IssueProvider>().loadStats();
+    }
+  }
+
+  Future<void> _importBooks() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['csv', 'xlsx', 'xls'],
+      withData: false,
+    );
+
+    if (!mounted || result == null || result.files.isEmpty) return;
+
+    final path = result.files.single.path;
+    if (path == null || path.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to read selected file path.')),
+        );
+      }
+      return;
+    }
+
+    // Loading dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Expanded(child: Text('Importing books...')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    try {
+      final summary = await ApiService.importBooksFile(filePath: path);
+
+      if (!mounted) return;
+
+      final navigator = Navigator.of(context);
+      final bookProvider = context.read<BookProvider>();
+      final issueProvider = context.read<IssueProvider>();
+
+      navigator.pop();
+      await bookProvider.loadBooks();
+      await issueProvider.loadStats();
+
+      if (!mounted) return;
+
+      final inserted = summary['inserted'];
+      final updated = summary['updated'];
+      final skipped = summary['skipped'];
+      final totalRows = summary['totalRows'];
+      final errors = summary['errors'];
+      final legacyHindiRows = summary['legacyHindiRows'];
+
+      final errorText = (errors is List && errors.isNotEmpty)
+          ? errors.take(10).join('\n')
+          : null;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Import complete'),
+          content: SelectableText(
+            [
+              if (totalRows != null) 'Rows: $totalRows',
+              if (inserted != null) 'Inserted: $inserted',
+              if (updated != null) 'Updated: $updated',
+              if (skipped != null) 'Skipped: $skipped',
+              if (legacyHindiRows is int && legacyHindiRows > 0) '',
+              if (legacyHindiRows is int && legacyHindiRows > 0)
+                'Note: $legacyHindiRows row(s) look like legacy Hindi (KrutiDev-style) text. The app will automatically convert most such text to Unicode for display (no Kruti Dev font installation required). For best long-term results, convert your file to Unicode Hindi (UTF-8) before importing.',
+              if (errorText != null) '',
+              if (errorText != null) 'Errors (first 10):\n$errorText',
+            ].where((s) => s.isNotEmpty).join('\n'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).maybePop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+    }
+  }
+
+  Future<void> _exportBooksCsv() async {
+    try {
+      final books = await ApiService.getBooks();
+      if (!mounted) return;
+
+      if (books.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No books to export')));
+        return;
+      }
+
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Books Export (CSV)',
+        fileName:
+            'books_export_${DateTime.now().toIso8601String().split('T')[0]}.csv',
+        type: FileType.custom,
+        allowedExtensions: const ['csv'],
+      );
+      if (path == null || path.isEmpty) return;
+
+      String csvEscape(String value) {
+        final safe = value.replaceAll('"', '""');
+        if (safe.contains(',') ||
+            safe.contains('\n') ||
+            safe.contains('\r') ||
+            safe.contains('"')) {
+          return '"$safe"';
+        }
+        return safe;
+      }
+
+      final buffer = StringBuffer();
+      buffer.writeln(
+        [
+          'ID',
+          'ISBN',
+          'Title',
+          'Author',
+          'Rack Number',
+          'Category',
+          'Publisher',
+          'Year Published',
+          'Total Copies',
+          'Available Copies',
+          'Status',
+          'Added Date',
+        ].map(csvEscape).join(','),
+      );
+
+      for (final b in books) {
+        buffer.writeln(
+          [
+            b.id.toString(),
+            b.isbn,
+            b.title,
+            b.author,
+            b.rackNumber ?? '',
+            b.category ?? '',
+            b.publisher ?? '',
+            b.yearPublished?.toString() ?? '',
+            b.totalCopies.toString(),
+            b.availableCopies.toString(),
+            b.status,
+            b.addedDate,
+          ].map((v) => csvEscape(v.toString())).join(','),
+        );
+      }
+
+      // Excel on Windows often mis-detects UTF-8 without BOM.
+      final bytes = utf8.encode(buffer.toString());
+      const bom = <int>[0xEF, 0xBB, 0xBF];
+      await File(path).writeAsBytes([...bom, ...bytes], flush: true);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
+  }
+
+  void _deleteBook(int id) {
+    final pageContext = context;
+    showDialog(
+      context: pageContext,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Book'),
+        content: const Text('Are you sure you want to delete this book?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              try {
+                await pageContext.read<BookProvider>().deleteBook(id);
+
+                if (!mounted) return;
+                setState(() => _selectedBookIds.remove(id));
+
+                await pageContext.read<IssueProvider>().loadStats();
+                if (!mounted) return;
+
+                ScaffoldMessenger.of(pageContext).showSnackBar(
+                  const SnackBar(content: Text('Book deleted successfully')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(pageContext).showSnackBar(
+                  SnackBar(content: Text('Failed to delete book: $e')),
+                );
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSelectedBooks() async {
+    final ids = _selectedBookIds.toList()..sort();
+    if (ids.isEmpty) return;
+
+    final pageContext = context;
+    final confirmed = await showDialog<bool>(
+      context: pageContext,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete selected books'),
+        content: Text('Delete ${ids.length} selected book(s)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    showDialog(
+      context: pageContext,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Deleting ${ids.length} books...')),
+          ],
+        ),
+      ),
+    );
+
+    int deleted = 0;
+    final failures = <String>[];
+
+    try {
+      final navigator = Navigator.of(pageContext);
+      final messenger = ScaffoldMessenger.of(pageContext);
+      final bookProvider = pageContext.read<BookProvider>();
+      final issueProvider = pageContext.read<IssueProvider>();
+      for (final id in ids) {
+        try {
+          await bookProvider.deleteBook(id);
+          deleted++;
+        } catch (e) {
+          failures.add('ID $id: $e');
+        }
+      }
+
+      if (!mounted) return;
+      navigator.pop();
+      await issueProvider.loadStats();
+      if (!mounted) return;
+      setState(() => _selectedBookIds.clear());
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            failures.isEmpty
+                ? 'Deleted $deleted book(s).'
+                : 'Deleted $deleted. Failed: ${failures.length}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(pageContext).maybePop();
+      ScaffoldMessenger.of(
+        pageContext,
+      ).showSnackBar(SnackBar(content: Text('Bulk delete failed: $e')));
+    }
+  }
+
+  List<Book> getFilteredBooks(List<Book> books) {
+    final query = _searchController.text.toLowerCase();
+    final category = _selectedCategory;
+    return books.where((book) {
+      final matchesQuery =
+          query.isEmpty ||
+          book.title.toLowerCase().contains(query) ||
+          book.author.toLowerCase().contains(query) ||
+          book.isbn.toLowerCase().contains(query) ||
+          (book.rackNumber ?? '').toLowerCase().contains(query);
+      final matchesCategory = category == null || book.category == category;
+      return matchesQuery && matchesCategory;
+    }).toList();
+  }
+
+  Widget _buildCoverCell(Book book) {
+    return Container(
+      width: 40,
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: book.coverImage != null && book.coverImage!.isNotEmpty
+          ? Image.network(
+              ApiService.resolvePublicUrl(book.coverImage!),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildCoverPlaceholder(book),
+            )
+          : _buildCoverPlaceholder(book),
+    );
+  }
+
+  Widget _buildCoverPlaceholder(Book book) {
+    final title = (book.title).trim();
+    final initial = title.isNotEmpty ? title.characters.first : 'B';
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+                Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(6),
+          child: Image.asset(
+            'assets/images/App_Logo.png',
+            fit: BoxFit.contain,
+            opacity: const AlwaysStoppedAnimation(0.75),
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Icon(
+                Icons.menu_book,
+                size: 20,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            margin: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              initial,
+              style: _textStyleForHindi(
+                initial,
+                TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+}

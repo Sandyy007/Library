@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Flutter: pub get + generate icon + apply icons_launcher",
+			"type": "shell",
+			"command": "flutter pub get; flutter test tool/generate_windows_icon_test.dart; dart run icons_launcher:create",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter: pub get + generate icon + apply icons_launcher",
+			"type": "shell",
+			"command": "flutter pub get; flutter test tool/generate_windows_icon_test.dart; dart run icons_launcher:create",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: pub get",
+			"type": "shell",
+			"command": "flutter pub get",
+			"isBackground": false
+		},
+		{
+			"label": "flutter build windows",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"build",
+				"windows"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

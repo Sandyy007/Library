@@ -1,0 +1,89 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Backend: stop (port 3000)",
+			"type": "shell",
+			"command": "$cons = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if ($cons) { $procIds = $cons | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($procId in $procIds) { Write-Host ('Stopping PID ' + $procId + ' (port 3000)'); Stop-Process -Id $procId -Force } } else { Write-Host 'No listener on port 3000' }",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter icon regen",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter pub get; flutter test tool/generate_windows_icon_test.dart; dart run icons_launcher:create",
+			"isBackground": false
+		},
+		{
+			"label": "Backend: start",
+			"type": "shell",
+			"command": "$p = Start-Process -FilePath \"node\" -ArgumentList \"server.js\" -WorkingDirectory \"D:\\library_management_system\\backend\" -PassThru; Write-Host \"Backend started. PID=$($p.Id)\"",
+			"isBackground": false
+		},
+		{
+			"label": "Backend: run (foreground)",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\backend\"; node server.js",
+			"isBackground": false
+		},
+		{
+			"label": "API smoke test: dashboard + member update",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\backend\"; node tool\\api_smoke_test.js",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: run (Windows)",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter run -d windows",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: generate icon PNG",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter test tool/generate_windows_icon_test.dart -r expanded; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Get-ChildItem \"assets\\images\\app_icon_1024.png\" | Format-List *",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: pub get",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter pub get",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: run icon gen test",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter test tool/generate_windows_icon_test.dart -r expanded",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: icon test debug",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter test tool/generate_windows_icon_test.dart -r expanded --no-pub; echo DONE; if (Test-Path \"assets\\images\\app_icon_1024.png\") { echo \"PNG exists\" } else { echo \"PNG missing\" }",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: icon test log",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter test tool/generate_windows_icon_test.dart -r expanded --no-pub *>&1 | Out-File -FilePath \"build\\icon_test.log\" -Encoding utf8; Get-ChildItem \"build\\icon_test.log\" | Format-List *",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: analyze",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter analyze",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: analyze (quick)",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter analyze",
+			"isBackground": false
+		},
+		{
+			"label": "Flutter: test",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter test -r expanded",
+			"isBackground": false
+		}
+	]
+}

@@ -1,0 +1,31 @@
+# Node
+backend/node_modules/
+backend/server.log
+backend/.env
+
+# Uploads (user data)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Flutter / Dart
+flutter_app/.dart_tool/
+flutter_app/build/
+flutter_app/.flutter-plugins-dependencies
+
+# IDE
+flutter_app/.idea/
+flutter_app/*.iml
+
+# Logs / temp
+flutter_app/*.log
+flutter_app/*_log.txt
+flutter_app/build_output*.txt
+flutter_app/debug_log.txt
+flutter_app/run_windows.log
+temp_original.dart
+node_modules/
+.env
+build/
+dist/
+*.exe
+
