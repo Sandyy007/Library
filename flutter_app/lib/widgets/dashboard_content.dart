@@ -152,7 +152,7 @@ class _DashboardContentState extends State<DashboardContent>
       setState(() {
         _activity = [];
       });
-      await _refreshAll(showLoading: false);
+      await _refreshAll(showLoading: false, includeStats: false);
       messenger.showSnackBar(
         const SnackBar(content: Text('Recent activity cleared')),
       );
@@ -361,7 +361,10 @@ class _DashboardContentState extends State<DashboardContent>
                         tooltip: 'Refresh dashboard widgets',
                         onPressed: _extrasLoading
                             ? null
-                            : () => _refreshAll(showLoading: true),
+                          : () => _refreshAll(
+                            showLoading: true,
+                            includeStats: true,
+                            ),
                         icon: _extrasLoading
                             ? const SizedBox(
                                 width: 18,
@@ -808,7 +811,10 @@ class _DashboardContentState extends State<DashboardContent>
                             issueId,
                           );
                         }, successMessage: 'Marked returned');
-                        await _refreshAll(showLoading: false);
+                          await _refreshAll(
+                            showLoading: false,
+                            includeStats: true,
+                          );
                       },
                       icon: const Icon(
                         Icons.assignment_return_rounded,
@@ -879,7 +885,7 @@ class _DashboardContentState extends State<DashboardContent>
                 () => ApiService.deactivateMember(memberId),
                 successMessage: 'Member deactivated',
               );
-              await _refreshAll(showLoading: false);
+              await _refreshAll(showLoading: false, includeStats: true);
             },
             child: const Text('Deactivate'),
           ),
@@ -917,7 +923,7 @@ class _DashboardContentState extends State<DashboardContent>
                 () => ApiService.activateMember(memberId),
                 successMessage: 'Member activated',
               );
-              await _refreshAll(showLoading: false);
+              await _refreshAll(showLoading: false, includeStats: true);
             },
             child: const Text('Activate'),
           ),
