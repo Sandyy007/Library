@@ -20,6 +20,7 @@ class _DashboardContentState extends State<DashboardContent>
   late Animation<double> _fadeAnimation;
 
   Timer? _refreshTimer;
+  Timer? _statsRefreshTimer;
   StreamSubscription<void>? _dataChangedSub;
   bool _refreshInFlight = false;
   bool _refreshQueued = false;
@@ -42,23 +43,33 @@ class _DashboardContentState extends State<DashboardContent>
     _animationController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshAll(showLoading: true);
+      _refreshAll(showLoading: true, includeStats: true);
 
       // Periodic refresh for realtime-ish updates (other clients).
       _refreshTimer?.cancel();
+      // Keep this lightweight: refresh alerts + activity only.
       _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-        _refreshAll(showLoading: false);
+        _refreshAll(showLoading: false, includeStats: false);
+      });
+
+      // Stats are heavier (impact charts); refresh less often.
+      _statsRefreshTimer?.cancel();
+      _statsRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        _refreshAll(showLoading: false, includeStats: true);
       });
 
       // Instant refresh after local mutations (issue/return/add/update/etc).
       _dataChangedSub?.cancel();
       _dataChangedSub = ApiService.dataChangedStream.listen((_) {
-        _refreshAll(showLoading: false);
+        _refreshAll(showLoading: false, includeStats: true);
       });
     });
   }
 
-  Future<void> _refreshAll({required bool showLoading}) async {
+  Future<void> _refreshAll({
+    required bool showLoading,
+    required bool includeStats,
+  }) async {
     if (!mounted) return;
     if (_refreshInFlight) {
       // Queue one more refresh to run after the current one finishes.
@@ -78,20 +89,21 @@ class _DashboardContentState extends State<DashboardContent>
     }
 
     try {
-      final statsFuture = context.read<IssueProvider>().loadStats();
-      final alertsFuture = ApiService.getDashboardAlerts(limit: 10);
-      final activityFuture = ApiService.getDashboardActivity(limit: 25);
+      final futures = <Future<dynamic>>[];
+      if (includeStats) {
+        futures.add(context.read<IssueProvider>().loadStats());
+      }
+      futures.add(ApiService.getDashboardAlerts(limit: 10));
+      futures.add(ApiService.getDashboardActivity(limit: 25));
 
-      final results = await Future.wait([
-        statsFuture,
-        alertsFuture,
-        activityFuture,
-      ]);
+      final results = await Future.wait(futures);
+
+      final offset = includeStats ? 1 : 0;
 
       if (!mounted) return;
       setState(() {
-        _alerts = results[1] as Map<String, dynamic>;
-        _activity = results[2] as List<Map<String, dynamic>>;
+        _alerts = results[offset] as Map<String, dynamic>;
+        _activity = results[offset + 1] as List<Map<String, dynamic>>;
         _extrasLoading = false;
       });
     } catch (e) {
@@ -106,7 +118,7 @@ class _DashboardContentState extends State<DashboardContent>
       if (_refreshQueued && mounted) {
         _refreshQueued = false;
         // Fire and forget (we just want to ensure UI eventually syncs).
-        unawaited(_refreshAll(showLoading: false));
+        unawaited(_refreshAll(showLoading: false, includeStats: true));
       }
     }
   }
@@ -154,6 +166,7 @@ class _DashboardContentState extends State<DashboardContent>
   void dispose() {
     _animationController.dispose();
     _refreshTimer?.cancel();
+    _statsRefreshTimer?.cancel();
     _dataChangedSub?.cancel();
     super.dispose();
   }

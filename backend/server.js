@@ -139,6 +139,38 @@ const dbQuery = (sql, params = []) =>
     });
   });
 
+// Best-effort activity logger (used by the dashboard Recent Activity feed).
+// If the table doesn't exist (older DB), we silently ignore insert errors.
+const logActivityEvent = ({
+  type,
+  related_id,
+  related_type,
+  title,
+  description,
+  occurred_at,
+}) => {
+  try {
+    const sql =
+      'INSERT INTO activity_events (type, related_id, related_type, title, description, occurred_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))';
+    db.query(
+      sql,
+      [
+        type,
+        related_id ?? null,
+        related_type ?? null,
+        title ?? null,
+        description ?? null,
+        occurred_at ?? null,
+      ],
+      () => {
+        // ignore
+      }
+    );
+  } catch (_) {
+    // ignore
+  }
+};
+
 const tryDeleteUploadedFile = (maybeUploadUrl) => {
   try {
     if (!maybeUploadUrl || typeof maybeUploadUrl !== 'string') return;
@@ -318,6 +350,14 @@ const runMigrations = () => {
     "ALTER TABLE members ADD COLUMN expiry_date DATE",
     "ALTER TABLE members ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
     "ALTER TABLE issues ADD COLUMN notes TEXT",
+    // Activity timestamps (enable truly realtime Recent Activity + reliable per-user Clear cutoff).
+    "ALTER TABLE issues ADD COLUMN issued_at DATETIME NULL",
+    "ALTER TABLE issues ADD COLUMN returned_at DATETIME NULL",
+    "ALTER TABLE members ADD COLUMN created_at DATETIME NULL",
+    // Best-effort backfill (safe to ignore if columns don't exist yet).
+    "UPDATE issues SET issued_at = CAST(issue_date AS DATETIME) WHERE issued_at IS NULL",
+    "UPDATE issues SET returned_at = CAST(return_date AS DATETIME) WHERE returned_at IS NULL AND return_date IS NOT NULL",
+    "UPDATE members SET created_at = CAST(membership_date AS DATETIME) WHERE created_at IS NULL",
     `CREATE TABLE IF NOT EXISTS member_categories (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(50) UNIQUE NOT NULL,
@@ -350,6 +390,17 @@ const runMigrations = () => {
       position INT DEFAULT 0,
       settings JSON
     )`,
+    `CREATE TABLE IF NOT EXISTS activity_events (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      type VARCHAR(50) NOT NULL,
+      related_id INT NULL,
+      related_type VARCHAR(50) NULL,
+      title VARCHAR(255) NULL,
+      description TEXT NULL,
+      occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_occurred_at (occurred_at),
+      INDEX idx_type (type)
+    ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
       ('student', 3, 14)`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
@@ -546,6 +597,15 @@ app.post('/api/books', (req, res) => {
          SELECT id, ?, ?, 'new_book', ?, 'book' FROM users WHERE role = 'admin' LIMIT 1`,
         [`New Book Added: ${title}`, `"${title}" by ${author} has been added to the library.`, result.insertId]
       );
+
+      // Dashboard activity
+      logActivityEvent({
+        type: 'book_added',
+        related_id: result.insertId,
+        related_type: 'book',
+        title: `New book: ${title}`,
+        description: `"${title}" by ${author}`,
+      });
       
       res.json({ id: result.insertId });
     }
@@ -894,14 +954,53 @@ app.get('/api/members/:id', (req, res) => {
 
 app.post('/api/members', (req, res) => {
   const { name, email, phone, member_type, membership_date, profile_photo, address, expiry_date } = req.body;
-  db.query(
-    'INSERT INTO members (name, email, phone, member_type, membership_date, profile_photo, address, expiry_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)',
-    [name, email, phone, member_type || 'student', membership_date, profile_photo, address, expiry_date],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: result.insertId });
+  // Prefer storing a real creation timestamp when supported.
+  const insertWithCreatedAt =
+    'INSERT INTO members (name, email, phone, member_type, membership_date, profile_photo, address, expiry_date, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, NOW())';
+  const insertLegacy =
+    'INSERT INTO members (name, email, phone, member_type, membership_date, profile_photo, address, expiry_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)';
+
+  const values = [
+    name,
+    email,
+    phone,
+    member_type || 'student',
+    membership_date,
+    profile_photo,
+    address,
+    expiry_date,
+  ];
+
+  db.query(insertWithCreatedAt, values, (err, result) => {
+    if (err && /Unknown column/i.test(err.message || '')) {
+      return db.query(insertLegacy, values, (err2, result2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+
+        // Dashboard activity
+        logActivityEvent({
+          type: 'member_added',
+          related_id: result2.insertId,
+          related_type: 'member',
+          title: `New member: ${name}`,
+          description: `${name} registered`,
+        });
+
+        res.json({ id: result2.insertId });
+      });
     }
-  );
+    if (err) return res.status(500).json({ error: err.message });
+
+    // Dashboard activity
+    logActivityEvent({
+      type: 'member_added',
+      related_id: result.insertId,
+      related_type: 'member',
+      title: `New member: ${name}`,
+      description: `${name} registered`,
+    });
+
+    res.json({ id: result.insertId });
+  });
 });
 
 app.put('/api/members/:id', (req, res) => {
@@ -1113,24 +1212,45 @@ app.post('/api/issues', (req, res) => {
           }
 
           // Issue the book
-          db.query(
-            'INSERT INTO issues (book_id, member_id, issue_date, due_date) VALUES (?, ?, ?, ?)',
-            [book_id, member_id, issue_date, due_date],
-            (err, result) => {
-              if (err) return res.status(500).json({ error: err.message });
-              
-              // Update book availability
-              const newAvailable = availableCopies - 1;
-              const newStatus = newAvailable <= 0 ? 'issued' : 'issued';
-              
-              db.query(
-                'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
-                [newAvailable, newStatus, book_id]
-              );
-              
-              res.json({ id: result.insertId });
+          const insertWithIssuedAt =
+            'INSERT INTO issues (book_id, member_id, issue_date, due_date, issued_at) VALUES (?, ?, ?, ?, NOW())';
+          const insertLegacy =
+            'INSERT INTO issues (book_id, member_id, issue_date, due_date) VALUES (?, ?, ?, ?)';
+
+          const insertValues = [book_id, member_id, issue_date, due_date];
+
+          const afterInsert = (result) => {
+            // Update book availability
+            const newAvailable = availableCopies - 1;
+            const newStatus = newAvailable <= 0 ? 'issued' : 'issued';
+
+            db.query(
+              'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
+              [newAvailable, newStatus, book_id]
+            );
+
+            // Dashboard activity
+            logActivityEvent({
+              type: 'issue',
+              related_id: result.insertId,
+              related_type: 'issue',
+              title: `Issued: ${book?.title ?? ''}`,
+              description: `${member?.name ?? 'Someone'} borrowed "${book?.title ?? ''}"`,
+            });
+
+            res.json({ id: result.insertId });
+          };
+
+          db.query(insertWithIssuedAt, insertValues, (err, result) => {
+            if (err && /Unknown column/i.test(err.message || '')) {
+              return db.query(insertLegacy, insertValues, (err2, result2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                afterInsert(result2);
+              });
             }
-          );
+            if (err) return res.status(500).json({ error: err.message });
+            afterInsert(result);
+          });
         }
       );
     });
@@ -1148,31 +1268,68 @@ app.put('/api/issues/:id/return', (req, res) => {
 
     const issue = issueResults[0];
     
-    db.query(
-      'UPDATE issues SET return_date = ?, status = "returned" WHERE id = ?',
-      [return_date, req.params.id],
-      (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        // Update book availability
-        db.query('SELECT * FROM books WHERE id = ?', [issue.book_id], (err, bookResults) => {
-          if (!err && bookResults.length > 0) {
-            const book = bookResults[0];
-            const currentAvailable = book.available_copies !== undefined ? book.available_copies : 0;
-            const newAvailable = currentAvailable + 1;
-            const totalCopies = book.total_copies || 1;
-            const newStatus = newAvailable >= totalCopies ? 'available' : 'issued';
-            
-            db.query(
-              'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
-              [newAvailable, newStatus, issue.book_id]
-            );
+    const updateWithReturnedAt =
+      'UPDATE issues SET return_date = ?, status = "returned", returned_at = NOW() WHERE id = ?';
+    const updateLegacy =
+      'UPDATE issues SET return_date = ?, status = "returned" WHERE id = ?';
+
+    const updateValues = [return_date, req.params.id];
+
+    const afterReturnUpdate = () => {
+      // Update book availability
+      db.query('SELECT * FROM books WHERE id = ?', [issue.book_id], (err, bookResults) => {
+        if (!err && bookResults.length > 0) {
+          const book = bookResults[0];
+          const currentAvailable = book.available_copies !== undefined ? book.available_copies : 0;
+          const newAvailable = currentAvailable + 1;
+          const totalCopies = book.total_copies || 1;
+          const newStatus = newAvailable >= totalCopies ? 'available' : 'issued';
+
+          db.query(
+            'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
+            [newAvailable, newStatus, issue.book_id]
+          );
+        }
+      });
+
+      // Dashboard activity
+      db.query(
+        `
+          SELECT b.title AS book_title, m.name AS member_name
+          FROM issues i
+          JOIN books b ON i.book_id = b.id
+          JOIN members m ON i.member_id = m.id
+          WHERE i.id = ?
+          LIMIT 1
+        `,
+        [req.params.id],
+        (err, rows) => {
+          if (!err && rows && rows.length > 0) {
+            const row = rows[0];
+            logActivityEvent({
+              type: 'return',
+              related_id: Number(req.params.id),
+              related_type: 'issue',
+              title: `Returned: ${row.book_title ?? ''}`,
+              description: `${row.member_name ?? 'Someone'} returned "${row.book_title ?? ''}"`,
+            });
           }
+        }
+      );
+
+      res.json({ message: 'Book returned successfully' });
+    };
+
+    db.query(updateWithReturnedAt, updateValues, (err) => {
+      if (err && /Unknown column/i.test(err.message || '')) {
+        return db.query(updateLegacy, updateValues, (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          afterReturnUpdate();
         });
-        
-        res.json({ message: 'Book returned successfully' });
       }
-    );
+      if (err) return res.status(500).json({ error: err.message });
+      afterReturnUpdate();
+    });
   });
 });
 
@@ -1222,6 +1379,7 @@ app.put('/api/issues/:id', (req, res) => {
     const issue = issueResults[0];
     let updateFields = [];
     let updateValues = [];
+    let wantsReturnedAt = false;
 
     if (due_date !== undefined) {
       updateFields.push('due_date = ?');
@@ -1231,6 +1389,7 @@ app.put('/api/issues/:id', (req, res) => {
     if (return_date !== undefined) {
       updateFields.push('return_date = ?');
       updateValues.push(return_date);
+      wantsReturnedAt = true;
     }
 
     if (status !== undefined) {
@@ -1238,6 +1397,7 @@ app.put('/api/issues/:id', (req, res) => {
       updateValues.push(status);
 
       if (status === 'returned') {
+        wantsReturnedAt = true;
         // Update book availability
         db.query('SELECT * FROM books WHERE id = ?', [issue.book_id], (err, bookResults) => {
           if (!err && bookResults.length > 0) {
@@ -1261,6 +1421,11 @@ app.put('/api/issues/:id', (req, res) => {
       }
     }
 
+    if (wantsReturnedAt) {
+      // This field may not exist on older schemas; we'll retry without it if needed.
+      updateFields.push('returned_at = COALESCE(returned_at, NOW())');
+    }
+
     if (updateFields.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
@@ -1269,6 +1434,14 @@ app.put('/api/issues/:id', (req, res) => {
     const query = `UPDATE issues SET ${updateFields.join(', ')} WHERE id = ?`;
 
     db.query(query, updateValues, async (err) => {
+      if (err && wantsReturnedAt && /Unknown column 'returned_at'/i.test(err.message || '')) {
+        const legacyFields = updateFields.filter((f) => !/returned_at/i.test(f));
+        const legacyQuery = `UPDATE issues SET ${legacyFields.join(', ')} WHERE id = ?`;
+        return db.query(legacyQuery, updateValues, (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.json({ message: 'Issue updated successfully' });
+        });
+      }
       if (err) return res.status(500).json({ error: err.message });
 
       res.json({ message: 'Issue updated successfully' });
@@ -1318,6 +1491,13 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // Dashboard actionable alerts + operational KPIs
 app.get('/api/dashboard/alerts', async (req, res) => {
   await refreshOverdueStatuses();
+
+  // Keep notifications in sync even if user stays on Dashboard.
+  try {
+    await generateNotifications();
+  } catch (_) {
+    // Ignore notification errors
+  }
 
   const overdueDays = parseNonNegativeInt(req.query.overdue_days, 7);
   const lowStockThreshold = parseNonNegativeInt(req.query.low_stock_threshold, 1);
@@ -1534,6 +1714,44 @@ app.get('/api/dashboard/activity', (req, res) => {
       const limit = parsePositiveInt(req.query.limit, 25);
       const userId = req.user?.id;
 
+      // Detect optional timestamp columns so this endpoint stays compatible with older schemas.
+      const columnExists = async (table, column) => {
+        const rows = await dbQuery(
+          `SELECT 1 AS ok
+           FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = ?
+             AND COLUMN_NAME = ?
+           LIMIT 1`,
+          [table, column]
+        );
+        return Array.isArray(rows) && rows.length > 0;
+      };
+
+      const [hasIssueIssuedAt, hasIssueReturnedAt, hasMemberCreatedAt, hasBookAddedDate] =
+        await Promise.all([
+          columnExists('issues', 'issued_at'),
+          columnExists('issues', 'returned_at'),
+          columnExists('members', 'created_at'),
+          columnExists('books', 'added_date'),
+        ]);
+
+      const issueOccurredAt = hasIssueIssuedAt
+        ? 'COALESCE(i.issued_at, CAST(i.issue_date AS DATETIME))'
+        : 'CAST(i.issue_date AS DATETIME)';
+
+      const returnOccurredAt = hasIssueReturnedAt
+        ? 'COALESCE(i.returned_at, CAST(i.return_date AS DATETIME))'
+        : 'CAST(i.return_date AS DATETIME)';
+
+      const memberOccurredAt = hasMemberCreatedAt
+        ? 'COALESCE(m.created_at, CAST(m.membership_date AS DATETIME))'
+        : 'CAST(m.membership_date AS DATETIME)';
+
+      const bookOccurredAt = hasBookAddedDate
+        ? 'CAST(b.added_date AS DATETIME)'
+        : 'CAST(NULL AS DATETIME)';
+
       // Optional per-user cutoff ("Clear" button on UI hides anything before this timestamp).
       let hiddenBefore = null;
       if (userId) {
@@ -1556,6 +1774,39 @@ app.get('/api/dashboard/activity', (req, res) => {
         }
       }
 
+      // If the dedicated activity table exists, use it (this supports true realtime ordering).
+      let hasActivityEvents = false;
+      try {
+        const tRows = await dbQuery(
+          `SELECT 1 AS ok
+           FROM INFORMATION_SCHEMA.TABLES
+           WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = 'activity_events'
+           LIMIT 1`
+        );
+        hasActivityEvents = Array.isArray(tRows) && tRows.length > 0;
+      } catch (_) {
+        hasActivityEvents = false;
+      }
+
+      if (hasActivityEvents) {
+        const whereCutoff = hiddenBefore ? 'WHERE occurred_at >= ?' : '';
+        const params = [];
+        if (hiddenBefore) params.push(hiddenBefore);
+        params.push(limit);
+
+        const sql = `
+          SELECT type, related_id, related_type, occurred_at, title, description
+          FROM activity_events
+          ${whereCutoff}
+          ORDER BY occurred_at DESC
+          LIMIT ?
+        `;
+
+        const rows = await dbQuery(sql, params);
+        return res.json(rows);
+      }
+
       // Build the UNION first, then apply the cutoff in an outer WHERE on a unified DATETIME.
       // This makes "Clear" reliable even when source columns are DATE-only.
       const whereCutoff = hiddenBefore ? 'WHERE a.occurred_at >= ?' : '';
@@ -1571,7 +1822,7 @@ app.get('/api/dashboard/activity', (req, res) => {
               CAST('issue' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS type,
               i.id AS related_id,
               CAST('issue' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS related_type,
-              CAST(i.issue_date AS DATETIME) AS occurred_at,
+              ${issueOccurredAt} AS occurred_at,
               (CONCAT('Issued: ', CONVERT(b.title USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS title,
               (CONCAT(CONVERT(m.name USING utf8mb4), ' borrowed "', CONVERT(b.title USING utf8mb4), '"') COLLATE utf8mb4_unicode_ci) AS description
             FROM issues i
@@ -1584,7 +1835,7 @@ app.get('/api/dashboard/activity', (req, res) => {
               CAST('return' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS type,
               i.id AS related_id,
               CAST('issue' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS related_type,
-              CAST(i.return_date AS DATETIME) AS occurred_at,
+              ${returnOccurredAt} AS occurred_at,
               (CONCAT('Returned: ', CONVERT(b.title USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS title,
               (CONCAT(CONVERT(m.name USING utf8mb4), ' returned "', CONVERT(b.title USING utf8mb4), '"') COLLATE utf8mb4_unicode_ci) AS description
             FROM issues i
@@ -1598,7 +1849,7 @@ app.get('/api/dashboard/activity', (req, res) => {
               CAST('book_added' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS type,
               b.id AS related_id,
               CAST('book' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS related_type,
-              CAST(b.added_date AS DATETIME) AS occurred_at,
+              ${bookOccurredAt} AS occurred_at,
               (CONCAT('New book: ', CONVERT(b.title USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS title,
               (CONCAT('"', CONVERT(b.title USING utf8mb4), '" by ', CONVERT(b.author USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS description
             FROM books b
@@ -1609,7 +1860,7 @@ app.get('/api/dashboard/activity', (req, res) => {
               CAST('member_added' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS type,
               m.id AS related_id,
               CAST('member' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS related_type,
-              CAST(m.membership_date AS DATETIME) AS occurred_at,
+              ${memberOccurredAt} AS occurred_at,
               (CONCAT('New member: ', CONVERT(m.name USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS title,
               (CONCAT(CONVERT(m.name USING utf8mb4), ' registered') COLLATE utf8mb4_unicode_ci) AS description
             FROM members m

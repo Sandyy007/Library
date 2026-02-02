@@ -26,6 +26,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
+  bool _booksLoaded = false;
+  bool _membersLoaded = false;
+  bool _issuesLoaded = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   final TextEditingController _searchController = TextEditingController();
@@ -61,21 +64,45 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Load initial data for all screens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAllData();
+      _loadInitialData();
     });
   }
 
-  void _loadAllData() {
-    // Load all data so it's available when switching tabs
-    context.read<IssueProvider>().loadStats().catchError((e) => print('Error loading stats: $e'));
-    context.read<IssueProvider>().loadIssues().catchError((e) => print('Error loading issues: $e'));
-    context.read<BookProvider>().loadBooks().catchError((e) => print('Error loading books: $e'));
-    context.read<MemberProvider>().loadMembers().catchError((e) => print('Error loading members: $e'));
-    
+  void _loadInitialData() {
+    // Keep startup fast: Dashboard content will fetch its own alerts/activity.
+    context.read<IssueProvider>().loadStats().catchError(
+      (e) => print('Error loading stats: $e'),
+    );
+
     // Initialize notifications with current user (if authenticated)
     final authProvider = context.read<AuthProvider>();
     if (authProvider.isAuthenticated && authProvider.user != null) {
       context.read<NotificationProvider>().initialize(authProvider.user!.id);
+    }
+  }
+
+  void _ensureTabDataLoaded(int index) {
+    // Load tab data lazily the first time a tab is opened.
+    if (index == 1 && !_booksLoaded) {
+      _booksLoaded = true;
+      context.read<BookProvider>().loadBooks().catchError(
+        (e) => print('Error loading books: $e'),
+      );
+      return;
+    }
+    if (index == 2 && !_membersLoaded) {
+      _membersLoaded = true;
+      context.read<MemberProvider>().loadMembers().catchError(
+        (e) => print('Error loading members: $e'),
+      );
+      return;
+    }
+    if (index == 3 && !_issuesLoaded) {
+      _issuesLoaded = true;
+      context.read<IssueProvider>().loadIssues().catchError(
+        (e) => print('Error loading issues: $e'),
+      );
+      return;
     }
   }
 
@@ -117,7 +144,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 32), // Increased horizontal padding
+                        horizontal: 32,
+                      ), // Increased horizontal padding
                       child: Row(
                         children: [
                           AnimatedSwitcher(
@@ -125,13 +153,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                             child: Text(
                               _titles[_selectedIndex],
                               key: ValueKey<int>(_selectedIndex),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineSmall
+                              style: Theme.of(context).textTheme.headlineSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                             ),
                           ),
@@ -144,10 +171,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                               color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .outline
-                                    .withValues(alpha: 0.3),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outline.withValues(alpha: 0.3),
                               ),
                             ),
                             child: TextField(
@@ -161,7 +187,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ),
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 20), // Increased padding
+                                  horizontal: 20,
+                                ), // Increased padding
                               ),
                             ),
                           ),
@@ -180,7 +207,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         duration: const Duration(milliseconds: 400),
                         child: Padding(
                           padding: const EdgeInsets.all(
-                              24), // Added padding for better spacing
+                            24,
+                          ), // Added padding for better spacing
                           child: _screens[_selectedIndex],
                         ),
                       ),
@@ -200,6 +228,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       _animationController.reset();
       setState(() => _selectedIndex = index);
       _animationController.forward();
+
+      // Load data for the newly selected tab.
+      _ensureTabDataLoaded(index);
     }
   }
 
