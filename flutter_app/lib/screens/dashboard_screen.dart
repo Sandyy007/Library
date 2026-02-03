@@ -174,66 +174,73 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     Scaffold.of(context).openDrawer(),
                               ),
                             ),
-                          if (!isVeryCompact)
-                            Flexible(
-                              flex: 0,
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 300),
-                                child: Text(
-                                  _titles[_selectedIndex],
-                                  key: ValueKey<int>(_selectedIndex),
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                      ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          const Spacer(),
-                          // Search Bar - Responsive width
+                          // Title
                           Flexible(
-                            flex: 2,
-                            child: Container(
-                              constraints: BoxConstraints(
-                                maxWidth: isVeryCompact ? 200 : 320,
-                                minWidth: 120,
-                              ),
-                              height: isVeryCompact ? 40 : 44,
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.outline.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: (value) => _onSearchChanged(value),
-                                decoration: InputDecoration(
-                                  hintText: 'Search...',
-                                  prefixIcon: Icon(
-                                    Icons.search_rounded,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    size: isVeryCompact ? 20 : 24,
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: isVeryCompact ? 12 : 16,
-                                    vertical: isVeryCompact ? 8 : 10,
-                                  ),
-                                ),
+                            flex: 0,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Text(
+                                _titles[_selectedIndex],
+                                key: ValueKey<int>(_selectedIndex),
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
-                          SizedBox(width: isVeryCompact ? 8 : 16),
+                          // Push everything else to the right
+                          const Spacer(),
+                          // Search Bar - Responsive width
+                          if (!isVeryCompact)
+                            Flexible(
+                              flex: 0,
+                              child: Container(
+                                width: 280,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outline.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: TextField(
+                                  controller: _searchController,
+                                  onChanged: (value) => _onSearchChanged(value),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search...',
+                                    prefixIcon: Icon(
+                                      Icons.search_rounded,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      size: 22,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (isVeryCompact)
+                            IconButton(
+                              icon: Icon(
+                                Icons.search_rounded,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              onPressed: () => _showSearchDialog(context),
+                            ),
+                          const SizedBox(width: 8),
                           // Notification Bell with Badge
                           const NotificationBell(),
                         ],
@@ -271,6 +278,45 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Load data for the newly selected tab.
       _ensureTabDataLoaded(index);
     }
+  }
+
+  void _showSearchDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Search'),
+        content: SizedBox(
+          width: 300,
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search books, members...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onSubmitted: (value) {
+              Navigator.of(dialogContext).pop();
+              _onSearchChanged(value);
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _onSearchChanged(_searchController.text);
+            },
+            child: const Text('Search'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onSearchChanged(String query) async {

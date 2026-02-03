@@ -375,13 +375,24 @@ class NotificationTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       _formatTimestamp(notification.createdAt),
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
                     ),
                   ],
                 ),
               ),
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, size: 18, color: Colors.grey[400]),
+                icon: Icon(
+                  Icons.more_vert,
+                  size: 18,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
                 itemBuilder: (context) => [
                   if (isUnread)
                     const PopupMenuItem(

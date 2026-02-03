@@ -84,7 +84,10 @@ class _BooksContentState extends State<BooksContent> {
     try {
       if (kDebugMode) debugPrint('DEBUG [BooksContent]: Calling loadBooks');
       context.read<BookProvider>().loadBooks().catchError((error) {
-        if (kDebugMode) debugPrint('DEBUG [BooksContent]: Error caught in catchError: $error');
+        if (kDebugMode)
+          debugPrint(
+            'DEBUG [BooksContent]: Error caught in catchError: $error',
+          );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -96,7 +99,8 @@ class _BooksContentState extends State<BooksContent> {
         }
       });
     } catch (e) {
-      if (kDebugMode) debugPrint('DEBUG [BooksContent]: Error in try block: $e');
+      if (kDebugMode)
+        debugPrint('DEBUG [BooksContent]: Error in try block: $e');
     }
   }
 
@@ -425,19 +429,31 @@ class _BooksContentState extends State<BooksContent> {
                             Icon(
                               Icons.library_books_outlined,
                               size: 80,
-                              color: Colors.grey[400],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.4),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No books found',
                               style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: Colors.grey[600]),
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Click "Add Book" to create a new book',
                               style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.grey[500]),
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(

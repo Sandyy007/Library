@@ -86,56 +86,61 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo - Circular with border
+                  // Logo - Clean design with thin white border
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.white, width: 0),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 10,
+                          spreadRadius: 1,
                           offset: const Offset(0, 3),
                         ),
                       ],
                     ),
                     child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/Office_Logo.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/images/App_Logo.png',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Theme.of(context).colorScheme.primary,
-                                      Theme.of(context).colorScheme.secondary,
-                                    ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(0.5),
+                        child: Image.asset(
+                          'assets/images/Office_Logo.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              'assets/images/App_Logo.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Theme.of(context).colorScheme.primary,
+                                        Theme.of(context).colorScheme.secondary,
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'OL',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                  child: Center(
+                                    child: Text(
+                                      'OL',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          );
-                        },
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),

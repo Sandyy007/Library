@@ -157,9 +157,11 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 8),
               Text(
                 'Books ranked by total borrow count',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -297,9 +299,11 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 8),
               Text(
                 'Members ranked by total books borrowed',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -386,9 +390,14 @@ class _ReportsContentState extends State<ReportsContent>
               color: Theme.of(context).colorScheme.primary,
             ),
           ),
-          const Text(
+          Text(
             'total borrowed',
-            style: TextStyle(fontSize: 10, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
           ),
         ],
       ),
@@ -449,9 +458,11 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 8),
               Text(
                 'Issues and returns over the last 12 months',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
               const SizedBox(height: 24),
               // Summary cards
@@ -580,7 +591,12 @@ class _ReportsContentState extends State<ReportsContent>
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
@@ -1014,13 +1030,21 @@ class _ReportsContentState extends State<ReportsContent>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 80, color: Colors.grey[400]),
+          Icon(
+            icon,
+            size: 80,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 16),
           Text(
             message,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(color: Colors.grey[600]),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(

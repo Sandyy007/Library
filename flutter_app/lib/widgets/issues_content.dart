@@ -307,7 +307,12 @@ class _IssuesContentState extends State<IssuesContent> {
                                 issueProvider.error!,
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.grey[600]),
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
+                                    ),
                               ),
                               const SizedBox(height: 20),
                               Wrap(
@@ -338,19 +343,31 @@ class _IssuesContentState extends State<IssuesContent> {
                             Icon(
                               Icons.assignment_outlined,
                               size: 80,
-                              color: Colors.grey[400],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.4),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No issues found',
                               style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: Colors.grey[600]),
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Click "Issue Book" to create a new issue',
                               style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.grey[500]),
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
@@ -419,7 +436,10 @@ class _IssuesContentState extends State<IssuesContent> {
                                           'by ${normalizeHindiForDisplay(issue.bookAuthor)}',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.grey[600],
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.6),
                                             fontFamilyFallback: const [
                                               'Nirmala UI',
                                               'Mangal',

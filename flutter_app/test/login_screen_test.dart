@@ -22,7 +22,7 @@ void main() {
     // Let initial animations settle.
     await tester.pump(const Duration(milliseconds: 1100));
 
-    await tester.tap(find.text('Login'));
+    await tester.tap(find.text('Sign In'));
     await tester.pump();
 
     expect(find.text('Please enter admin username'), findsOneWidget);
@@ -41,7 +41,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.pump(const Duration(milliseconds: 1300));
 
     final passwordFieldFinder = find.byType(TextFormField).at(1);
     EditableText editable = tester.widget<EditableText>(
@@ -50,7 +50,7 @@ void main() {
     expect(editable.obscureText, isTrue);
 
     // Tap the suffix icon button.
-    await tester.tap(find.byIcon(Icons.visibility_off));
+    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
     await tester.pump();
 
     editable = tester.widget<EditableText>(
@@ -71,14 +71,14 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.pump(const Duration(milliseconds: 1300));
 
     await tester.enterText(find.byType(TextFormField).at(0), 'admin');
     await tester.enterText(find.byType(TextFormField).at(1), 'admin');
 
     expect(auth.isAuthenticated, isFalse);
 
-    await tester.tap(find.text('Login'));
+    await tester.tap(find.text('Sign In'));
     await tester.pump();
 
     // Wait for the async login call to complete.
