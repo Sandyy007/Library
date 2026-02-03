@@ -92,7 +92,17 @@ class ApiService {
       return prefs.getString(_tokenKey);
     }
     try {
-      return await _secureStorage.read(key: _tokenKey);
+      final token = await _secureStorage.read(key: _tokenKey);
+      if (token != null && token.isNotEmpty) return token;
+    } catch (_) {
+      // Fall back below.
+    }
+
+    // Fallback for desktop targets where secure storage may be unavailable or
+    // misconfigured.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_tokenKey);
     } catch (_) {
       return null;
     }
@@ -109,6 +119,14 @@ class ApiService {
     } catch (_) {
       // Ignore when secure storage is unavailable (e.g., widget tests).
     }
+
+    // Always also store in SharedPreferences as a fallback for desktop.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, token);
+    } catch (_) {
+      // Ignore.
+    }
   }
 
   static Future<void> clearToken() async {
@@ -121,6 +139,13 @@ class ApiService {
       await _secureStorage.delete(key: _tokenKey);
     } catch (_) {
       // Ignore when secure storage is unavailable (e.g., widget tests).
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokenKey);
+    } catch (_) {
+      // Ignore.
     }
   }
 

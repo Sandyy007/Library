@@ -730,6 +730,11 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
     const authorKeys = ['author', 'authorname'];
     const rackKeys = ['rack', 'racknumber', 'rackno', 'racknum', 'racklocation'];
     const isbnKeys = ['isbn'];
+    const categoryKeys = ['category', 'categoryname', 'genre', 'type', 'subject'];
+    const descriptionKeys = ['description', 'desc', 'summary', 'about'];
+    const publisherKeys = ['publisher', 'publishername', 'pub'];
+    const yearKeys = ['year', 'yearpublished', 'publishedyear', 'pubyear', 'publicationyear'];
+    const copiesKeys = ['copy', 'copies', 'totalcopies', 'quantity', 'qty', 'count', 'noofcopies', 'numberofcopies'];
 
     const looksLikeLegacyHindi = (text) => {
       const s = String(text || '').trim();
@@ -757,6 +762,14 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
       const author = String(pick(row, authorKeys) ?? '').trim();
       const rackNumber = String(pick(row, rackKeys) ?? '').trim();
       const isbn = String(pick(row, isbnKeys) ?? '').trim();
+      const category = String(pick(row, categoryKeys) ?? '').trim();
+      const description = String(pick(row, descriptionKeys) ?? '').trim();
+      const publisher = String(pick(row, publisherKeys) ?? '').trim();
+      const yearRaw = pick(row, yearKeys);
+      const year = yearRaw ? parseInt(String(yearRaw).trim(), 10) : null;
+      const copiesRaw = pick(row, copiesKeys);
+      const copies = copiesRaw ? parseInt(String(copiesRaw).trim(), 10) : 1;
+      const totalCopies = (copies && !isNaN(copies) && copies > 0) ? copies : 1;
 
       if (!title || !author) {
         skipped++;
@@ -768,8 +781,12 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
         legacyHindiRows++;
       }
 
-      const normalizedIsbn = isbn ? isbn : null;
-      const normalizedRack = rackNumber ? rackNumber : null;
+      const normalizedIsbn = isbn || null;
+      const normalizedRack = rackNumber || null;
+      const normalizedCategory = category || null;
+      const normalizedDescription = description || null;
+      const normalizedPublisher = publisher || null;
+      const normalizedYear = (year && !isNaN(year)) ? year : null;
 
       try {
         let existing = null;
@@ -784,14 +801,21 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
 
         if (existing) {
           await dbQuery(
-            'UPDATE books SET title = ?, author = ?, rack_number = ?, isbn = ? WHERE id = ?',
-            [title, author, normalizedRack, normalizedIsbn, existing.id]
+            `UPDATE books SET title = ?, author = ?, rack_number = ?, isbn = ?, 
+             category = COALESCE(?, category), description = COALESCE(?, description),
+             publisher = COALESCE(?, publisher), year_published = COALESCE(?, year_published)
+             WHERE id = ?`,
+            [title, author, normalizedRack, normalizedIsbn, normalizedCategory, 
+             normalizedDescription, normalizedPublisher, normalizedYear, existing.id]
           );
           updated++;
         } else {
           await dbQuery(
-            'INSERT INTO books (isbn, title, author, rack_number, total_copies, available_copies, status) VALUES (?, ?, ?, ?, 1, 1, \'available\')',
-            [normalizedIsbn, title, author, normalizedRack]
+            `INSERT INTO books (isbn, title, author, rack_number, category, description, 
+             publisher, year_published, total_copies, available_copies, status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')`,
+            [normalizedIsbn, title, author, normalizedRack, normalizedCategory, 
+             normalizedDescription, normalizedPublisher, normalizedYear, totalCopies, totalCopies]
           );
           inserted++;
         }
@@ -1788,6 +1812,11 @@ app.get('/api/dashboard/activity', (req, res) => {
       } catch (_) {
         hasActivityEvents = false;
       }
+
+      // Skip activity_events table for now - use UNION query to generate fresh data
+      // from source tables (books, members, issues) to avoid corrupted legacy data.
+      // TODO: Re-enable once activity_events table has clean data.
+      hasActivityEvents = false;
 
       if (hasActivityEvents) {
         const whereCutoff = hiddenBefore ? 'WHERE occurred_at >= ?' : '';

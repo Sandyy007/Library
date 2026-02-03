@@ -5,12 +5,15 @@ import '../services/api_service.dart';
 class BookProvider with ChangeNotifier {
   List<Book> _books = [];
   bool _isLoading = false;
+  String? _error;
 
   List<Book> get books => _books;
   bool get isLoading => _isLoading;
+  String? get error => _error;
 
   Future<void> loadBooks({String? search, String? category}) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     print('DEBUG [BookProvider]: Starting loadBooks, search=$search, category=$category');
 
@@ -21,6 +24,7 @@ class BookProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('DEBUG [BookProvider]: Error loading books: $e');
+      _error = e.toString();
       _isLoading = false;
       notifyListeners();
       rethrow;

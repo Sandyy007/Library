@@ -4,6 +4,7 @@ import '../providers/book_provider.dart';
 import '../providers/search_provider.dart';
 import '../models/book.dart';
 import '../services/api_service.dart';
+import '../utils/hindi_text.dart';
 
 class AdvancedSearchDialog extends StatefulWidget {
   const AdvancedSearchDialog({super.key});
@@ -351,7 +352,7 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             itemCount: provider.searchBooks.length,
-                            separatorBuilder: (_, __) => Divider(
+                            separatorBuilder: (_, i) => Divider(
                               height: 1,
                               color: Theme.of(
                                 context,
@@ -435,14 +436,35 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
               )
             : _buildBookPlaceholder(),
       ),
-      title: Text(
-        book.title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+      title: Builder(
+        builder: (context) {
+          final displayTitle = normalizeHindiForDisplay(book.title);
+          return Text(
+            displayTitle,
+            style: hindiAwareTextStyle(
+              context,
+              text: displayTitle,
+              base: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          );
+        },
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('by ${book.author}'),
+          Builder(
+            builder: (context) {
+              final displayAuthor = normalizeHindiForDisplay(book.author);
+              return Text(
+                'by $displayAuthor',
+                style: hindiAwareTextStyle(
+                  context,
+                  text: displayAuthor,
+                  base: const TextStyle(),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 4),
           Row(
             children: [

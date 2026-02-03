@@ -11,6 +11,7 @@ import '../models/member.dart';
 import '../widgets/member_dialog.dart';
 import '../widgets/member_history_dialog.dart';
 import '../services/api_service.dart';
+import '../utils/hindi_text.dart';
 
 enum MemberStatusFilter { all, active, inactive }
 
@@ -24,6 +25,19 @@ class MembersContent extends StatefulWidget {
 class _MembersContentState extends State<MembersContent> {
   final TextEditingController _searchController = TextEditingController();
   MemberStatusFilter _statusFilter = MemberStatusFilter.all;
+
+  TextStyle _textStyleForHindi(String text, TextStyle base) {
+    if (containsDevanagari(text) || looksLikeLegacyHindi(text)) {
+      return base.copyWith(
+        fontFamilyFallback: const [
+          'Nirmala UI',
+          'Mangal',
+          'Noto Sans Devanagari',
+        ],
+      );
+    }
+    return base;
+  }
 
   @override
   void initState() {
@@ -49,7 +63,13 @@ class _MembersContentState extends State<MembersContent> {
   }
 
   List getFilteredMembers(List members) {
-    final query = _searchController.text.toLowerCase();
+    final rawQuery = _searchController.text;
+    final query = rawQuery.toLowerCase();
+    // Normalize query for Hindi matching
+    final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
+    // Convert to KrutiDev for matching legacy data
+    final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
+
     final filteredByStatus = members.where((member) {
       final m = member as Member;
       switch (_statusFilter) {
@@ -65,7 +85,13 @@ class _MembersContentState extends State<MembersContent> {
     if (query.isEmpty) return filteredByStatus;
     return filteredByStatus.where((member) {
       final m = member as Member;
-      return m.name.toLowerCase().contains(query) ||
+      // Normalize member name for Hindi matching
+      final normalizedName = normalizeHindiForDisplay(m.name).toLowerCase();
+      final rawName = m.name.toLowerCase();
+      return normalizedName.contains(query) ||
+          normalizedName.contains(normalizedQuery) ||
+          rawName.contains(krutiDevQuery) ||
+          m.name.toLowerCase().contains(query) ||
           (m.email ?? '').toLowerCase().contains(query) ||
           (m.phone ?? '').contains(query);
     }).toList();
@@ -338,21 +364,17 @@ class _MembersContentState extends State<MembersContent> {
                         ),
                       )
                     : DataTable2(
-                        columnSpacing: 12,
-                        horizontalMargin: 16,
-                        minWidth: 800,
+                        columnSpacing: 8,
+                        horizontalMargin: 12,
                         dataRowHeight: 70,
                         columns: const [
                           DataColumn2(label: Text('Photo'), fixedWidth: 60),
                           DataColumn2(label: Text('Name'), size: ColumnSize.L),
                           DataColumn2(label: Text('Email'), size: ColumnSize.M),
-                          DataColumn2(label: Text('Phone'), size: ColumnSize.S),
-                          DataColumn2(label: Text('Type'), fixedWidth: 100),
-                          DataColumn2(label: Text('Status'), fixedWidth: 80),
-                          DataColumn2(
-                            label: Text('Actions'),
-                            size: ColumnSize.M,
-                          ),
+                          DataColumn2(label: Text('Phone'), fixedWidth: 120),
+                          DataColumn2(label: Text('Type'), fixedWidth: 120),
+                          DataColumn2(label: Text('Status'), fixedWidth: 90),
+                          DataColumn2(label: Text('Actions'), fixedWidth: 150),
                         ],
                         rows: getFilteredMembers(memberProvider.members)
                             .map(
@@ -367,28 +389,52 @@ class _MembersContentState extends State<MembersContent> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          member.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
+                                          normalizeHindiForDisplay(member.name),
+                                          style: _textStyleForHindi(
+                                            normalizeHindiForDisplay(
+                                              member.name,
+                                            ),
+                                            const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
                                         ),
                                         if (member.address != null &&
                                             member.address!.isNotEmpty)
                                           Text(
-                                            member.address!,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall?.color,
+                                            normalizeHindiForDisplay(
+                                              member.address!,
+                                            ),
+                                            style: _textStyleForHindi(
+                                              normalizeHindiForDisplay(
+                                                member.address!,
+                                              ),
+                                              TextStyle(
+                                                fontSize: 11,
+                                                color: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall?.color,
+                                              ),
                                             ),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                       ],
                                     ),
                                   ),
-                                  DataCell(Text(member.email ?? '')),
-                                  DataCell(Text(member.phone ?? '')),
+                                  DataCell(
+                                    Text(
+                                      (member.email ?? '').isEmpty
+                                          ? '-'
+                                          : member.email!,
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      (member.phone ?? '').isEmpty
+                                          ? '-'
+                                          : member.phone!,
+                                    ),
+                                  ),
                                   DataCell(_buildTypeChip(member.memberType)),
                                   DataCell(_buildStatusChip(member.isActive)),
                                   DataCell(

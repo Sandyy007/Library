@@ -5,12 +5,15 @@ import '../services/api_service.dart';
 class MemberProvider with ChangeNotifier {
   List<Member> _members = [];
   bool _isLoading = false;
+  String? _error;
 
   List<Member> get members => _members;
   bool get isLoading => _isLoading;
+  String? get error => _error;
 
   Future<void> loadMembers() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     print('DEBUG [MemberProvider]: Starting loadMembers');
 
@@ -21,6 +24,7 @@ class MemberProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('DEBUG [MemberProvider]: Error loading members: $e');
+      _error = e.toString();
       _isLoading = false;
       notifyListeners();
       rethrow;

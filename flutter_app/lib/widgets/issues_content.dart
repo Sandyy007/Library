@@ -16,6 +16,7 @@ import '../providers/auth_provider.dart';
 import '../models/book.dart';
 import '../models/member.dart';
 import '../utils/date_formatter.dart';
+import '../utils/hindi_text.dart';
 import '../services/api_service.dart';
 
 enum _IssueDialogActiveField { book, member }
@@ -83,7 +84,7 @@ class _IssuesContentState extends State<IssuesContent> {
                         : ListView.separated(
                             shrinkWrap: true,
                             itemCount: results.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, i) =>
                                 const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final item = results[index];
@@ -345,9 +346,8 @@ class _IssuesContentState extends State<IssuesContent> {
                         ),
                       )
                     : DataTable2(
-                        columnSpacing: 20,
-                        horizontalMargin: 20,
-                        minWidth: 800,
+                        columnSpacing: 12,
+                        horizontalMargin: 12,
                         dataRowHeight: 72,
                         columns: const [
                           DataColumn2(label: Text('Book'), size: ColumnSize.L),
@@ -378,108 +378,149 @@ class _IssuesContentState extends State<IssuesContent> {
                         ],
                         rows:
                             getFilteredIssues(
-                                  issueProvider.issues,
-                                  bookProvider.books,
-                                  memberProvider.members,
-                                )
-                                .map(
-                                  (issue) => DataRow(
-                                    cells: [
-                                      DataCell(
+                              issueProvider.issues,
+                              bookProvider.books,
+                              memberProvider.members,
+                            ).map((issue) {
+                              final statusColor = issue.status == 'returned'
+                                  ? Colors.green
+                                  : (issue.status == 'overdue'
+                                        ? Colors.red
+                                        : Colors.orange);
+
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
                                         Text(
-                                          '${issue.bookTitle}\nby ${issue.bookAuthor}',
-                                        ),
-                                      ),
-                                      DataCell(Text(issue.memberName)),
-                                      DataCell(
-                                        Text(
-                                          DateFormatter.formatDateIndian(
-                                            issue.issueDate,
+                                          normalizeHindiForDisplay(
+                                            issue.bookTitle,
                                           ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Text(
-                                          DateFormatter.formatDateIndian(
-                                            issue.dueDate,
+                                          style: const TextStyle(
+                                            fontFamilyFallback: [
+                                              'Nirmala UI',
+                                              'Mangal',
+                                              'Noto Sans Devanagari',
+                                            ],
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      DataCell(
                                         Text(
-                                          issue.returnDate != null
-                                              ? DateFormatter.formatDateIndian(
-                                                  issue.returnDate,
-                                                )
-                                              : '-',
+                                          'by ${normalizeHindiForDisplay(issue.bookAuthor)}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontFamilyFallback: const [
+                                              'Nirmala UI',
+                                              'Mangal',
+                                              'Noto Sans Devanagari',
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      DataCell(
-                                        Chip(
-                                          label: Text(issue.status),
-                                          backgroundColor:
-                                              issue.status == 'returned'
-                                              ? Colors.green
-                                              : (issue.status == 'overdue'
-                                                    ? Colors.red
-                                                    : Colors.orange),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.edit,
-                                                size: 16,
-                                              ),
-                                              onPressed: () =>
-                                                  _showEditIssueDialog(
-                                                    context,
-                                                    issue,
-                                                  ),
-                                              tooltip: 'Edit Issue',
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            issue.status == 'issued'
-                                                ? SizedBox(
-                                                    width: 72,
-                                                    child: ElevatedButton(
-                                                      style: ElevatedButton.styleFrom(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 8,
-                                                              vertical: 6,
-                                                            ),
-                                                        minimumSize: const Size(
-                                                          48,
-                                                          32,
-                                                        ),
-                                                        visualDensity:
-                                                            VisualDensity
-                                                                .compact,
-                                                      ),
-                                                      onPressed: () =>
-                                                          _returnBook(
-                                                            context,
-                                                            issue.id,
-                                                          ),
-                                                      child: const FittedBox(
-                                                        child: Text('Return'),
-                                                      ),
-                                                    ),
-                                                  )
-                                                : const Text('-'),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                )
-                                .toList(),
+                                  DataCell(
+                                    Text(
+                                      normalizeHindiForDisplay(
+                                        issue.memberName,
+                                      ),
+                                      style: const TextStyle(
+                                        fontFamilyFallback: [
+                                          'Nirmala UI',
+                                          'Mangal',
+                                          'Noto Sans Devanagari',
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      DateFormatter.formatDateIndian(
+                                        issue.issueDate,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      DateFormatter.formatDateIndian(
+                                        issue.dueDate,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      issue.returnDate != null
+                                          ? DateFormatter.formatDateIndian(
+                                              issue.returnDate,
+                                            )
+                                          : '-',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Chip(
+                                      label: Text(issue.status),
+                                      backgroundColor: statusColor,
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 16,
+                                          ),
+                                          onPressed: () => _showEditIssueDialog(
+                                            context,
+                                            issue,
+                                          ),
+                                          tooltip: 'Edit Issue',
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        issue.status == 'issued'
+                                            ? SizedBox(
+                                                width: 72,
+                                                child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 6,
+                                                        ),
+                                                    minimumSize: const Size(
+                                                      48,
+                                                      32,
+                                                    ),
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                  ),
+                                                  onPressed: () => _returnBook(
+                                                    context,
+                                                    issue.id,
+                                                  ),
+                                                  child: const FittedBox(
+                                                    child: Text('Return'),
+                                                  ),
+                                                ),
+                                              )
+                                            : const Text('-'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
                       ),
               ),
             ),
@@ -896,7 +937,7 @@ class _IssuesContentState extends State<IssuesContent> {
               'Generated: ${DateFormatter.formatDateTimeIndian(DateTime.now().toIso8601String())}',
             ),
             pw.SizedBox(height: 12),
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               headers: const [
                 'ID',
                 'Book',

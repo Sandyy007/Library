@@ -395,7 +395,7 @@ class _BooksContentState extends State<BooksContent> {
                               ),
                         ),
                         child: DataTable2(
-                          columnSpacing: 10,
+                          columnSpacing: 8,
                           horizontalMargin: 12,
                           dataRowHeight: 62,
                           headingRowHeight: 50,
@@ -525,9 +525,13 @@ class _BooksContentState extends State<BooksContent> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            normalizeHindiForDisplay(book.title),
+                                            normalizeHindiForDisplay(
+                                              book.title,
+                                            ),
                                             style: _textStyleForHindi(
-                                              normalizeHindiForDisplay(book.title),
+                                              normalizeHindiForDisplay(
+                                                book.title,
+                                              ),
                                               const TextStyle(
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -567,8 +571,20 @@ class _BooksContentState extends State<BooksContent> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    DataCell(Text(book.rackNumber ?? '')),
-                                    DataCell(Text(book.category ?? '')),
+                                    DataCell(
+                                      Text(
+                                        (book.rackNumber ?? '').isEmpty
+                                            ? '-'
+                                            : book.rackNumber!,
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        (book.category ?? '').isEmpty
+                                            ? '-'
+                                            : book.category!,
+                                      ),
+                                    ),
                                     DataCell(
                                       Column(
                                         mainAxisAlignment:
@@ -649,10 +665,22 @@ class _BooksContentState extends State<BooksContent> {
 
   void _filterBooks() {
     final bookProvider = Provider.of<BookProvider>(context, listen: false);
-    bookProvider.loadBooks(
-      search: _searchController.text.isEmpty ? null : _searchController.text,
-      category: _selectedCategory,
-    );
+    final searchText = _searchController.text;
+
+    // If search contains Devanagari (Hindi), fetch all books and filter locally
+    // because the backend may have legacy-encoded data that won't match Unicode search
+    final containsHindi = RegExp(r'[\u0900-\u097F]').hasMatch(searchText);
+
+    if (containsHindi || searchText.isEmpty) {
+      // Fetch all books, local filtering will handle the Hindi matching
+      bookProvider.loadBooks(category: _selectedCategory);
+    } else {
+      // For non-Hindi search, use backend search
+      bookProvider.loadBooks(
+        search: searchText.isEmpty ? null : searchText,
+        category: _selectedCategory,
+      );
+    }
   }
 
   void _showBookDialog({Book? book}) async {
@@ -982,15 +1010,38 @@ class _BooksContentState extends State<BooksContent> {
   }
 
   List<Book> getFilteredBooks(List<Book> books) {
-    final query = _searchController.text.toLowerCase();
+    final rawQuery = _searchController.text;
+    final query = rawQuery.toLowerCase();
+    // Also normalize the query from legacy Hindi to Unicode for proper matching
+    final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
+    // Convert Unicode Hindi query to KrutiDev for matching legacy data
+    final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
     final category = _selectedCategory;
     return books.where((book) {
+      // Normalize title and author from legacy Hindi to Unicode
+      final normalizedTitle = normalizeHindiForDisplay(
+        book.title,
+      ).toLowerCase();
+      final normalizedAuthor = normalizeHindiForDisplay(
+        book.author,
+      ).toLowerCase();
+      // Also keep raw title/author for legacy matching
+      final rawTitle = book.title.toLowerCase();
+      final rawAuthor = book.author.toLowerCase();
+      final lowerIsbn = book.isbn.toLowerCase();
+      final lowerRack = (book.rackNumber ?? '').toLowerCase();
+
+      // Match against all versions to handle legacy data
       final matchesQuery =
           query.isEmpty ||
-          book.title.toLowerCase().contains(query) ||
-          book.author.toLowerCase().contains(query) ||
-          book.isbn.toLowerCase().contains(query) ||
-          (book.rackNumber ?? '').toLowerCase().contains(query);
+          normalizedTitle.contains(query) ||
+          normalizedTitle.contains(normalizedQuery) ||
+          normalizedAuthor.contains(query) ||
+          normalizedAuthor.contains(normalizedQuery) ||
+          rawTitle.contains(krutiDevQuery) ||
+          rawAuthor.contains(krutiDevQuery) ||
+          lowerIsbn.contains(query) ||
+          lowerRack.contains(query);
       final matchesCategory = category == null || book.category == category;
       return matchesQuery && matchesCategory;
     }).toList();
@@ -1017,9 +1068,6 @@ class _BooksContentState extends State<BooksContent> {
   }
 
   Widget _buildCoverPlaceholder(Book book) {
-    final title = (book.title).trim();
-    final initial = title.isNotEmpty ? title.characters.first : 'B';
-
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1046,30 +1094,6 @@ class _BooksContentState extends State<BooksContent> {
                 Icons.menu_book,
                 size: 20,
                 color: Theme.of(context).colorScheme.outline,
-              ),
-            ),
-          ),
-        ),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            margin: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.surface.withValues(alpha: 0.75),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              initial,
-              style: _textStyleForHindi(
-                initial,
-                TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
               ),
             ),
           ),

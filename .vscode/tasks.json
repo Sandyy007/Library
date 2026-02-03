@@ -84,6 +84,35 @@
 			"type": "shell",
 			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter test -r expanded",
 			"isBackground": false
+		},
+		{
+			"label": "Flutter: run (Windows, background)",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter run -d windows",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Flutter: build (Windows)",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter build windows",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter: run (Windows) [foreground]",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter run -d windows",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter: run (Windows, verbose)",
+			"type": "shell",
+			"command": "cd \"D:\\library_management_system\\flutter_app\"; flutter run -d windows -v",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

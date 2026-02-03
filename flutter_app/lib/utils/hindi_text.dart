@@ -1,9 +1,69 @@
 import 'package:flutter/material.dart';
 
 import 'legacy_hindi.dart';
+export 'legacy_hindi.dart'
+    show containsDevanagari, looksLikeLegacyHindi, unicodeToKrutiDevApprox;
+
+/// Known garbled prefixes that result from incorrectly converting English text
+/// like "Overdue:", "Issued:", etc. using KrutiDev converter.
+/// These patterns are very specific to avoid matching valid Hindi text.
+final _garbledPrefixPatterns = [
+  // Very specific pattern: "वृअमतकनमरू" followed by space (corrupted "Overdue:")
+  RegExp(r'^वृअमतकनमरू\s+'),
+  // Very specific pattern: "प्ॅनमकरू" (another corrupted prefix)
+  RegExp(r'^प्ॅनमकरू\s+'),
+  // Pattern for "ठवइ श्वीदेवद" (corrupted "Issued:")
+  RegExp(r'^ठवइ\s+श्वीदेवद\s+'),
+];
+
+String _cleanGarbledText(String text) {
+  String cleaned = text;
+
+  // Only remove very specific known garbled prefixes
+  for (final pattern in _garbledPrefixPatterns) {
+    cleaned = cleaned.replaceFirst(pattern, '');
+  }
+
+  return cleaned.trim();
+}
+
+/// Strips leading unwanted symbols like quotes, asterisks from text.
+/// These often appear at the start of Hindi book titles/author names in the database.
+String _stripLeadingSymbols(String text) {
+  // Only strip simple punctuation that shouldn't appear at the start of titles
+  // Be very conservative to avoid stripping valid Hindi characters
+  String result = text;
+
+  // Strip leading whitespace first
+  result = result.trimLeft();
+
+  // Strip only leading quotes and asterisks - nothing else
+  while (result.isNotEmpty) {
+    final firstChar = result[0];
+    if (firstChar == "'" ||
+        firstChar == '"' ||
+        firstChar == '*' ||
+        firstChar == '`') {
+      result = result.substring(1).trimLeft();
+    } else {
+      break;
+    }
+  }
+
+  return result;
+}
 
 String normalizeHindiForDisplay(String text) {
-  return normalizeLegacyHindiToUnicode(text);
+  // First try standard legacy Hindi conversion
+  String result = normalizeLegacyHindiToUnicode(text);
+
+  // Then clean up any garbled prefixes from corrupted data
+  result = _cleanGarbledText(result);
+
+  // Strip leading unwanted symbols (quotes, etc.) from the result
+  result = _stripLeadingSymbols(result);
+
+  return result.trim();
 }
 
 TextStyle hindiAwareTextStyle(
@@ -38,10 +98,6 @@ TextStyle hindiAwareTextStyle(
 
   // Default: still provide Devanagari fallback so mixed strings display.
   return base.copyWith(
-    fontFamilyFallback: const [
-      'Nirmala UI',
-      'Mangal',
-      'Noto Sans Devanagari',
-    ],
+    fontFamilyFallback: const ['Nirmala UI', 'Mangal', 'Noto Sans Devanagari'],
   );
 }

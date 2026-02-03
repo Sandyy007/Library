@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
 import '../models/notification.dart';
 import '../utils/date_formatter.dart';
+import '../utils/hindi_text.dart';
 
 class NotificationBell extends StatelessWidget {
   const NotificationBell({super.key});
@@ -12,22 +13,21 @@ class NotificationBell extends StatelessWidget {
     return Consumer<NotificationProvider>(
       builder: (context, notificationProvider, _) {
         final unreadCount = notificationProvider.unreadCount;
-        
+
         return Stack(
           children: [
             IconButton(
               onPressed: () => _showNotificationsPanel(context),
               icon: Icon(
-                unreadCount > 0 
+                unreadCount > 0
                     ? Icons.notifications_active_rounded
                     : Icons.notifications_none_rounded,
                 color: Theme.of(context).colorScheme.primary,
               ),
               style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.1),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -139,10 +139,17 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                       if (provider.unreadCount > 0) {
                         return TextButton.icon(
                           onPressed: () => provider.markAllAsRead(),
-                          icon: const Icon(Icons.done_all, color: Colors.white70, size: 18),
+                          icon: const Icon(
+                            Icons.done_all,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
                           label: const Text(
                             'Mark all read',
-                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
                           ),
                         );
                       }
@@ -205,14 +212,18 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                     itemCount: provider.notifications.length,
                     separatorBuilder: (context, index) => Divider(
                       height: 1,
-                      color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.3),
                     ),
                     itemBuilder: (context, index) {
                       final notification = provider.notifications[index];
                       return NotificationTile(
                         notification: notification,
-                        onMarkAsRead: () => provider.markAsRead(notification.id),
-                        onDelete: () => provider.deleteNotification(notification.id),
+                        onMarkAsRead: () =>
+                            provider.markAsRead(notification.id),
+                        onDelete: () =>
+                            provider.deleteNotification(notification.id),
                       );
                     },
                   );
@@ -225,7 +236,9 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -261,7 +274,7 @@ class NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUnread = !notification.isRead;
-    
+
     return Dismissible(
       key: Key('notification_${notification.id}'),
       direction: DismissDirection.endToStart,
@@ -285,7 +298,9 @@ class NotificationTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _getNotificationColor(notification.type).withValues(alpha: 0.1),
+                  color: _getNotificationColor(
+                    notification.type,
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -302,12 +317,25 @@ class NotificationTile extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            notification.title,
-                            style: TextStyle(
-                              fontWeight: isUnread ? FontWeight.bold : FontWeight.w500,
-                              fontSize: 14,
-                            ),
+                          child: Builder(
+                            builder: (context) {
+                              final displayTitle = normalizeHindiForDisplay(
+                                notification.title,
+                              );
+                              return Text(
+                                displayTitle,
+                                style: hindiAwareTextStyle(
+                                  context,
+                                  text: displayTitle,
+                                  base: TextStyle(
+                                    fontWeight: isUnread
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         if (isUnread)
@@ -322,32 +350,38 @@ class NotificationTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    Builder(
+                      builder: (context) {
+                        final displayMessage = normalizeHindiForDisplay(
+                          notification.message,
+                        );
+                        return Text(
+                          displayMessage,
+                          style: hindiAwareTextStyle(
+                            context,
+                            text: displayMessage,
+                            base: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
+                            ),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     ),
                     const SizedBox(height: 6),
                     Text(
                       _formatTimestamp(notification.createdAt),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                     ),
                   ],
                 ),
               ),
               PopupMenuButton<String>(
-                icon: Icon(
-                  Icons.more_vert,
-                  size: 18,
-                  color: Colors.grey[400],
-                ),
+                icon: Icon(Icons.more_vert, size: 18, color: Colors.grey[400]),
                 itemBuilder: (context) => [
                   if (isUnread)
                     const PopupMenuItem(

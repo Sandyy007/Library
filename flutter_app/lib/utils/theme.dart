@@ -83,6 +83,17 @@ class AppTheme {
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
     ),
+    dataTableTheme: const DataTableThemeData(
+      headingTextStyle: TextStyle(
+        inherit: false,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      ),
+      dataTextStyle: TextStyle(
+        inherit: false,
+        color: Colors.black87,
+      ),
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -214,10 +225,12 @@ class AppTheme {
     ),
     dataTableTheme: DataTableThemeData(
       headingTextStyle: const TextStyle(
+        inherit: false,
         fontWeight: FontWeight.w600,
         color: Color(0xFFF1F5F9),
       ),
       dataTextStyle: const TextStyle(
+        inherit: false,
         color: Color(0xFFCBD5E1),
       ),
       headingRowColor: WidgetStateProperty.all(const Color(0xFF2D3348)),

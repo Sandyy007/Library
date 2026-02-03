@@ -361,10 +361,10 @@ class _DashboardContentState extends State<DashboardContent>
                         tooltip: 'Refresh dashboard widgets',
                         onPressed: _extrasLoading
                             ? null
-                          : () => _refreshAll(
-                            showLoading: true,
-                            includeStats: true,
-                            ),
+                            : () => _refreshAll(
+                                showLoading: true,
+                                includeStats: true,
+                              ),
                         icon: _extrasLoading
                             ? const SizedBox(
                                 width: 18,
@@ -635,10 +635,14 @@ class _DashboardContentState extends State<DashboardContent>
                   final occurredAtText = DateFormatter.formatDateTimeIndian(
                     occurredAt,
                   );
-                  final rawTitle = item['title']?.toString() ?? '';
-                  final rawDescription = item['description']?.toString() ?? '';
-                  final title = normalizeHindiForDisplay(rawTitle);
-                  final description = normalizeHindiForDisplay(rawDescription);
+                  // Apply legacy Hindi conversion for any KrutiDev-encoded text.
+                  // normalizeHindiForDisplay only converts if text looks like legacy Hindi.
+                  final title = normalizeHindiForDisplay(
+                    item['title']?.toString() ?? '',
+                  );
+                  final description = normalizeHindiForDisplay(
+                    item['description']?.toString() ?? '',
+                  );
 
                   final baseTitle =
                       Theme.of(context).textTheme.bodyMedium ??
@@ -652,6 +656,22 @@ class _DashboardContentState extends State<DashboardContent>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            icon,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -811,10 +831,10 @@ class _DashboardContentState extends State<DashboardContent>
                             issueId,
                           );
                         }, successMessage: 'Marked returned');
-                          await _refreshAll(
-                            showLoading: false,
-                            includeStats: true,
-                          );
+                        await _refreshAll(
+                          showLoading: false,
+                          includeStats: true,
+                        );
                       },
                       icon: const Icon(
                         Icons.assignment_return_rounded,

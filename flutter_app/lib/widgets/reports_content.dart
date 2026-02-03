@@ -12,6 +12,7 @@ import '../providers/report_provider.dart';
 import '../providers/issue_provider.dart';
 import '../models/report_models.dart';
 import '../utils/date_formatter.dart';
+import '../utils/hindi_text.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -20,7 +21,8 @@ class ReportsContent extends StatefulWidget {
   State<ReportsContent> createState() => _ReportsContentState();
 }
 
-class _ReportsContentState extends State<ReportsContent> with SingleTickerProviderStateMixin {
+class _ReportsContentState extends State<ReportsContent>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isExporting = false;
 
@@ -141,15 +143,15 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
               Text(
                 'Most Borrowed Books',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Books ranked by total borrow count',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -158,7 +160,7 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: provider.popularBooks.length,
-                    separatorBuilder: (_, __) => const Divider(),
+                    separatorBuilder: (_, i) => const Divider(),
                     itemBuilder: (context, index) {
                       final book = provider.popularBooks[index];
                       return _buildPopularBookTile(book, index + 1);
@@ -185,6 +187,9 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
       rankColor = Theme.of(context).colorScheme.primary;
     }
 
+    final displayTitle = normalizeHindiForDisplay(book.title);
+    final displayAuthor = normalizeHindiForDisplay(book.author);
+
     return ListTile(
       dense: true,
       visualDensity: const VisualDensity(horizontal: 0, vertical: -1),
@@ -193,22 +198,32 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
         backgroundColor: rankColor.withValues(alpha: 0.2),
         child: Text(
           '#$rank',
-          style: TextStyle(
-            color: rankColor,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: rankColor, fontWeight: FontWeight.bold),
         ),
       ),
-      title: Text(
-        book.title,
-        style: const TextStyle(fontWeight: FontWeight.w500),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      title: Builder(
+        builder: (context) => Text(
+          displayTitle,
+          style: hindiAwareTextStyle(
+            context,
+            text: displayTitle,
+            base: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
-      subtitle: Text(
-        '${book.author} • ${book.category ?? "Uncategorized"}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      subtitle: Builder(
+        builder: (context) => Text(
+          '$displayAuthor • ${book.category ?? "Uncategorized"}',
+          style: hindiAwareTextStyle(
+            context,
+            text: displayAuthor,
+            base: const TextStyle(),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       trailing: SizedBox(
         height: 38,
@@ -254,7 +269,10 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
         }
 
         if (provider.activeMembers.isEmpty) {
-          return _buildEmptyState('No active members data', Icons.people_outline);
+          return _buildEmptyState(
+            'No active members data',
+            Icons.people_outline,
+          );
         }
 
         return Padding(
@@ -265,15 +283,15 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
               Text(
                 'Most Active Members',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Members ranked by total books borrowed',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -282,7 +300,7 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: provider.activeMembers.length,
-                    separatorBuilder: (_, __) => const Divider(),
+                    separatorBuilder: (_, i) => const Divider(),
                     itemBuilder: (context, index) {
                       final member = provider.activeMembers[index];
                       return _buildActiveMemberTile(member, index + 1);
@@ -321,8 +339,8 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                   color: rank == 1
                       ? Colors.amber
                       : rank == 2
-                          ? Colors.grey
-                          : Colors.brown,
+                      ? Colors.grey
+                      : Colors.brown,
                   shape: BoxShape.circle,
                 ),
                 child: Text(
@@ -417,15 +435,15 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
               Text(
                 'Monthly Statistics',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Issues and returns over the last 12 months',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               // Summary cards
@@ -433,21 +451,28 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                 children: [
                   _buildSummaryCard(
                     'Total Issues',
-                    provider.monthlyStats.fold(0, (sum, s) => sum + s.issues).toString(),
+                    provider.monthlyStats
+                        .fold(0, (sum, s) => sum + s.issues)
+                        .toString(),
                     Icons.arrow_upward,
                     Colors.blue,
                   ),
                   const SizedBox(width: 16),
                   _buildSummaryCard(
                     'Total Returns',
-                    provider.monthlyStats.fold(0, (sum, s) => sum + s.returns).toString(),
+                    provider.monthlyStats
+                        .fold(0, (sum, s) => sum + s.returns)
+                        .toString(),
                     Icons.arrow_downward,
                     Colors.green,
                   ),
                   const SizedBox(width: 16),
                   _buildSummaryCard(
                     'Avg per Month',
-                    (provider.monthlyStats.fold(0, (sum, s) => sum + s.issues) ~/
+                    (provider.monthlyStats.fold(
+                              0,
+                              (sum, s) => sum + s.issues,
+                            ) ~/
                             provider.monthlyStats.length)
                         .toString(),
                     Icons.trending_up,
@@ -472,7 +497,12 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Expanded(
       child: Card(
         elevation: 2,
@@ -517,17 +547,27 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: stats.map((s) => s.issues > s.returns ? s.issues : s.returns).reduce((a, b) => a > b ? a : b).toDouble() * 1.2,
+        maxY:
+            stats
+                .map((s) => s.issues > s.returns ? s.issues : s.returns)
+                .reduce((a, b) => a > b ? a : b)
+                .toDouble() *
+            1.2,
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final stat = stats[group.x.toInt()];
               return BarTooltipItem(
                 '${stat.monthName}\n',
-                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
                 children: [
                   TextSpan(
-                    text: rodIndex == 0 ? 'Issues: ${stat.issues}' : 'Returns: ${stat.returns}',
+                    text: rodIndex == 0
+                        ? 'Issues: ${stat.issues}'
+                        : 'Returns: ${stat.returns}',
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ],
@@ -567,8 +607,12 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
               },
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
         ),
         gridData: FlGridData(
           show: true,
@@ -624,7 +668,10 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
           return _buildEmptyState('No category stats data', Icons.pie_chart);
         }
 
-        final total = provider.categoryStats.fold(0, (sum, s) => sum + s.bookCount);
+        final total = provider.categoryStats.fold(
+          0,
+          (sum, s) => sum + s.bookCount,
+        );
 
         return Padding(
           padding: const EdgeInsets.all(24),
@@ -642,23 +689,22 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                       children: [
                         Text(
                           'Books by Category',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 24),
                         Expanded(
                           child: PieChart(
                             PieChartData(
-                              sections: provider.categoryStats
-                                  .asMap()
-                                  .entries
-                                  .map((entry) {
+                              sections: provider.categoryStats.asMap().entries.map((
+                                entry,
+                              ) {
                                 final index = entry.key;
                                 final stat = entry.value;
                                 return PieChartSectionData(
                                   value: stat.bookCount.toDouble(),
-                                  title: '${((stat.bookCount / total) * 100).toStringAsFixed(1)}%',
+                                  title:
+                                      '${((stat.bookCount / total) * 100).toStringAsFixed(1)}%',
                                   color: _getCategoryColor(index),
                                   radius: 100,
                                   titleStyle: const TextStyle(
@@ -690,9 +736,8 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                       children: [
                         Text(
                           'Categories',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 16),
                         Expanded(
@@ -701,7 +746,9 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                             itemBuilder: (context, index) {
                               final stat = provider.categoryStats[index];
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                                 child: Row(
                                   children: [
                                     Container(
@@ -721,7 +768,9 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                                     ),
                                     Text(
                                       '${stat.bookCount}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -766,12 +815,18 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
         }
 
         if (snapshot.hasError) {
-          return _buildEmptyState('Error loading overdue data', Icons.error_outline);
+          return _buildEmptyState(
+            'Error loading overdue data',
+            Icons.error_outline,
+          );
         }
 
         final overdueList = snapshot.data ?? [];
         if (overdueList.isEmpty) {
-          return _buildEmptyState('No overdue books', Icons.check_circle_outline);
+          return _buildEmptyState(
+            'No overdue books',
+            Icons.check_circle_outline,
+          );
         }
 
         return Padding(
@@ -787,9 +842,8 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                       children: [
                         Text(
                           'Overdue Books',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -800,7 +854,11 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                     ),
                   ),
                   Chip(
-                    avatar: const Icon(Icons.warning, color: Colors.red, size: 18),
+                    avatar: const Icon(
+                      Icons.warning,
+                      color: Colors.red,
+                      size: 18,
+                    ),
                     label: Text('${overdueList.length} Overdue'),
                     backgroundColor: Colors.red.withValues(alpha: 0.1),
                   ),
@@ -813,7 +871,7 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: overdueList.length,
-                    separatorBuilder: (_, __) => const Divider(),
+                    separatorBuilder: (_, i) => const Divider(),
                     itemBuilder: (context, index) {
                       final item = overdueList[index];
                       return _buildOverdueItem(item);
@@ -831,6 +889,12 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
   Widget _buildOverdueItem(Map<String, dynamic> item) {
     final dueDate = item['due_date']?.toString() ?? '';
     final daysOverdue = _calculateDaysOverdue(dueDate);
+    final bookTitle = normalizeHindiForDisplay(
+      item['title']?.toString() ?? 'Unknown Book',
+    );
+    final memberName = normalizeHindiForDisplay(
+      item['member_name']?.toString() ?? 'Unknown',
+    );
 
     return ListTile(
       leading: Container(
@@ -841,12 +905,25 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
         ),
         child: const Icon(Icons.warning, color: Colors.red),
       ),
-      title: Text(
-        item['title']?.toString() ?? 'Unknown Book',
-        style: const TextStyle(fontWeight: FontWeight.w500),
+      title: Builder(
+        builder: (context) => Text(
+          bookTitle,
+          style: hindiAwareTextStyle(
+            context,
+            text: bookTitle,
+            base: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
       ),
-      subtitle: Text(
-        'Borrowed by: ${item['member_name'] ?? 'Unknown'}\nDue: ${DateFormatter.formatDateIndian(dueDate)}',
+      subtitle: Builder(
+        builder: (context) => Text(
+          'Borrowed by: $memberName\nDue: ${DateFormatter.formatDateIndian(dueDate)}',
+          style: hindiAwareTextStyle(
+            context,
+            text: memberName,
+            base: const TextStyle(),
+          ),
+        ),
       ),
       isThreeLine: true,
       trailing: Container(
@@ -884,9 +961,9 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
           const SizedBox(height: 16),
           Text(
             message,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: Colors.grey[600]),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -906,12 +983,12 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
       final exportName = _tabController.index == 0
           ? 'popular_books'
           : _tabController.index == 1
-              ? 'active_members'
-              : _tabController.index == 2
-                  ? 'monthly_stats'
-                  : _tabController.index == 3
-                      ? 'category_stats'
-                      : 'overdue';
+          ? 'active_members'
+          : _tabController.index == 2
+          ? 'monthly_stats'
+          : _tabController.index == 3
+          ? 'category_stats'
+          : 'overdue';
 
       final date = DateTime.now().toIso8601String().split('T')[0];
 
@@ -926,9 +1003,9 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
 
         if (!mounted) return;
         if (path == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Export cancelled')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Export cancelled')));
           return;
         }
 
@@ -944,9 +1021,9 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
 
         if (!mounted) return;
         if (path == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Export cancelled')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Export cancelled')));
           return;
         }
 
@@ -957,11 +1034,13 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
       } else {
         throw Exception('Unsupported export type: $type');
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Report exported as ${type.toUpperCase()} successfully'),
+            content: Text(
+              'Report exported as ${type.toUpperCase()} successfully',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -986,12 +1065,12 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
     final title = _tabController.index == 0
         ? 'Popular Books'
         : _tabController.index == 1
-            ? 'Active Members'
-            : _tabController.index == 2
-                ? 'Monthly Stats'
-                : _tabController.index == 3
-                    ? 'Categories'
-                    : 'Overdue';
+        ? 'Active Members'
+        : _tabController.index == 2
+        ? 'Monthly Stats'
+        : _tabController.index == 3
+        ? 'Categories'
+        : 'Overdue';
 
     // Embed a font that supports Hindi/Devanagari so text renders correctly.
     final baseFont = await PdfGoogleFonts.notoSansDevanagariRegular();
@@ -1003,10 +1082,7 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        theme: pw.ThemeData.withFont(
-          base: baseFont,
-          bold: boldFont,
-        ),
+        theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
         build: (context) => [
           pw.Text(
             'Reports & Analytics — $title',
@@ -1032,30 +1108,36 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
       rows = reportProvider.popularBooks
           .asMap()
           .entries
-          .map((e) => [
-                '${e.key + 1}',
-                e.value.title,
-                e.value.author,
-                e.value.category ?? 'Uncategorized',
-                '${e.value.borrowCount}',
-              ])
+          .map(
+            (e) => [
+              '${e.key + 1}',
+              e.value.title,
+              e.value.author,
+              e.value.category ?? 'Uncategorized',
+              '${e.value.borrowCount}',
+            ],
+          )
           .toList();
     } else if (exportName == 'active_members') {
       headers = ['Rank', 'Name', 'Type', 'Borrowed'];
       rows = reportProvider.activeMembers
           .asMap()
           .entries
-          .map((e) => [
-                '${e.key + 1}',
-                e.value.name,
-                e.value.memberType,
-                '${e.value.borrowCount}',
-              ])
+          .map(
+            (e) => [
+              '${e.key + 1}',
+              e.value.name,
+              e.value.memberType,
+              '${e.value.borrowCount}',
+            ],
+          )
           .toList();
     } else if (exportName == 'monthly_stats') {
       headers = ['Month', 'Issues', 'Returns', 'Overdue'];
       rows = reportProvider.monthlyStats
-          .map((m) => [m.monthName, '${m.issues}', '${m.returns}', '${m.overdue}'])
+          .map(
+            (m) => [m.monthName, '${m.issues}', '${m.returns}', '${m.overdue}'],
+          )
           .toList();
     } else if (exportName == 'category_stats') {
       headers = ['Category', 'Books', 'Borrows'];
@@ -1065,17 +1147,15 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
     } else if (exportName == 'overdue') {
       final overdue = await context.read<IssueProvider>().getOverdueReport();
       headers = ['Title', 'Member', 'Due Date', 'Days Overdue'];
-      rows = overdue
-          .map((item) {
-            final dueDate = item['due_date']?.toString() ?? '';
-            return [
-              item['title']?.toString() ?? 'Unknown',
-              item['member_name']?.toString() ?? 'Unknown',
-              DateFormatter.formatDateIndian(dueDate),
-              '${_calculateDaysOverdue(dueDate)}',
-            ];
-          })
-          .toList();
+      rows = overdue.map((item) {
+        final dueDate = item['due_date']?.toString() ?? '';
+        return [
+          item['title']?.toString() ?? 'Unknown',
+          item['member_name']?.toString() ?? 'Unknown',
+          DateFormatter.formatDateIndian(dueDate),
+          '${_calculateDaysOverdue(dueDate)}',
+        ];
+      }).toList();
     } else {
       headers = ['Message'];
       rows = [
@@ -1090,7 +1170,7 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
       headers = ['Message'];
     }
 
-    return pw.Table.fromTextArray(
+    return pw.TableHelper.fromTextArray(
       headers: headers,
       data: rows,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -1113,30 +1193,36 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
       rows = reportProvider.popularBooks
           .asMap()
           .entries
-          .map((e) => [
-                '${e.key + 1}',
-                e.value.title,
-                e.value.author,
-                e.value.category ?? 'Uncategorized',
-                '${e.value.borrowCount}',
-              ])
+          .map(
+            (e) => [
+              '${e.key + 1}',
+              e.value.title,
+              e.value.author,
+              e.value.category ?? 'Uncategorized',
+              '${e.value.borrowCount}',
+            ],
+          )
           .toList();
     } else if (exportName == 'active_members') {
       headers = ['Rank', 'Name', 'Type', 'Borrowed'];
       rows = reportProvider.activeMembers
           .asMap()
           .entries
-          .map((e) => [
-                '${e.key + 1}',
-                e.value.name,
-                e.value.memberType,
-                '${e.value.borrowCount}',
-              ])
+          .map(
+            (e) => [
+              '${e.key + 1}',
+              e.value.name,
+              e.value.memberType,
+              '${e.value.borrowCount}',
+            ],
+          )
           .toList();
     } else if (exportName == 'monthly_stats') {
       headers = ['Month', 'Issues', 'Returns', 'Overdue'];
       rows = reportProvider.monthlyStats
-          .map((m) => [m.monthName, '${m.issues}', '${m.returns}', '${m.overdue}'])
+          .map(
+            (m) => [m.monthName, '${m.issues}', '${m.returns}', '${m.overdue}'],
+          )
           .toList();
     } else if (exportName == 'category_stats') {
       headers = ['Category', 'Books', 'Borrows'];
@@ -1146,17 +1232,17 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
     } else if (exportName == 'overdue') {
       final overdue = await context.read<IssueProvider>().getOverdueReport();
       headers = ['Title', 'Member', 'Due Date', 'Days Overdue'];
-      rows = overdue
-          .map((item) {
-            final dueDate = item['due_date']?.toString() ?? '';
-            return [
-              item['title']?.toString() ?? 'Unknown',
-              item['member_name']?.toString() ?? 'Unknown',
-              DateFormatter.formatDateIndian(dueDate),
-              '${_calculateDaysOverdue(dueDate)}',
-            ];
-          })
-          .toList();
+      rows = overdue.map((item) {
+        final dueDate = item['due_date']?.toString() ?? '';
+        return [
+          normalizeHindiForDisplay(item['title']?.toString() ?? 'Unknown'),
+          normalizeHindiForDisplay(
+            item['member_name']?.toString() ?? 'Unknown',
+          ),
+          DateFormatter.formatDateIndian(dueDate),
+          '${_calculateDaysOverdue(dueDate)}',
+        ];
+      }).toList();
     } else {
       headers = ['Message'];
       rows = [
@@ -1180,7 +1266,11 @@ class _ReportsContentState extends State<ReportsContent> with SingleTickerProvid
   }
 
   String _csvEscape(String value) {
-    final needsQuotes = value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r');
+    final needsQuotes =
+        value.contains(',') ||
+        value.contains('"') ||
+        value.contains('\n') ||
+        value.contains('\r');
     if (!needsQuotes) return value;
     return '"${value.replaceAll('"', '""')}"';
   }

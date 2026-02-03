@@ -3,6 +3,7 @@ import '../models/book.dart';
 import '../models/member.dart';
 import '../models/issue.dart';
 import '../services/api_service.dart';
+import '../utils/hindi_text.dart';
 
 class SearchProvider with ChangeNotifier {
   List<Book> _searchBooks = [];
@@ -96,13 +97,54 @@ class SearchProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await ApiService.advancedSearch(
-        query: query,
-        category: _categoryFilter == 'all' ? null : _categoryFilter,
-        status: _availabilityFilter == 'all' ? null : _availabilityFilter,
+      // Check if query contains Hindi (Devanagari) characters
+      final containsHindi = RegExp(r'[\u0900-\u097F]').hasMatch(query);
+
+      List<Book> allBooks;
+      if (containsHindi) {
+        // For Hindi search, fetch all books (or with category filter only)
+        // and filter locally since backend may have legacy-encoded data
+        final results = await ApiService.advancedSearch(
+          category: _categoryFilter == 'all' ? null : _categoryFilter,
+          status: _availabilityFilter == 'all' ? null : _availabilityFilter,
+        );
+        allBooks = (results['books'])?.cast<Book>() ?? [];
+
+        // Filter locally with Hindi normalization
+        final normalizedQuery = normalizeHindiForDisplay(query).toLowerCase();
+        final queryLower = query.toLowerCase();
+        // Also convert to KrutiDev for matching legacy data
+        final krutiDevQuery = unicodeToKrutiDevApprox(query).toLowerCase();
+
+        _searchBooks = allBooks.where((book) {
+          final normalizedTitle = normalizeHindiForDisplay(
+            book.title,
+          ).toLowerCase();
+          final normalizedAuthor = normalizeHindiForDisplay(
+            book.author,
+          ).toLowerCase();
+          final rawTitle = book.title.toLowerCase();
+          final rawAuthor = book.author.toLowerCase();
+          return normalizedTitle.contains(queryLower) ||
+              normalizedTitle.contains(normalizedQuery) ||
+              normalizedAuthor.contains(queryLower) ||
+              normalizedAuthor.contains(normalizedQuery) ||
+              rawTitle.contains(krutiDevQuery) ||
+              rawAuthor.contains(krutiDevQuery);
+        }).toList();
+      } else {
+        // For non-Hindi search, use backend search
+        final results = await ApiService.advancedSearch(
+          query: query,
+          category: _categoryFilter == 'all' ? null : _categoryFilter,
+          status: _availabilityFilter == 'all' ? null : _availabilityFilter,
+        );
+        _searchBooks = (results['books'])?.cast<Book>() ?? [];
+      }
+
+      print(
+        'DEBUG [SearchProvider]: Found ${_searchBooks.length} results for "$query"',
       );
-      _searchBooks = (results['books'])?.cast<Book>() ?? [];
-      print('DEBUG [SearchProvider]: Found ${_searchBooks.length} results for "$query"');
     } catch (e) {
       print('DEBUG [SearchProvider]: Error in advanced search: $e');
       _searchBooks = [];
@@ -118,7 +160,9 @@ class SearchProvider with ChangeNotifier {
 
     try {
       _recommendations = await ApiService.getRecommendations(memberId);
-      print('DEBUG [SearchProvider]: Loaded ${_recommendations.length} recommendations');
+      print(
+        'DEBUG [SearchProvider]: Loaded ${_recommendations.length} recommendations',
+      );
     } catch (e) {
       print('DEBUG [SearchProvider]: Error loading recommendations: $e');
       _recommendations = [];

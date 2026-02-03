@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/issue.dart';
 import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
+import '../utils/hindi_text.dart';
 
 class MemberHistoryDialog extends StatefulWidget {
   final int memberId;
@@ -385,20 +386,42 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  issue.bookTitle,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final displayTitle = normalizeHindiForDisplay(
+                      issue.bookTitle,
+                    );
+                    return Text(
+                      displayTitle,
+                      style: hindiAwareTextStyle(
+                        context,
+                        text: displayTitle,
+                        base: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  issue.bookAuthor,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final displayAuthor = normalizeHindiForDisplay(
+                      issue.bookAuthor,
+                    );
+                    return Text(
+                      displayAuthor,
+                      style: hindiAwareTextStyle(
+                        context,
+                        text: displayAuthor,
+                        base: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 Row(

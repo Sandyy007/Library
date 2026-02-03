@@ -4,6 +4,7 @@ import '../providers/search_provider.dart';
 import '../models/book.dart';
 import '../models/member.dart';
 import '../models/issue.dart';
+import '../utils/hindi_text.dart';
 
 class SearchResultsDialog extends StatelessWidget {
   const SearchResultsDialog({super.key});
@@ -44,7 +45,10 @@ class SearchResultsDialog extends StatelessWidget {
                           const TabBar(
                             isScrollable: false,
                             tabs: [
-                              Tab(text: 'Books', icon: Icon(Icons.library_books)),
+                              Tab(
+                                text: 'Books',
+                                icon: Icon(Icons.library_books),
+                              ),
                               Tab(text: 'Members', icon: Icon(Icons.people)),
                               Tab(text: 'Issues', icon: Icon(Icons.assignment)),
                             ],
@@ -55,7 +59,9 @@ class SearchResultsDialog extends StatelessWidget {
                               child: TabBarView(
                                 children: [
                                   _buildBooksTab(searchProvider.searchBooks),
-                                  _buildMembersTab(searchProvider.searchMembers),
+                                  _buildMembersTab(
+                                    searchProvider.searchMembers,
+                                  ),
                                   _buildIssuesTab(searchProvider.searchIssues),
                                 ],
                               ),
@@ -80,14 +86,32 @@ class SearchResultsDialog extends StatelessWidget {
       itemCount: books.length,
       itemBuilder: (context, index) {
         final book = books[index];
+        final displayTitle = normalizeHindiForDisplay(book.title);
+        final displayAuthor = normalizeHindiForDisplay(book.author);
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
-            title: Text(book.title),
-            subtitle: Text('by ${book.author} • ${book.category ?? 'No category'}'),
+            title: Text(
+              displayTitle,
+              style: hindiAwareTextStyle(
+                context,
+                text: displayTitle,
+                base: const TextStyle(),
+              ),
+            ),
+            subtitle: Text(
+              'by $displayAuthor • ${book.category ?? 'No category'}',
+              style: hindiAwareTextStyle(
+                context,
+                text: displayAuthor,
+                base: const TextStyle(),
+              ),
+            ),
             trailing: Chip(
               label: Text(book.status),
-              backgroundColor: book.status == 'available' ? Colors.green : Colors.orange,
+              backgroundColor: book.status == 'available'
+                  ? Colors.green
+                  : Colors.orange,
             ),
           ),
         );
@@ -104,18 +128,30 @@ class SearchResultsDialog extends StatelessWidget {
       itemCount: members.length,
       itemBuilder: (context, index) {
         final member = members[index];
+        final displayName = normalizeHindiForDisplay(member.name);
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
-            title: Text(member.name),
-            subtitle: Text('${member.email ?? 'No email'} • ${member.phone ?? 'No phone'}'),
+            title: Text(
+              displayName,
+              style: hindiAwareTextStyle(
+                context,
+                text: displayName,
+                base: const TextStyle(),
+              ),
+            ),
+            subtitle: Text(
+              '${member.email ?? 'No email'} • ${member.phone ?? 'No phone'}',
+            ),
             trailing: Chip(
               label: Text(member.memberTypeLabel),
-              backgroundColor: (member.memberType == 'student' || member.memberType == 'guest')
+              backgroundColor:
+                  (member.memberType == 'student' ||
+                      member.memberType == 'guest')
                   ? Colors.orange
                   : member.memberType == 'faculty'
-                      ? Colors.purple
-                      : Colors.green,
+                  ? Colors.purple
+                  : Colors.green,
             ),
           ),
         );
@@ -132,11 +168,28 @@ class SearchResultsDialog extends StatelessWidget {
       itemCount: issues.length,
       itemBuilder: (context, index) {
         final issue = issues[index];
+        final displayTitle = normalizeHindiForDisplay(issue.bookTitle);
+        final displayAuthor = normalizeHindiForDisplay(issue.bookAuthor);
+        final displayMember = normalizeHindiForDisplay(issue.memberName);
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
-            title: Text(issue.bookTitle),
-            subtitle: Text('by ${issue.bookAuthor} • Issued to: ${issue.memberName}'),
+            title: Text(
+              displayTitle,
+              style: hindiAwareTextStyle(
+                context,
+                text: displayTitle,
+                base: const TextStyle(),
+              ),
+            ),
+            subtitle: Text(
+              'by $displayAuthor • Issued to: $displayMember',
+              style: hindiAwareTextStyle(
+                context,
+                text: '$displayAuthor$displayMember',
+                base: const TextStyle(),
+              ),
+            ),
             trailing: SizedBox(
               width: 120,
               child: Column(
@@ -146,16 +199,20 @@ class SearchResultsDialog extends StatelessWidget {
                 children: [
                   Chip(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     label: Text(issue.status),
                     backgroundColor: issue.status == 'returned'
                         ? Colors.green
                         : issue.status == 'overdue'
-                            ? Colors.red
-                            : Colors.orange,
+                        ? Colors.red
+                        : Colors.orange,
                   ),
                   const SizedBox(height: 2),
-                  Text('Due: ${issue.dueDate}', 
+                  Text(
+                    'Due: ${issue.dueDate}',
                     style: Theme.of(context).textTheme.bodySmall,
                     overflow: TextOverflow.ellipsis,
                   ),
