@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/member.dart';
 import '../services/api_service.dart';
@@ -15,15 +16,15 @@ class MemberProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    print('DEBUG [MemberProvider]: Starting loadMembers');
+    if (kDebugMode) debugPrint('DEBUG [MemberProvider]: Starting loadMembers');
 
     try {
       _members = await ApiService.getMembers();
-      print('DEBUG [MemberProvider]: Successfully loaded ${_members.length} members');
-      print('DEBUG [MemberProvider]: Sample members: ${_members.take(2).toList()}');
+      if (kDebugMode) debugPrint('DEBUG [MemberProvider]: Successfully loaded ${_members.length} members');
+      if (kDebugMode) debugPrint('DEBUG [MemberProvider]: Sample members: ${_members.take(2).toList()}');
       notifyListeners();
     } catch (e) {
-      print('DEBUG [MemberProvider]: Error loading members: $e');
+      if (kDebugMode) debugPrint('DEBUG [MemberProvider]: Error loading members: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

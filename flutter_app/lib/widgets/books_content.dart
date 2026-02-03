@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:data_table_2/data_table_2.dart';
@@ -81,9 +82,9 @@ class _BooksContentState extends State<BooksContent> {
 
   void _loadBooks() {
     try {
-      print('DEBUG [BooksContent]: Calling loadBooks');
+      if (kDebugMode) debugPrint('DEBUG [BooksContent]: Calling loadBooks');
       context.read<BookProvider>().loadBooks().catchError((error) {
-        print('DEBUG [BooksContent]: Error caught in catchError: $error');
+        if (kDebugMode) debugPrint('DEBUG [BooksContent]: Error caught in catchError: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -95,7 +96,7 @@ class _BooksContentState extends State<BooksContent> {
         }
       });
     } catch (e) {
-      print('DEBUG [BooksContent]: Error in try block: $e');
+      if (kDebugMode) debugPrint('DEBUG [BooksContent]: Error in try block: $e');
     }
   }
 
@@ -167,6 +168,8 @@ class _BooksContentState extends State<BooksContent> {
     final bookProvider = Provider.of<BookProvider>(context);
     final selectedCount = _selectedBookIds.length;
     final filteredBooks = getFilteredBooks(bookProvider.books);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 800;
 
     return Scaffold(
       appBar: AppBar(
@@ -174,16 +177,26 @@ class _BooksContentState extends State<BooksContent> {
         elevation: 0,
         actions: [
           if (selectedCount > 0) ...[
-            ElevatedButton.icon(
-              onPressed: _deleteSelectedBooks,
-              icon: const Icon(Icons.delete_forever),
-              label: Text('Delete ($selectedCount)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
+            if (isCompact)
+              IconButton(
+                tooltip: 'Delete ($selectedCount)',
+                onPressed: _deleteSelectedBooks,
+                icon: Icon(
+                  Icons.delete_forever,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: _deleteSelectedBooks,
+                icon: const Icon(Icons.delete_forever),
+                label: Text('Delete ($selectedCount)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             IconButton(
               tooltip: 'Clear selection',
               onPressed: () {
@@ -191,30 +204,82 @@ class _BooksContentState extends State<BooksContent> {
               },
               icon: const Icon(Icons.clear),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
           ],
-          ElevatedButton.icon(
-            onPressed: _importBooks,
-            icon: const Icon(Icons.upload_file),
-            label: const Text('Import CSV/Excel'),
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            tooltip: 'Export Excel (CSV)',
-            onPressed: _exportBooksCsv,
-            icon: const Icon(Icons.download),
-          ),
+          if (isCompact)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'More actions',
+              onSelected: (value) {
+                switch (value) {
+                  case 'import':
+                    _importBooks();
+                    break;
+                  case 'export':
+                    _exportBooksCsv();
+                    break;
+                  case 'add':
+                    _showBookDialog();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'import',
+                  child: Row(
+                    children: [
+                      Icon(Icons.upload_file),
+                      SizedBox(width: 8),
+                      Text('Import CSV/Excel'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'export',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download),
+                      SizedBox(width: 8),
+                      Text('Export CSV'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'add',
+                  child: Row(
+                    children: [
+                      Icon(Icons.add),
+                      SizedBox(width: 8),
+                      Text('Add Book'),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            ElevatedButton.icon(
+              onPressed: _importBooks,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Import'),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Export Excel (CSV)',
+              onPressed: _exportBooksCsv,
+              icon: const Icon(Icons.download),
+            ),
+            const SizedBox(width: 4),
+            ElevatedButton.icon(
+              onPressed: () => _showBookDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Book'),
+            ),
+          ],
           const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: () => _showBookDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Book'),
-          ),
-          const SizedBox(width: 12),
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
             // Search and Filter
@@ -395,17 +460,18 @@ class _BooksContentState extends State<BooksContent> {
                               ),
                         ),
                         child: DataTable2(
-                          columnSpacing: 8,
-                          horizontalMargin: 12,
-                          dataRowHeight: 62,
-                          headingRowHeight: 50,
+                          columnSpacing: 6,
+                          horizontalMargin: 10,
+                          dataRowHeight: 60,
+                          headingRowHeight: 48,
                           showCheckboxColumn: false,
+                          minWidth: 850,
                           columns: [
                             DataColumn2(
-                              fixedWidth: 44,
+                              fixedWidth: 40,
                               label: Center(
                                 child: Transform.scale(
-                                  scale: 0.82,
+                                  scale: 0.8,
                                   child: Checkbox(
                                     tristate: true,
                                     value: filteredBooks.isEmpty
@@ -440,7 +506,7 @@ class _BooksContentState extends State<BooksContent> {
                             ),
                             const DataColumn2(
                               label: Text('Cover'),
-                              fixedWidth: 56,
+                              fixedWidth: 50,
                             ),
                             const DataColumn2(
                               label: Text('ISBN'),
@@ -460,11 +526,11 @@ class _BooksContentState extends State<BooksContent> {
                             ),
                             const DataColumn2(
                               label: Text('Category'),
-                              size: ColumnSize.M,
+                              size: ColumnSize.S,
                             ),
                             const DataColumn2(
                               label: Text('Copies'),
-                              fixedWidth: 78,
+                              fixedWidth: 65,
                             ),
                             const DataColumn2(
                               label: Text('Status'),
@@ -472,7 +538,7 @@ class _BooksContentState extends State<BooksContent> {
                             ),
                             const DataColumn2(
                               label: Text('Actions'),
-                              size: ColumnSize.S,
+                              fixedWidth: 90,
                             ),
                           ],
                           rows: filteredBooks

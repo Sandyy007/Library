@@ -239,18 +239,33 @@ class _DashboardContentState extends State<DashboardContent>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Stats Cards
-                  SizedBox(
-                    height: 140,
-                    child: Row(
-                      children: List.generate(stats.length, (index) {
-                        final stat = stats[index];
-                        return Expanded(
-                          child: Container(
-                            margin: EdgeInsets.only(
-                              right: index < stats.length - 1 ? 16 : 0,
-                            ),
-                            padding: const EdgeInsets.all(14),
+                  // Stats Cards - Responsive layout
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final availableWidth = constraints.maxWidth;
+                      // Calculate how many cards can fit per row
+                      // Minimum card width of 140px with 12px spacing
+                      final minCardWidth = 140.0;
+                      final spacing = 12.0;
+                      final cardsPerRow =
+                          (availableWidth / (minCardWidth + spacing))
+                              .floor()
+                              .clamp(2, stats.length);
+                      final cardWidth =
+                          (availableWidth - (spacing * (cardsPerRow - 1))) /
+                          cardsPerRow;
+                      final isCompact = availableWidth < 600;
+                      final cardHeight = isCompact ? 100.0 : 120.0;
+
+                      return Wrap(
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: List.generate(stats.length, (index) {
+                          final stat = stats[index];
+                          return Container(
+                            width: cardWidth,
+                            height: cardHeight,
+                            padding: EdgeInsets.all(isCompact ? 10 : 14),
                             decoration: BoxDecoration(
                               gradient: stat['gradient'] as LinearGradient,
                               borderRadius: BorderRadius.circular(16),
@@ -270,46 +285,54 @@ class _DashboardContentState extends State<DashboardContent>
                               children: [
                                 Icon(
                                   stat['icon'] as IconData,
-                                  size: 24,
+                                  size: isCompact ? 20 : 24,
                                   color: Colors.white,
                                 ),
-                                const SizedBox(height: 8),
+                                SizedBox(height: isCompact ? 4 : 8),
                                 Flexible(
-                                  child: Text(
-                                    stat['value'] as String,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      stat['value'] as String,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: isCompact ? 18 : 22,
+                                          ),
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                SizedBox(height: isCompact ? 2 : 4),
                                 Flexible(
-                                  child: Text(
-                                    stat['title'] as String,
-                                    style: Theme.of(context).textTheme.bodyLarge
-                                        ?.copyWith(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.9,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      stat['title'] as String,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: isCompact ? 11 : 13,
                                           ),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 2,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        );
-                      }),
-                    ),
+                          );
+                        }),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 

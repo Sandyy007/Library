@@ -51,9 +51,12 @@ class _ReportsContentState extends State<ReportsContent>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 600;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reports & Analytics'),
+        title: Text(isCompact ? 'Reports' : 'Reports & Analytics'),
         elevation: 0,
         actions: [
           if (_isExporting)
@@ -99,16 +102,21 @@ class _ReportsContentState extends State<ReportsContent>
             tooltip: 'Refresh Reports',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(icon: Icon(Icons.star), text: 'Popular Books'),
-            Tab(icon: Icon(Icons.people), text: 'Active Members'),
-            Tab(icon: Icon(Icons.bar_chart), text: 'Monthly Stats'),
-            Tab(icon: Icon(Icons.pie_chart), text: 'Categories'),
-            Tab(icon: Icon(Icons.warning), text: 'Overdue'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+            tabs: const [
+              Tab(icon: Icon(Icons.star), text: 'Popular'),
+              Tab(icon: Icon(Icons.people), text: 'Members'),
+              Tab(icon: Icon(Icons.bar_chart), text: 'Monthly'),
+              Tab(icon: Icon(Icons.pie_chart), text: 'Category'),
+              Tab(icon: Icon(Icons.warning), text: 'Overdue'),
+            ],
+          ),
         ),
       ),
       body: TabBarView(
@@ -447,38 +455,84 @@ class _ReportsContentState extends State<ReportsContent>
               ),
               const SizedBox(height: 24),
               // Summary cards
-              Row(
-                children: [
-                  _buildSummaryCard(
-                    'Total Issues',
-                    provider.monthlyStats
-                        .fold(0, (sum, s) => sum + s.issues)
-                        .toString(),
-                    Icons.arrow_upward,
-                    Colors.blue,
-                  ),
-                  const SizedBox(width: 16),
-                  _buildSummaryCard(
-                    'Total Returns',
-                    provider.monthlyStats
-                        .fold(0, (sum, s) => sum + s.returns)
-                        .toString(),
-                    Icons.arrow_downward,
-                    Colors.green,
-                  ),
-                  const SizedBox(width: 16),
-                  _buildSummaryCard(
-                    'Avg per Month',
-                    (provider.monthlyStats.fold(
-                              0,
-                              (sum, s) => sum + s.issues,
-                            ) ~/
-                            provider.monthlyStats.length)
-                        .toString(),
-                    Icons.trending_up,
-                    Colors.orange,
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 500) {
+                    // Stack cards vertically on small screens
+                    return Column(
+                      children: [
+                        _buildSummaryCard(
+                          'Total Issues',
+                          provider.monthlyStats
+                              .fold(0, (sum, s) => sum + s.issues)
+                              .toString(),
+                          Icons.arrow_upward,
+                          Colors.blue,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryCard(
+                          'Total Returns',
+                          provider.monthlyStats
+                              .fold(0, (sum, s) => sum + s.returns)
+                              .toString(),
+                          Icons.arrow_downward,
+                          Colors.green,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryCard(
+                          'Avg/Month',
+                          (provider.monthlyStats.fold(
+                                    0,
+                                    (sum, s) => sum + s.issues,
+                                  ) ~/
+                                  provider.monthlyStats.length)
+                              .toString(),
+                          Icons.trending_up,
+                          Colors.orange,
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Total Issues',
+                          provider.monthlyStats
+                              .fold(0, (sum, s) => sum + s.issues)
+                              .toString(),
+                          Icons.arrow_upward,
+                          Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Total Returns',
+                          provider.monthlyStats
+                              .fold(0, (sum, s) => sum + s.returns)
+                              .toString(),
+                          Icons.arrow_downward,
+                          Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Avg/Month',
+                          (provider.monthlyStats.fold(
+                                    0,
+                                    (sum, s) => sum + s.issues,
+                                  ) ~/
+                                  provider.monthlyStats.length)
+                              .toString(),
+                          Icons.trending_up,
+                          Colors.orange,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -503,41 +557,44 @@ class _ReportsContentState extends State<ReportsContent>
     IconData icon,
     Color color,
   ) {
-    return Expanded(
-      child: Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color),
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              Column(
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     value,
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: color,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

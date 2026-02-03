@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/notification.dart';
 import '../services/api_service.dart';
@@ -68,11 +69,11 @@ class NotificationProvider with ChangeNotifier {
         unreadOnly: unreadOnly,
       );
       _unreadCount = _notifications.where((n) => !n.isRead).length;
-      print(
+      if (kDebugMode) debugPrint(
         'DEBUG [NotificationProvider]: Loaded ${_notifications.length} notifications',
       );
     } catch (e) {
-      print('DEBUG [NotificationProvider]: Error loading notifications: $e');
+      if (kDebugMode) debugPrint('DEBUG [NotificationProvider]: Error loading notifications: $e');
     }
 
     if (!silent) {
@@ -86,7 +87,7 @@ class NotificationProvider with ChangeNotifier {
       _unreadCount = await ApiService.getUnreadNotificationCount();
       notifyListeners();
     } catch (e) {
-      print('DEBUG [NotificationProvider]: Error loading unread count: $e');
+      if (kDebugMode) debugPrint('DEBUG [NotificationProvider]: Error loading unread count: $e');
     }
   }
 
@@ -110,7 +111,7 @@ class NotificationProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print(
+      if (kDebugMode) debugPrint(
         'DEBUG [NotificationProvider]: Error marking notification as read: $e',
       );
     }
@@ -137,7 +138,7 @@ class NotificationProvider with ChangeNotifier {
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
-      print('DEBUG [NotificationProvider]: Error marking all as read: $e');
+      if (kDebugMode) debugPrint('DEBUG [NotificationProvider]: Error marking all as read: $e');
     }
   }
 
@@ -148,7 +149,7 @@ class NotificationProvider with ChangeNotifier {
       _unreadCount = _notifications.where((n) => !n.isRead).length;
       notifyListeners();
     } catch (e) {
-      print('DEBUG [NotificationProvider]: Error deleting notification: $e');
+      if (kDebugMode) debugPrint('DEBUG [NotificationProvider]: Error deleting notification: $e');
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:data_table_2/data_table_2.dart';
@@ -50,7 +51,7 @@ class _MembersContentState extends State<MembersContent> {
   void _loadMembers() {
     try {
       context.read<MemberProvider>().loadMembers().catchError((error) {
-        print('Error loading members: $error');
+        if (kDebugMode) debugPrint('Error loading members: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error loading members: $error')),
@@ -58,7 +59,7 @@ class _MembersContentState extends State<MembersContent> {
         }
       });
     } catch (e) {
-      print('Error in loadMembers: $e');
+      if (kDebugMode) debugPrint('Error in loadMembers: $e');
     }
   }
 
@@ -236,10 +237,12 @@ class _MembersContentState extends State<MembersContent> {
   @override
   Widget build(BuildContext context) {
     final memberProvider = Provider.of<MemberProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 600;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Member Management'),
+        title: Text(isCompact ? 'Members' : 'Member Management'),
         elevation: 0,
         actions: [
           IconButton(
@@ -247,16 +250,24 @@ class _MembersContentState extends State<MembersContent> {
             onPressed: _exportMembersActivityCsv,
             icon: const Icon(Icons.download),
           ),
+          const SizedBox(width: 4),
+          if (isCompact)
+            IconButton(
+              tooltip: 'Add Member',
+              onPressed: () => _showMemberDialog(),
+              icon: const Icon(Icons.person_add),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: () => _showMemberDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Member'),
+            ),
           const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: () => _showMemberDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Member'),
-          ),
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
             // Search Bar
@@ -366,15 +377,17 @@ class _MembersContentState extends State<MembersContent> {
                     : DataTable2(
                         columnSpacing: 8,
                         horizontalMargin: 12,
-                        dataRowHeight: 70,
+                        dataRowHeight: 65,
+                        minWidth: 700,
+                        scrollController: ScrollController(),
                         columns: const [
-                          DataColumn2(label: Text('Photo'), fixedWidth: 60),
+                          DataColumn2(label: Text('Photo'), fixedWidth: 50),
                           DataColumn2(label: Text('Name'), size: ColumnSize.L),
                           DataColumn2(label: Text('Email'), size: ColumnSize.M),
-                          DataColumn2(label: Text('Phone'), fixedWidth: 120),
-                          DataColumn2(label: Text('Type'), fixedWidth: 120),
-                          DataColumn2(label: Text('Status'), fixedWidth: 90),
-                          DataColumn2(label: Text('Actions'), fixedWidth: 150),
+                          DataColumn2(label: Text('Phone'), size: ColumnSize.S),
+                          DataColumn2(label: Text('Type'), fixedWidth: 90),
+                          DataColumn2(label: Text('Status'), fixedWidth: 70),
+                          DataColumn2(label: Text('Actions'), fixedWidth: 100),
                         ],
                         rows: getFilteredMembers(memberProvider.members)
                             .map(
@@ -398,6 +411,7 @@ class _MembersContentState extends State<MembersContent> {
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                         if (member.address != null &&
                                             member.address!.isNotEmpty)
@@ -426,6 +440,7 @@ class _MembersContentState extends State<MembersContent> {
                                       (member.email ?? '').isEmpty
                                           ? '-'
                                           : member.email!,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   DataCell(
@@ -441,32 +456,48 @@ class _MembersContentState extends State<MembersContent> {
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.history,
-                                            size: 20,
+                                        SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: IconButton(
+                                            padding: EdgeInsets.zero,
+                                            icon: const Icon(
+                                              Icons.history,
+                                              size: 14,
+                                            ),
+                                            tooltip: 'View History',
+                                            onPressed: () =>
+                                                _showMemberHistory(member),
                                           ),
-                                          tooltip: 'View History',
-                                          onPressed: () =>
-                                              _showMemberHistory(member),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            size: 20,
+                                        SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: IconButton(
+                                            padding: EdgeInsets.zero,
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 14,
+                                            ),
+                                            tooltip: 'Edit',
+                                            onPressed: () => _showMemberDialog(
+                                              member: member,
+                                            ),
                                           ),
-                                          tooltip: 'Edit',
-                                          onPressed: () =>
-                                              _showMemberDialog(member: member),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            size: 20,
+                                        SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: IconButton(
+                                            padding: EdgeInsets.zero,
+                                            icon: const Icon(
+                                              Icons.delete,
+                                              size: 14,
+                                            ),
+                                            tooltip: 'Delete',
+                                            onPressed: () =>
+                                                _deleteMember(member.id),
                                           ),
-                                          tooltip: 'Delete',
-                                          onPressed: () =>
-                                              _deleteMember(member.id),
                                         ),
                                       ],
                                     ),
@@ -544,39 +575,44 @@ class _MembersContentState extends State<MembersContent> {
   Widget _buildTypeChip(String type) {
     Color color;
     IconData icon;
+    String label;
     switch (type.toLowerCase()) {
       case 'faculty':
         color = Colors.purple;
         icon = Icons.person;
+        label = 'FACU';
         break;
       case 'staff':
         color = Colors.green;
         icon = Icons.work;
+        label = 'STAFF';
         break;
       case 'guest':
         color = Colors.orange;
         icon = Icons.person_outline;
+        label = 'GUEST';
         break;
       default: // student
         color = Colors.blue;
         icon = Icons.school;
+        label = 'STU';
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
           Text(
-            type.toUpperCase(),
+            label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.bold,
               color: color,
             ),

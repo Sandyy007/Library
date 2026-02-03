@@ -8,11 +8,13 @@ import 'backup_restore_dialog.dart';
 class Sidebar extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
+  final bool isDrawer;
 
   const Sidebar({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    this.isDrawer = false,
   });
 
   @override
@@ -40,9 +42,10 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
+    final sidebarWidth = widget.isDrawer ? 280.0 : 260.0;
 
     return Container(
-      width: 280,
+      width: sidebarWidth,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -52,13 +55,15 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
             Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
           ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(5, 0),
-          ),
-        ],
+        boxShadow: widget.isDrawer
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(5, 0),
+                ),
+              ],
       ),
       child: FadeTransition(
         opacity: _fadeAnimation,

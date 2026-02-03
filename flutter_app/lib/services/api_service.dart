@@ -317,7 +317,7 @@ class ApiService {
 
   static Future<void> updateBook(int id, Book book) async {
     final headers = await getHeaders();
-    print('DEBUG: Updating book $id: ${book.title}');
+    _log('DEBUG: Updating book $id: ${book.title}');
     try {
       final response = await http
           .put(
@@ -327,7 +327,7 @@ class ApiService {
           )
           .timeout(timeout);
 
-      print('DEBUG: Update book response status: ${response.statusCode}');
+      _log('DEBUG: Update book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         throw Exception(
           'Failed to update book: ${response.statusCode} - ${response.body}',
@@ -335,28 +335,28 @@ class ApiService {
       }
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error updating book: $e');
+      _log('DEBUG: Socket error updating book: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout updating book: $e');
+      _log('DEBUG: Timeout updating book: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error updating book: $e');
+      _log('DEBUG: Error updating book: $e');
       rethrow;
     }
   }
 
   static Future<void> deleteBook(int id) async {
     final headers = await getHeaders();
-    print('DEBUG: Deleting book $id');
+    _log('DEBUG: Deleting book $id');
     try {
       final response = await http
           .delete(Uri.parse('$baseUrl/books/$id'), headers: headers)
           .timeout(timeout);
 
-      print('DEBUG: Delete book response status: ${response.statusCode}');
+      _log('DEBUG: Delete book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         throw Exception(
           'Failed to delete book: ${response.statusCode} - ${response.body}',
@@ -364,15 +364,15 @@ class ApiService {
       }
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error deleting book: $e');
+      _log('DEBUG: Socket error deleting book: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout deleting book: $e');
+      _log('DEBUG: Timeout deleting book: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error deleting book: $e');
+      _log('DEBUG: Error deleting book: $e');
       rethrow;
     }
   }
@@ -452,7 +452,7 @@ class ApiService {
         throw Exception('Failed to load categories');
       }
     } catch (e) {
-      print('DEBUG: Error loading categories: $e');
+      _log('DEBUG: Error loading categories: $e');
       // Return default categories on error
       return [
             'Fiction',
@@ -503,15 +503,15 @@ class ApiService {
     final uri = Uri.parse(
       '$baseUrl/members',
     ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    print('DEBUG: Fetching members from $uri');
+    _log('DEBUG: Fetching members from $uri');
 
     try {
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      print('DEBUG: Members response status: ${response.statusCode}');
+      _log('DEBUG: Members response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('DEBUG: Parsed ${data.length} members');
+        _log('DEBUG: Parsed ${data.length} members');
         return data.map((json) => Member.fromJson(json)).toList();
       } else {
         await _throwIfUnauthorized(response);
@@ -520,15 +520,15 @@ class ApiService {
         );
       }
     } on SocketException catch (e) {
-      print('DEBUG: Socket error loading members: $e');
+      _log('DEBUG: Socket error loading members: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout loading members: $e');
+      _log('DEBUG: Timeout loading members: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error loading members: $e');
+      _log('DEBUG: Error loading members: $e');
       rethrow;
     }
   }
@@ -548,7 +548,7 @@ class ApiService {
 
   static Future<Member> addMember(Member member) async {
     final headers = await getHeaders();
-    print('DEBUG: Adding member: ${member.name}');
+    _log('DEBUG: Adding member: ${member.name}');
     try {
       final response = await http
           .post(
@@ -558,10 +558,10 @@ class ApiService {
           )
           .timeout(timeout);
 
-      print('DEBUG: Add member response status: ${response.statusCode}');
+      _log('DEBUG: Add member response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('DEBUG: Member added with id: ${data['id']}');
+        _log('DEBUG: Member added with id: ${data['id']}');
         _notifyDataChanged();
         return member.copyWith(id: data['id']);
       } else {
@@ -570,22 +570,22 @@ class ApiService {
         );
       }
     } on SocketException catch (e) {
-      print('DEBUG: Socket error adding member: $e');
+      _log('DEBUG: Socket error adding member: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout adding member: $e');
+      _log('DEBUG: Timeout adding member: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error adding member: $e');
+      _log('DEBUG: Error adding member: $e');
       rethrow;
     }
   }
 
   static Future<void> updateMember(int id, Member member) async {
     final headers = await getHeaders();
-    print('DEBUG: Updating member $id: ${member.name}');
+    _log('DEBUG: Updating member $id: ${member.name}');
     try {
       final response = await http
           .put(
@@ -595,7 +595,7 @@ class ApiService {
           )
           .timeout(timeout);
 
-      print('DEBUG: Update member response status: ${response.statusCode}');
+      _log('DEBUG: Update member response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         throw Exception(
           'Failed to update member: ${response.statusCode} - ${response.body}',
@@ -604,28 +604,28 @@ class ApiService {
 
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error updating member: $e');
+      _log('DEBUG: Socket error updating member: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout updating member: $e');
+      _log('DEBUG: Timeout updating member: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error updating member: $e');
+      _log('DEBUG: Error updating member: $e');
       rethrow;
     }
   }
 
   static Future<void> deleteMember(int id) async {
     final headers = await getHeaders();
-    print('DEBUG: Deleting member $id');
+    _log('DEBUG: Deleting member $id');
     try {
       final response = await http
           .delete(Uri.parse('$baseUrl/members/$id'), headers: headers)
           .timeout(timeout);
 
-      print('DEBUG: Delete member response status: ${response.statusCode}');
+      _log('DEBUG: Delete member response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         throw Exception(
           'Failed to delete member: ${response.statusCode} - ${response.body}',
@@ -634,15 +634,15 @@ class ApiService {
 
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error deleting member: $e');
+      _log('DEBUG: Socket error deleting member: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout deleting member: $e');
+      _log('DEBUG: Timeout deleting member: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error deleting member: $e');
+      _log('DEBUG: Error deleting member: $e');
       rethrow;
     }
   }
@@ -668,7 +668,7 @@ class ApiService {
         throw Exception('Failed to load member categories');
       }
     } catch (e) {
-      print('DEBUG: Error loading member categories: $e');
+      _log('DEBUG: Error loading member categories: $e');
       // Return defaults
       return [
         MemberCategory(id: 1, name: 'guest', maxBooks: 3, loanPeriodDays: 14),
@@ -699,15 +699,15 @@ class ApiService {
     final uri = Uri.parse(
       '$baseUrl/issues',
     ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    print('DEBUG: Fetching issues from $uri');
+    _log('DEBUG: Fetching issues from $uri');
 
     try {
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      print('DEBUG: Issues response status: ${response.statusCode}');
+      _log('DEBUG: Issues response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('DEBUG: Parsed ${data.length} issues');
+        _log('DEBUG: Parsed ${data.length} issues');
         return data.map((json) => Issue.fromJson(json)).toList();
       } else {
         await _throwIfUnauthorized(response);
@@ -716,15 +716,15 @@ class ApiService {
         );
       }
     } on SocketException catch (e) {
-      print('DEBUG: Socket error loading issues: $e');
+      _log('DEBUG: Socket error loading issues: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout loading issues: $e');
+      _log('DEBUG: Timeout loading issues: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error loading issues: $e');
+      _log('DEBUG: Error loading issues: $e');
       rethrow;
     }
   }
@@ -735,7 +735,7 @@ class ApiService {
     String dueDate,
   ) async {
     final headers = await getHeaders();
-    print('DEBUG: Issuing book $bookId to member $memberId until $dueDate');
+    _log('DEBUG: Issuing book $bookId to member $memberId until $dueDate');
     try {
       final response = await http
           .post(
@@ -749,7 +749,7 @@ class ApiService {
           )
           .timeout(timeout);
 
-      print('DEBUG: Issue book response status: ${response.statusCode}');
+      _log('DEBUG: Issue book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         await _throwIfUnauthorized(response);
         final error =
@@ -759,28 +759,28 @@ class ApiService {
 
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error issuing book: $e');
+      _log('DEBUG: Socket error issuing book: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout issuing book: $e');
+      _log('DEBUG: Timeout issuing book: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error issuing book: $e');
+      _log('DEBUG: Error issuing book: $e');
       rethrow;
     }
   }
 
   static Future<void> returnBook(int issueId) async {
     final headers = await getHeaders();
-    print('DEBUG: Returning book for issue $issueId');
+    _log('DEBUG: Returning book for issue $issueId');
     try {
       final response = await http
           .put(Uri.parse('$baseUrl/issues/$issueId/return'), headers: headers)
           .timeout(timeout);
 
-      print('DEBUG: Return book response status: ${response.statusCode}');
+      _log('DEBUG: Return book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         await _throwIfUnauthorized(response);
         throw Exception(
@@ -790,15 +790,15 @@ class ApiService {
 
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error returning book: $e');
+      _log('DEBUG: Socket error returning book: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout returning book: $e');
+      _log('DEBUG: Timeout returning book: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error returning book: $e');
+      _log('DEBUG: Error returning book: $e');
       rethrow;
     }
   }
@@ -816,7 +816,7 @@ class ApiService {
     if (returnDate != null) body['return_date'] = returnDate;
     if (status != null) body['status'] = status;
 
-    print('DEBUG: Updating issue $issueId with: $body');
+    _log('DEBUG: Updating issue $issueId with: $body');
     try {
       final response = await http
           .put(
@@ -826,7 +826,7 @@ class ApiService {
           )
           .timeout(timeout);
 
-      print('DEBUG: Update issue response status: ${response.statusCode}');
+      _log('DEBUG: Update issue response status: ${response.statusCode}');
       if (response.statusCode != 200) {
         await _throwIfUnauthorized(response);
         throw Exception(
@@ -836,15 +836,15 @@ class ApiService {
 
       _notifyDataChanged();
     } on SocketException catch (e) {
-      print('DEBUG: Socket error updating issue: $e');
+      _log('DEBUG: Socket error updating issue: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout updating issue: $e');
+      _log('DEBUG: Timeout updating issue: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error updating issue: $e');
+      _log('DEBUG: Error updating issue: $e');
       rethrow;
     }
   }
@@ -854,15 +854,15 @@ class ApiService {
   static Future<Map<String, int>> getDashboardStats() async {
     final headers = await getHeaders();
     final uri = Uri.parse('$baseUrl/dashboard/stats');
-    print('DEBUG: Fetching dashboard stats from $uri');
+    _log('DEBUG: Fetching dashboard stats from $uri');
 
     try {
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      print('DEBUG: Dashboard stats response status: ${response.statusCode}');
+      _log('DEBUG: Dashboard stats response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('DEBUG: Parsed dashboard stats: $data');
+        _log('DEBUG: Parsed dashboard stats: $data');
         return Map<String, int>.from(
           data.map(
             (k, v) =>
@@ -876,15 +876,15 @@ class ApiService {
         );
       }
     } on SocketException catch (e) {
-      print('DEBUG: Socket error loading dashboard stats: $e');
+      _log('DEBUG: Socket error loading dashboard stats: $e');
       throw Exception(
         'Cannot connect to server. Make sure backend is running at http://localhost:3000',
       );
     } on TimeoutException catch (e) {
-      print('DEBUG: Timeout loading dashboard stats: $e');
+      _log('DEBUG: Timeout loading dashboard stats: $e');
       throw Exception('Request timeout. Server is not responding.');
     } catch (e) {
-      print('DEBUG: Error loading dashboard stats: $e');
+      _log('DEBUG: Error loading dashboard stats: $e');
       rethrow;
     }
   }
@@ -906,7 +906,7 @@ class ApiService {
         throw Exception('Failed to load dashboard settings');
       }
     } catch (e) {
-      print('DEBUG: Error loading dashboard settings: $e');
+      _log('DEBUG: Error loading dashboard settings: $e');
       // Return defaults
       return [
         DashboardWidget(name: 'stats_cards', isVisible: true, position: 0),
@@ -939,7 +939,7 @@ class ApiService {
         throw Exception('Failed to save dashboard settings');
       }
     } catch (e) {
-      print('DEBUG: Error saving dashboard settings: $e');
+      _log('DEBUG: Error saving dashboard settings: $e');
       rethrow;
     }
   }
@@ -971,7 +971,7 @@ class ApiService {
         'Failed to load dashboard alerts: ${response.statusCode} - ${response.body}',
       );
     } catch (e) {
-      print('DEBUG: Error loading dashboard alerts: $e');
+      _log('DEBUG: Error loading dashboard alerts: $e');
       rethrow;
     }
   }
@@ -994,7 +994,7 @@ class ApiService {
         'Failed to load dashboard activity: ${response.statusCode} - ${response.body}',
       );
     } catch (e) {
-      print('DEBUG: Error loading dashboard activity: $e');
+      _log('DEBUG: Error loading dashboard activity: $e');
       rethrow;
     }
   }
@@ -1014,7 +1014,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      print('DEBUG: Error clearing dashboard activity: $e');
+      _log('DEBUG: Error clearing dashboard activity: $e');
       rethrow;
     }
   }
@@ -1031,7 +1031,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      print('DEBUG: Error sending reminder: $e');
+      _log('DEBUG: Error sending reminder: $e');
       rethrow;
     }
   }
@@ -1053,7 +1053,7 @@ class ApiService {
 
       _notifyDataChanged();
     } catch (e) {
-      print('DEBUG: Error deactivating member: $e');
+      _log('DEBUG: Error deactivating member: $e');
       rethrow;
     }
   }
@@ -1075,7 +1075,7 @@ class ApiService {
 
       _notifyDataChanged();
     } catch (e) {
-      print('DEBUG: Error activating member: $e');
+      _log('DEBUG: Error activating member: $e');
       rethrow;
     }
   }
@@ -1085,13 +1085,13 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getIssuedReport() async {
     final headers = await getHeaders();
     final uri = Uri.parse('$baseUrl/reports/issued');
-    print('DEBUG: Fetching issued report from $uri');
+    _log('DEBUG: Fetching issued report from $uri');
 
     try {
       final response = await http.get(uri, headers: headers).timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('DEBUG: Parsed ${data.length} issued reports');
+        _log('DEBUG: Parsed ${data.length} issued reports');
         return List<Map<String, dynamic>>.from(data);
       } else {
         throw Exception(
@@ -1099,7 +1099,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      print('DEBUG: Error loading issued report: $e');
+      _log('DEBUG: Error loading issued report: $e');
       rethrow;
     }
   }
@@ -1107,13 +1107,13 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getOverdueReport() async {
     final headers = await getHeaders();
     final uri = Uri.parse('$baseUrl/reports/overdue');
-    print('DEBUG: Fetching overdue report from $uri');
+    _log('DEBUG: Fetching overdue report from $uri');
 
     try {
       final response = await http.get(uri, headers: headers).timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('DEBUG: Parsed ${data.length} overdue reports');
+        _log('DEBUG: Parsed ${data.length} overdue reports');
         return List<Map<String, dynamic>>.from(data);
       } else {
         throw Exception(
@@ -1121,7 +1121,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      print('DEBUG: Error loading overdue report: $e');
+      _log('DEBUG: Error loading overdue report: $e');
       rethrow;
     }
   }
@@ -1148,7 +1148,7 @@ class ApiService {
         throw Exception('Failed to load popular books');
       }
     } catch (e) {
-      print('DEBUG: Error loading popular books: $e');
+      _log('DEBUG: Error loading popular books: $e');
       rethrow;
     }
   }
@@ -1175,7 +1175,7 @@ class ApiService {
         throw Exception('Failed to load active members');
       }
     } catch (e) {
-      print('DEBUG: Error loading active members: $e');
+      _log('DEBUG: Error loading active members: $e');
       rethrow;
     }
   }
@@ -1199,7 +1199,7 @@ class ApiService {
         throw Exception('Failed to load monthly stats');
       }
     } catch (e) {
-      print('DEBUG: Error loading monthly stats: $e');
+      _log('DEBUG: Error loading monthly stats: $e');
       rethrow;
     }
   }
@@ -1220,7 +1220,7 @@ class ApiService {
         throw Exception('Failed to load category stats');
       }
     } catch (e) {
-      print('DEBUG: Error loading category stats: $e');
+      _log('DEBUG: Error loading category stats: $e');
       rethrow;
     }
   }
@@ -1248,7 +1248,7 @@ class ApiService {
         return [];
       }
     } catch (e) {
-      print('DEBUG: Error loading notifications: $e');
+      _log('DEBUG: Error loading notifications: $e');
       return [];
     }
   }
@@ -1268,7 +1268,7 @@ class ApiService {
         return 0;
       }
     } catch (e) {
-      print('DEBUG: Error loading notification count: $e');
+      _log('DEBUG: Error loading notification count: $e');
       return 0;
     }
   }
@@ -1280,7 +1280,7 @@ class ApiService {
           .put(Uri.parse('$baseUrl/notifications/$id/read'), headers: headers)
           .timeout(timeout);
     } catch (e) {
-      print('DEBUG: Error marking notification as read: $e');
+      _log('DEBUG: Error marking notification as read: $e');
     }
   }
 
@@ -1291,7 +1291,7 @@ class ApiService {
           .put(Uri.parse('$baseUrl/notifications/read-all'), headers: headers)
           .timeout(timeout);
     } catch (e) {
-      print('DEBUG: Error marking all notifications as read: $e');
+      _log('DEBUG: Error marking all notifications as read: $e');
     }
   }
 
@@ -1302,7 +1302,7 @@ class ApiService {
           .delete(Uri.parse('$baseUrl/notifications/$id'), headers: headers)
           .timeout(timeout);
     } catch (e) {
-      print('DEBUG: Error deleting notification: $e');
+      _log('DEBUG: Error deleting notification: $e');
     }
   }
 
@@ -1360,7 +1360,7 @@ class ApiService {
         throw Exception('Search failed');
       }
     } catch (e) {
-      print('DEBUG: Error in advanced search: $e');
+      _log('DEBUG: Error in advanced search: $e');
       rethrow;
     }
   }
@@ -1383,7 +1383,7 @@ class ApiService {
         throw Exception('Failed to load recommendations');
       }
     } catch (e) {
-      print('DEBUG: Error loading recommendations: $e');
+      _log('DEBUG: Error loading recommendations: $e');
       return [];
     }
   }
@@ -1404,7 +1404,7 @@ class ApiService {
         throw Exception('Failed to create backup');
       }
     } catch (e) {
-      print('DEBUG: Error creating backup: $e');
+      _log('DEBUG: Error creating backup: $e');
       rethrow;
     }
   }
@@ -1431,7 +1431,7 @@ class ApiService {
         throw Exception('Failed to restore backup');
       }
     } catch (e) {
-      print('DEBUG: Error restoring backup: $e');
+      _log('DEBUG: Error restoring backup: $e');
       rethrow;
     }
   }
@@ -1456,7 +1456,7 @@ class ApiService {
         throw Exception('Failed to export data');
       }
     } catch (e) {
-      print('DEBUG: Error exporting data: $e');
+      _log('DEBUG: Error exporting data: $e');
       rethrow;
     }
   }
@@ -1503,7 +1503,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      print('DEBUG: Error uploading book cover: $e');
+      _log('DEBUG: Error uploading book cover: $e');
       rethrow;
     }
   }
@@ -1548,7 +1548,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      print('DEBUG: Error uploading member photo: $e');
+      _log('DEBUG: Error uploading member photo: $e');
       rethrow;
     }
   }

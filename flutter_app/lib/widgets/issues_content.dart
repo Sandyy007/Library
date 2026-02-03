@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -133,16 +134,16 @@ class _IssuesContentState extends State<IssuesContent> {
   void _loadAllData() {
     try {
       context.read<IssueProvider>().loadIssues().catchError((error) {
-        print('Error loading issues: $error');
+        if (kDebugMode) debugPrint('Error loading issues: $error');
       });
       context.read<BookProvider>().loadBooks().catchError((error) {
-        print('Error loading books: $error');
+        if (kDebugMode) debugPrint('Error loading books: $error');
       });
       context.read<MemberProvider>().loadMembers().catchError((error) {
-        print('Error loading members: $error');
+        if (kDebugMode) debugPrint('Error loading members: $error');
       });
     } catch (e) {
-      print('Error in loadAllData: $e');
+      if (kDebugMode) debugPrint('Error in loadAllData: $e');
     }
   }
 
@@ -198,10 +199,12 @@ class _IssuesContentState extends State<IssuesContent> {
     final issueProvider = Provider.of<IssueProvider>(context);
     final bookProvider = Provider.of<BookProvider>(context);
     final memberProvider = Provider.of<MemberProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 600;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Issues & Returns'),
+        title: Text(isCompact ? 'Issues' : 'Issues & Returns'),
         elevation: 0,
         actions: [
           IconButton(
@@ -214,25 +217,37 @@ class _IssuesContentState extends State<IssuesContent> {
             icon: const Icon(Icons.table_view_rounded),
             onPressed: () => _exportIssuesCsv(context),
           ),
-          ElevatedButton.icon(
-            onPressed: () => _showIssueDialog(
-              context,
-              bookProvider.books,
-              memberProvider.members,
+          if (isCompact)
+            IconButton(
+              tooltip: 'Issue Book',
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () => _showIssueDialog(
+                context,
+                bookProvider.books,
+                memberProvider.members,
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: () => _showIssueDialog(
+                context,
+                bookProvider.books,
+                memberProvider.members,
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Issue Book'),
             ),
-            icon: const Icon(Icons.add),
-            label: const Text('Issue Book'),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
             // Search Bar
             Container(
-              padding: const EdgeInsets.all(20),
-              margin: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.all(isCompact ? 12 : 16),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
@@ -346,35 +361,24 @@ class _IssuesContentState extends State<IssuesContent> {
                         ),
                       )
                     : DataTable2(
-                        columnSpacing: 12,
-                        horizontalMargin: 12,
-                        dataRowHeight: 72,
+                        columnSpacing: 8,
+                        horizontalMargin: 10,
+                        dataRowHeight: 68,
+                        minWidth: 800,
                         columns: const [
                           DataColumn2(label: Text('Book'), size: ColumnSize.L),
                           DataColumn2(
                             label: Text('Member'),
-                            size: ColumnSize.L,
-                          ),
-                          DataColumn2(
-                            label: Text('Issue Date'),
                             size: ColumnSize.M,
                           ),
+                          DataColumn2(label: Text('Issue'), size: ColumnSize.S),
+                          DataColumn2(label: Text('Due'), size: ColumnSize.S),
                           DataColumn2(
-                            label: Text('Due Date'),
-                            size: ColumnSize.M,
-                          ),
-                          DataColumn2(
-                            label: Text('Return Date'),
-                            size: ColumnSize.M,
-                          ),
-                          DataColumn2(
-                            label: Text('Status'),
+                            label: Text('Return'),
                             size: ColumnSize.S,
                           ),
-                          DataColumn2(
-                            label: Text('Actions'),
-                            size: ColumnSize.L,
-                          ),
+                          DataColumn2(label: Text('Status'), fixedWidth: 85),
+                          DataColumn2(label: Text('Actions'), fixedWidth: 130),
                         ],
                         rows:
                             getFilteredIssues(

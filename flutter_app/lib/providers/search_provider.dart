@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../models/member.dart';
@@ -142,11 +143,11 @@ class SearchProvider with ChangeNotifier {
         _searchBooks = (results['books'])?.cast<Book>() ?? [];
       }
 
-      print(
+      if (kDebugMode) debugPrint(
         'DEBUG [SearchProvider]: Found ${_searchBooks.length} results for "$query"',
       );
     } catch (e) {
-      print('DEBUG [SearchProvider]: Error in advanced search: $e');
+      if (kDebugMode) debugPrint('DEBUG [SearchProvider]: Error in advanced search: $e');
       _searchBooks = [];
     }
 
@@ -160,11 +161,11 @@ class SearchProvider with ChangeNotifier {
 
     try {
       _recommendations = await ApiService.getRecommendations(memberId);
-      print(
+      if (kDebugMode) debugPrint(
         'DEBUG [SearchProvider]: Loaded ${_recommendations.length} recommendations',
       );
     } catch (e) {
-      print('DEBUG [SearchProvider]: Error loading recommendations: $e');
+      if (kDebugMode) debugPrint('DEBUG [SearchProvider]: Error loading recommendations: $e');
       _recommendations = [];
     }
 

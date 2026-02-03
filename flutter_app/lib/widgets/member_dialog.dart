@@ -35,9 +35,27 @@ class _MemberDialogState extends State<MemberDialog> {
 
   static const List<Map<String, dynamic>> _memberTypes = [
     // Keep value as 'guest' for new entries; backend will accept both guest/student.
-    {'value': 'guest', 'label': 'Guest', 'maxBooks': 3, 'loanDays': 14, 'icon': Icons.person_outline},
-    {'value': 'faculty', 'label': 'Faculty', 'maxBooks': 10, 'loanDays': 30, 'icon': Icons.person},
-    {'value': 'staff', 'label': 'Staff', 'maxBooks': 5, 'loanDays': 21, 'icon': Icons.work},
+    {
+      'value': 'guest',
+      'label': 'Guest',
+      'maxBooks': 3,
+      'loanDays': 14,
+      'icon': Icons.person_outline,
+    },
+    {
+      'value': 'faculty',
+      'label': 'Faculty',
+      'maxBooks': 10,
+      'loanDays': 30,
+      'icon': Icons.person,
+    },
+    {
+      'value': 'staff',
+      'label': 'Staff',
+      'maxBooks': 5,
+      'loanDays': 21,
+      'icon': Icons.work,
+    },
   ];
 
   @override
@@ -71,8 +89,13 @@ class _MemberDialogState extends State<MemberDialog> {
       _isActive = widget.member!.isActive;
     } else {
       _selectedType = 'guest';
-      _membershipDateController.text = DateTime.now().toIso8601String().split('T')[0];
-      _expiryDateController.text = DateTime.now().add(const Duration(days: 365)).toIso8601String().split('T')[0];
+      _membershipDateController.text = DateTime.now().toIso8601String().split(
+        'T',
+      )[0];
+      _expiryDateController.text = DateTime.now()
+          .add(const Duration(days: 365))
+          .toIso8601String()
+          .split('T')[0];
     }
     _nameController.addListener(_onTextChanged);
     _addressController.addListener(_onTextChanged);
@@ -84,14 +107,17 @@ class _MemberDialogState extends State<MemberDialog> {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 850;
     final maxWidth = (isSmallScreen ? screenSize.width * 0.95 : 900).toDouble();
-    final maxHeight = (isSmallScreen ? screenSize.height * 0.95 : 800).toDouble();
+    final maxHeight = (isSmallScreen ? screenSize.height * 0.95 : 800)
+        .toDouble();
 
     return Dialog(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
         child: Card(
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           color: Theme.of(context).colorScheme.surface,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -143,7 +169,8 @@ class _MemberDialogState extends State<MemberDialog> {
                               children: [
                                 _buildProfilePhotoPicker(),
                                 const SizedBox(height: 20),
-                                if (_selectedType != null) _buildMemberTypeInfo(),
+                                if (_selectedType != null)
+                                  _buildMemberTypeInfo(),
                                 const SizedBox(height: 24),
                                 _buildFormFields(),
                               ],
@@ -155,13 +182,12 @@ class _MemberDialogState extends State<MemberDialog> {
                                   children: [
                                     _buildProfilePhotoPicker(),
                                     const SizedBox(height: 20),
-                                    if (_selectedType != null) _buildMemberTypeInfo(),
+                                    if (_selectedType != null)
+                                      _buildMemberTypeInfo(),
                                   ],
                                 ),
                                 const SizedBox(width: 24),
-                                Expanded(
-                                  child: _buildFormFields(),
-                                ),
+                                Expanded(child: _buildFormFields()),
                               ],
                             ),
                     ),
@@ -188,7 +214,9 @@ class _MemberDialogState extends State<MemberDialog> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Icon(widget.member != null ? Icons.save : Icons.add),
+                          : Icon(
+                              widget.member != null ? Icons.save : Icons.add,
+                            ),
                       label: Text(widget.member != null ? 'Update' : 'Add'),
                     ),
                   ],
@@ -202,7 +230,8 @@ class _MemberDialogState extends State<MemberDialog> {
   }
 
   Widget _buildFormFields() {
-    final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
+    final baseFieldStyle =
+        Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -248,28 +277,31 @@ class _MemberDialogState extends State<MemberDialog> {
           validator: (value) {
             if (value == null || value.isEmpty) return 'Phone is required';
             final phoneRegex = RegExp(r'^\d{10}$');
-            if (!phoneRegex.hasMatch(value)) return 'Enter a valid 10-digit phone number';
+            if (!phoneRegex.hasMatch(value))
+              return 'Enter a valid 10-digit phone number';
             return null;
           },
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          initialValue: _selectedType,
+          value: _selectedType,
           decoration: const InputDecoration(
             labelText: 'Member Type',
             prefixIcon: Icon(Icons.badge),
           ),
           items: _memberTypes
-              .map((type) => DropdownMenuItem(
-                    value: type['value'] as String,
-                    child: Row(
-                      children: [
-                        Icon(type['icon'] as IconData, size: 20),
-                        const SizedBox(width: 8),
-                        Text(type['label'] as String),
-                      ],
-                    ),
-                  ))
+              .map(
+                (type) => DropdownMenuItem(
+                  value: type['value'] as String,
+                  child: Row(
+                    children: [
+                      Icon(type['icon'] as IconData, size: 20),
+                      const SizedBox(width: 8),
+                      Text(type['label'] as String),
+                    ],
+                  ),
+                ),
+              )
               .toList(),
           onChanged: (value) => setState(() => _selectedType = value),
           validator: (value) {
@@ -338,8 +370,10 @@ class _MemberDialogState extends State<MemberDialog> {
       ),
       child: Stack(
         children: [
-          ClipOval(
-            child: _buildPhotoPreview(),
+          SizedBox(
+            width: 140,
+            height: 140,
+            child: ClipOval(child: _buildPhotoPreview()),
           ),
           Positioned(
             bottom: 0,
@@ -353,7 +387,9 @@ class _MemberDialogState extends State<MemberDialog> {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Icon(
-                    _profilePhotoUrl != null || _selectedPhotoBytes != null ? Icons.edit : Icons.add_photo_alternate,
+                    _profilePhotoUrl != null || _selectedPhotoBytes != null
+                        ? Icons.edit
+                        : Icons.add_photo_alternate,
                     color: Colors.white,
                     size: 18,
                   ),
@@ -413,12 +449,17 @@ class _MemberDialogState extends State<MemberDialog> {
   }
 
   Widget _buildMemberTypeInfo() {
-    final typeInfo = _memberTypes.firstWhere((t) => t['value'] == _selectedType, orElse: () => _memberTypes[0]);
+    final typeInfo = _memberTypes.firstWhere(
+      (t) => t['value'] == _selectedType,
+      orElse: () => _memberTypes[0],
+    );
     return Container(
       width: 140,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+        color: Theme.of(
+          context,
+        ).colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -426,7 +467,11 @@ class _MemberDialogState extends State<MemberDialog> {
         children: [
           Row(
             children: [
-              Icon(typeInfo['icon'] as IconData, size: 16, color: Theme.of(context).colorScheme.primary),
+              Icon(
+                typeInfo['icon'] as IconData,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -473,9 +518,9 @@ class _MemberDialogState extends State<MemberDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick photo: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to pick photo: $e')));
       }
     }
   }
@@ -489,7 +534,10 @@ class _MemberDialogState extends State<MemberDialog> {
       String? photoPath = _profilePhotoUrl;
 
       if (_selectedPhotoBytes != null && _selectedPhotoName != null) {
-        photoPath = await ApiService.uploadMemberPhoto(_selectedPhotoBytes!, _selectedPhotoName!);
+        photoPath = await ApiService.uploadMemberPhoto(
+          _selectedPhotoBytes!,
+          _selectedPhotoName!,
+        );
       }
 
       final name = normalizeHindiForDisplay(_nameController.text);
@@ -517,14 +565,18 @@ class _MemberDialogState extends State<MemberDialog> {
       if (mounted) {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Member ${widget.member != null ? 'updated' : 'added'} successfully')),
+          SnackBar(
+            content: Text(
+              'Member ${widget.member != null ? 'updated' : 'added'} successfully',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save member: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save member: $e')));
       }
     } finally {
       if (mounted) {

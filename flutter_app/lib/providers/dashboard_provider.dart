@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/report_models.dart';
 import '../services/api_service.dart';
@@ -29,9 +30,9 @@ class DashboardProvider with ChangeNotifier {
       if (_widgets.isEmpty) {
         _widgets = List.from(defaultWidgets);
       }
-      print('DEBUG [DashboardProvider]: Loaded ${_widgets.length} dashboard widgets');
+      if (kDebugMode) debugPrint('DEBUG [DashboardProvider]: Loaded ${_widgets.length} dashboard widgets');
     } catch (e) {
-      print('DEBUG [DashboardProvider]: Error loading dashboard settings: $e');
+      if (kDebugMode) debugPrint('DEBUG [DashboardProvider]: Error loading dashboard settings: $e');
       _widgets = List.from(defaultWidgets);
     }
 
@@ -42,9 +43,9 @@ class DashboardProvider with ChangeNotifier {
   Future<void> saveSettings(int userId) async {
     try {
       await ApiService.saveDashboardSettings(userId, _widgets);
-      print('DEBUG [DashboardProvider]: Saved dashboard settings');
+      if (kDebugMode) debugPrint('DEBUG [DashboardProvider]: Saved dashboard settings');
     } catch (e) {
-      print('DEBUG [DashboardProvider]: Error saving dashboard settings: $e');
+      if (kDebugMode) debugPrint('DEBUG [DashboardProvider]: Error saving dashboard settings: $e');
       rethrow;
     }
   }

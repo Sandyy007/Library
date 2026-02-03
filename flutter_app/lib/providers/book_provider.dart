@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../services/api_service.dart';
@@ -15,15 +16,15 @@ class BookProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    print('DEBUG [BookProvider]: Starting loadBooks, search=$search, category=$category');
+    if (kDebugMode) debugPrint('DEBUG [BookProvider]: Starting loadBooks, search=$search, category=$category');
 
     try {
       _books = await ApiService.getBooks(search: search, category: category);
-      print('DEBUG [BookProvider]: Successfully loaded ${_books.length} books');
-      print('DEBUG [BookProvider]: Sample books: ${_books.take(2).toList()}');
+      if (kDebugMode) debugPrint('DEBUG [BookProvider]: Successfully loaded ${_books.length} books');
+      if (kDebugMode) debugPrint('DEBUG [BookProvider]: Sample books: ${_books.take(2).toList()}');
       notifyListeners();
     } catch (e) {
-      print('DEBUG [BookProvider]: Error loading books: $e');
+      if (kDebugMode) debugPrint('DEBUG [BookProvider]: Error loading books: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();

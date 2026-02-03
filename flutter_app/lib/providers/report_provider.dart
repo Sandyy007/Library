@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/report_models.dart';
 import '../services/api_service.dart';
@@ -21,9 +22,9 @@ class ReportProvider with ChangeNotifier {
 
     try {
       _popularBooks = await ApiService.getPopularBooks(limit: limit, period: period);
-      print('DEBUG [ReportProvider]: Loaded ${_popularBooks.length} popular books');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Loaded ${_popularBooks.length} popular books');
     } catch (e) {
-      print('DEBUG [ReportProvider]: Error loading popular books: $e');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Error loading popular books: $e');
     }
 
     _isLoading = false;
@@ -36,9 +37,9 @@ class ReportProvider with ChangeNotifier {
 
     try {
       _activeMembers = await ApiService.getActiveMembers(limit: limit, period: period);
-      print('DEBUG [ReportProvider]: Loaded ${_activeMembers.length} active members');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Loaded ${_activeMembers.length} active members');
     } catch (e) {
-      print('DEBUG [ReportProvider]: Error loading active members: $e');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Error loading active members: $e');
     }
 
     _isLoading = false;
@@ -51,9 +52,9 @@ class ReportProvider with ChangeNotifier {
 
     try {
       _monthlyStats = await ApiService.getMonthlyStats(year: year);
-      print('DEBUG [ReportProvider]: Loaded ${_monthlyStats.length} monthly stats');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Loaded ${_monthlyStats.length} monthly stats');
     } catch (e) {
-      print('DEBUG [ReportProvider]: Error loading monthly stats: $e');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Error loading monthly stats: $e');
     }
 
     _isLoading = false;
@@ -66,9 +67,9 @@ class ReportProvider with ChangeNotifier {
 
     try {
       _categoryStats = await ApiService.getCategoryStats();
-      print('DEBUG [ReportProvider]: Loaded ${_categoryStats.length} category stats');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Loaded ${_categoryStats.length} category stats');
     } catch (e) {
-      print('DEBUG [ReportProvider]: Error loading category stats: $e');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Error loading category stats: $e');
     }
 
     _isLoading = false;
@@ -87,7 +88,7 @@ class ReportProvider with ChangeNotifier {
         loadCategoryStats(),
       ]);
     } catch (e) {
-      print('DEBUG [ReportProvider]: Error loading all reports: $e');
+      if (kDebugMode) debugPrint('DEBUG [ReportProvider]: Error loading all reports: $e');
     }
 
     _isLoading = false;

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/issue.dart';
 import '../services/api_service.dart';
@@ -17,15 +18,15 @@ class IssueProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    print('DEBUG [IssueProvider]: Starting loadIssues');
+    if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Starting loadIssues');
 
     try {
       _issues = await ApiService.getIssues();
-      print('DEBUG [IssueProvider]: Successfully loaded ${_issues.length} issues');
-      print('DEBUG [IssueProvider]: Sample issues: ${_issues.take(2).toList()}');
+      if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Successfully loaded ${_issues.length} issues');
+      if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Sample issues: ${_issues.take(2).toList()}');
       notifyListeners();
     } catch (e) {
-      print('DEBUG [IssueProvider]: Error loading issues: $e');
+      if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Error loading issues: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -38,12 +39,12 @@ class IssueProvider with ChangeNotifier {
 
   Future<void> loadStats() async {
     try {
-      print('DEBUG [IssueProvider]: Starting loadStats');
+      if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Starting loadStats');
       _stats = await ApiService.getDashboardStats();
-      print('DEBUG [IssueProvider]: Successfully loaded dashboard stats: $_stats');
+      if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Successfully loaded dashboard stats: $_stats');
       notifyListeners();
     } catch (e) {
-      print('DEBUG [IssueProvider]: Error loading stats: $e');
+      if (kDebugMode) debugPrint('DEBUG [IssueProvider]: Error loading stats: $e');
       rethrow;
     }
   }
