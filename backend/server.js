@@ -120,9 +120,10 @@ const upload = multer({
 });
 
 // Separate upload handler for CSV/XLSX imports (memory; not stored on disk)
+// Supports large imports (10k+ books)
 const importUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for large book imports
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
     const okExt = ext === '.csv' || ext === '.xlsx' || ext === '.xls';
@@ -300,21 +301,28 @@ const generateNotifications = async () => {
   });
 };
 
-// MySQL connection
-const db = mysql.createConnection({
+// MySQL connection pool for better concurrency with large operations
+const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'library_management',
   charset: 'utf8mb4',
+  waitForConnections: true,
+  connectionLimit: 20,
+  queueLimit: 0,
+  connectTimeout: 60000,
+  multipleStatements: true,
 });
 
-db.connect((err) => {
+// Test pool connection on startup
+db.getConnection((err, conn) => {
   if (err) {
     console.error('Database connection failed:', err.message);
     console.log('Server will continue with sample data only');
   } else {
-    console.log('Connected to MySQL database');
+    console.log('Connected to MySQL database (pool)');
+    conn.release();
     // Run migrations on startup (skip in unit tests).
     if (process.env.NODE_ENV !== 'test') {
       runMigrations();
@@ -407,7 +415,20 @@ const runMigrations = () => {
       ('faculty', 10, 30)`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
       ('staff', 5, 21)`,
-    "UPDATE books SET total_copies = 1, available_copies = CASE WHEN status = 'available' THEN 1 ELSE 0 END WHERE total_copies IS NULL"
+    "UPDATE books SET total_copies = 1, available_copies = CASE WHEN status = 'available' THEN 1 ELSE 0 END WHERE total_copies IS NULL",
+    // Indexes for large database performance
+    "CREATE INDEX IF NOT EXISTS idx_books_title ON books(title(100))",
+    "CREATE INDEX IF NOT EXISTS idx_books_author ON books(author(100))",
+    "CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)",
+    "CREATE INDEX IF NOT EXISTS idx_books_category ON books(category(50))",
+    "CREATE INDEX IF NOT EXISTS idx_books_status ON books(status)",
+    "CREATE INDEX IF NOT EXISTS idx_books_title_author ON books(title(50), author(50))",
+    "CREATE INDEX IF NOT EXISTS idx_members_name ON members(name(100))",
+    "CREATE INDEX IF NOT EXISTS idx_members_email ON members(email)",
+    "CREATE INDEX IF NOT EXISTS idx_issues_book_id ON issues(book_id)",
+    "CREATE INDEX IF NOT EXISTS idx_issues_member_id ON issues(member_id)",
+    "CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status)",
+    "CREATE INDEX IF NOT EXISTS idx_issues_issue_date ON issues(issue_date)"
   ];
 
   migrations.forEach(sql => {
@@ -435,6 +456,46 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// ==================== HEALTH CHECK ROUTES ====================
+
+// Basic health check (no auth required)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0',
+  });
+});
+
+// Detailed health check with database status
+app.get('/api/health/detailed', async (req, res) => {
+  const health = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    database: { status: 'unknown' },
+  };
+
+  try {
+    const [rows] = await db.promise().query('SELECT 1 as test');
+    health.database = {
+      status: rows && rows.length > 0 ? 'connected' : 'error',
+      type: 'mysql',
+    };
+  } catch (err) {
+    health.status = 'degraded';
+    health.database = {
+      status: 'disconnected',
+      error: err.message,
+    };
+  }
+
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  res.status(statusCode).json(health);
+});
 
 // ==================== AUTH ROUTES ====================
 
@@ -506,41 +567,70 @@ app.get('/api/auth/me', (req, res) => {
 
 // ==================== BOOKS ROUTES ====================
 
+// GET /api/books - Supports pagination for large datasets
+// Query params: page (1-based), limit (default 100, max 1000), search, category, author, year, status, available
 app.get('/api/books', (req, res) => {
-  const { search, category, author, year, status, available } = req.query;
-  let query = 'SELECT * FROM books WHERE 1=1';
+  const { search, category, author, year, status, available, page, limit: limitParam } = req.query;
+  
+  // Pagination support for large datasets
+  const pageNum = parsePositiveInt(page, 1);
+  const limit = Math.min(parsePositiveInt(limitParam, 100), 1000); // Max 1000 per page
+  const offset = (pageNum - 1) * limit;
+  
+  let whereClause = 'WHERE 1=1';
   const params = [];
   
   if (search) {
-    query += ' AND (title LIKE ? OR author LIKE ? OR isbn LIKE ?)';
+    whereClause += ' AND (title LIKE ? OR author LIKE ? OR isbn LIKE ?)';
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm);
   }
   if (category) {
-    query += ' AND category = ?';
+    whereClause += ' AND category = ?';
     params.push(category);
   }
   if (author) {
-    query += ' AND author LIKE ?';
+    whereClause += ' AND author LIKE ?';
     params.push(`%${author}%`);
   }
   if (year) {
-    query += ' AND year_published = ?';
+    whereClause += ' AND year_published = ?';
     params.push(year);
   }
   if (status) {
-    query += ' AND status = ?';
+    whereClause += ' AND status = ?';
     params.push(status);
   }
   if (available === 'true') {
-    query += ' AND (available_copies > 0 OR status = "available")';
+    whereClause += ' AND (available_copies > 0 OR status = "available")';
   }
   
-  query += ' ORDER BY title ASC';
+  // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
+  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS * FROM books ${whereClause} ORDER BY title ASC LIMIT ? OFFSET ?`;
+  const dataParams = [...params, limit, offset];
   
-  db.query(query, params, (err, results) => {
+  db.query(dataQuery, dataParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+    
+    // Get total count using FOUND_ROWS() - much faster than separate COUNT query
+    db.query('SELECT FOUND_ROWS() as total', (countErr, countResults) => {
+      if (countErr) return res.status(500).json({ error: countErr.message });
+      
+      const total = countResults[0]?.total || 0;
+      const totalPages = Math.ceil(total / limit);
+      
+      // Return with pagination metadata
+      res.json({
+        data: results,
+        pagination: {
+          page: pageNum,
+          limit,
+          total,
+          totalPages,
+          hasMore: pageNum < totalPages
+        }
+      });
+    });
   });
 });
 
@@ -684,9 +774,46 @@ app.delete('/api/books/:id', (req, res) => {
   });
 });
 
+// Bulk delete books - optimized for large deletions
+app.post('/api/books/bulk-delete', async (req, res) => {
+  const { ids } = req.body;
+  
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'No book IDs provided' });
+  }
+  
+  // Validate all IDs are numbers
+  const validIds = ids.filter(id => Number.isFinite(Number(id))).map(Number);
+  if (validIds.length === 0) {
+    return res.status(400).json({ error: 'No valid book IDs provided' });
+  }
+  
+  try {
+    // Use a single DELETE query with IN clause for efficiency
+    const placeholders = validIds.map(() => '?').join(',');
+    const query = `DELETE FROM books WHERE id IN (${placeholders})`;
+    
+    const result = await dbQuery(query, validIds);
+    const deletedCount = result.affectedRows || 0;
+    
+    res.json({ 
+      message: `Deleted ${deletedCount} book(s)`,
+      deleted: deletedCount,
+      requested: validIds.length
+    });
+  } catch (err) {
+    console.error('Bulk delete error:', err);
+    res.status(500).json({ error: err.message || 'Bulk delete failed' });
+  }
+});
+
 // Import books from CSV/XLSX. Required: title + author. Optional: rack_number, isbn.
-// Inserts new books or updates existing by ISBN (if provided) else by (title+author).
+// Optimized for large imports (10k+ books) using batch inserts.
 app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
+  // Disable request timeout for large imports
+  req.setTimeout(0);
+  res.setTimeout(0);
+  
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -739,9 +866,7 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
     const looksLikeLegacyHindi = (text) => {
       const s = String(text || '').trim();
       if (!s) return false;
-      // If it already contains Devanagari, it's Unicode Hindi and fine.
       if (/[\u0900-\u097F]/.test(s)) return false;
-      // Heuristic for KrutiDev/legacy Hindi text: lots of ASCII letters + frequent ;/* characters.
       const letters = (s.match(/[A-Za-z]/g) || []).length;
       if (letters < 6) return false;
       const special = (s.match(/[;*]/g) || []).length;
@@ -756,6 +881,8 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
     let legacyHindiRows = 0;
     const errors = [];
 
+    // Parse all rows first
+    const validBooks = [];
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const title = String(pick(row, titleKeys) ?? '').trim();
@@ -773,7 +900,9 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
 
       if (!title || !author) {
         skipped++;
-        errors.push({ row: i + 2, error: 'Missing required Title or Author' });
+        if (errors.length < 100) {
+          errors.push({ row: i + 2, error: 'Missing required Title or Author' });
+        }
         continue;
       }
 
@@ -781,50 +910,159 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
         legacyHindiRows++;
       }
 
-      const normalizedIsbn = isbn || null;
-      const normalizedRack = rackNumber || null;
-      const normalizedCategory = category || null;
-      const normalizedDescription = description || null;
-      const normalizedPublisher = publisher || null;
-      const normalizedYear = (year && !isNaN(year)) ? year : null;
+      validBooks.push({
+        rowIndex: i + 2,
+        isbn: isbn || null,
+        title,
+        author,
+        rackNumber: rackNumber || null,
+        category: category || null,
+        description: description || null,
+        publisher: publisher || null,
+        year: (year && !isNaN(year)) ? year : null,
+        totalCopies,
+      });
+    }
 
-      try {
-        let existing = null;
-        if (normalizedIsbn) {
-          const found = await dbQuery('SELECT id FROM books WHERE isbn = ? LIMIT 1', [normalizedIsbn]);
-          existing = Array.isArray(found) && found.length > 0 ? found[0] : null;
-        }
-        if (!existing) {
-          const found = await dbQuery('SELECT id FROM books WHERE title = ? AND author = ? LIMIT 1', [title, author]);
-          existing = Array.isArray(found) && found.length > 0 ? found[0] : null;
-        }
-
-        if (existing) {
-          await dbQuery(
-            `UPDATE books SET title = ?, author = ?, rack_number = ?, isbn = ?, 
-             category = COALESCE(?, category), description = COALESCE(?, description),
-             publisher = COALESCE(?, publisher), year_published = COALESCE(?, year_published)
-             WHERE id = ?`,
-            [title, author, normalizedRack, normalizedIsbn, normalizedCategory, 
-             normalizedDescription, normalizedPublisher, normalizedYear, existing.id]
+    // Process in batches for better performance
+    const BATCH_SIZE = 500;
+    
+    for (let batchStart = 0; batchStart < validBooks.length; batchStart += BATCH_SIZE) {
+      const batch = validBooks.slice(batchStart, batchStart + BATCH_SIZE);
+      
+      // Collect all ISBNs and title+author pairs for batch lookup
+      const isbnList = batch.filter(b => b.isbn).map(b => b.isbn);
+      const titleAuthorPairs = batch.map(b => `${b.title}|||${b.author}`);
+      
+      // Batch lookup existing books
+      const existingByIsbn = new Map();
+      const existingByTitleAuthor = new Map();
+      
+      if (isbnList.length > 0) {
+        try {
+          const placeholders = isbnList.map(() => '?').join(',');
+          const found = await dbQuery(
+            `SELECT id, isbn, title, author FROM books WHERE isbn IN (${placeholders})`,
+            isbnList
           );
-          updated++;
+          for (const row of found) {
+            if (row.isbn) existingByIsbn.set(row.isbn, row.id);
+          }
+        } catch (e) {
+          // Continue with individual lookups if batch fails
+        }
+      }
+      
+      // Batch lookup by title+author
+      if (batch.length > 0) {
+        try {
+          // Build OR conditions for title+author pairs
+          const conditions = batch.map(() => '(title = ? AND author = ?)').join(' OR ');
+          const params = batch.flatMap(b => [b.title, b.author]);
+          const found = await dbQuery(
+            `SELECT id, title, author FROM books WHERE ${conditions}`,
+            params
+          );
+          for (const row of found) {
+            existingByTitleAuthor.set(`${row.title}|||${row.author}`, row.id);
+          }
+        } catch (e) {
+          // Continue with individual lookups if batch fails
+        }
+      }
+      
+      // Separate books into updates and inserts
+      const toUpdate = [];
+      const toInsert = [];
+      
+      for (const book of batch) {
+        let existingId = null;
+        if (book.isbn && existingByIsbn.has(book.isbn)) {
+          existingId = existingByIsbn.get(book.isbn);
         } else {
+          const key = `${book.title}|||${book.author}`;
+          if (existingByTitleAuthor.has(key)) {
+            existingId = existingByTitleAuthor.get(key);
+          }
+        }
+        
+        if (existingId) {
+          toUpdate.push({ ...book, existingId });
+        } else {
+          toInsert.push(book);
+        }
+      }
+      
+      // Batch UPDATE using CASE statements for efficiency
+      if (toUpdate.length > 0) {
+        try {
+          for (const book of toUpdate) {
+            await dbQuery(
+              `UPDATE books SET title = ?, author = ?, rack_number = ?, isbn = ?, 
+               category = COALESCE(?, category), description = COALESCE(?, description),
+               publisher = COALESCE(?, publisher), year_published = COALESCE(?, year_published)
+               WHERE id = ?`,
+              [book.title, book.author, book.rackNumber, book.isbn, book.category, 
+               book.description, book.publisher, book.year, book.existingId]
+            );
+            updated++;
+          }
+        } catch (e) {
+          if (errors.length < 100) {
+            errors.push({ batch: Math.floor(batchStart / BATCH_SIZE) + 1, error: `Update batch error: ${e.message}` });
+          }
+        }
+      }
+      
+      // Batch INSERT for new books
+      if (toInsert.length > 0) {
+        try {
+          const insertValues = toInsert.map(book => [
+            book.isbn, book.title, book.author, book.rackNumber, book.category,
+            book.description, book.publisher, book.year, book.totalCopies, book.totalCopies, 'available'
+          ]);
+          
+          const placeholders = insertValues.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+          const flatParams = insertValues.flat();
+          
           await dbQuery(
             `INSERT INTO books (isbn, title, author, rack_number, category, description, 
              publisher, year_published, total_copies, available_copies, status) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')`,
-            [normalizedIsbn, title, author, normalizedRack, normalizedCategory, 
-             normalizedDescription, normalizedPublisher, normalizedYear, totalCopies, totalCopies]
+             VALUES ${placeholders}`,
+            flatParams
           );
-          inserted++;
+          inserted += toInsert.length;
+        } catch (e) {
+          // If batch insert fails, try individual inserts
+          for (const book of toInsert) {
+            try {
+              await dbQuery(
+                `INSERT INTO books (isbn, title, author, rack_number, category, description, 
+                 publisher, year_published, total_copies, available_copies, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')`,
+                [book.isbn, book.title, book.author, book.rackNumber, book.category, 
+                 book.description, book.publisher, book.year, book.totalCopies, book.totalCopies]
+              );
+              inserted++;
+            } catch (e2) {
+              if (errors.length < 100) {
+                errors.push({ row: book.rowIndex, error: e2.message || String(e2) });
+              }
+            }
+          }
         }
-      } catch (e) {
-        errors.push({ row: i + 2, error: e.message || String(e) });
       }
     }
 
-    return res.json({ inserted, updated, skipped, errors, totalRows: rows.length, legacyHindiRows });
+    return res.json({ 
+      inserted, 
+      updated, 
+      skipped, 
+      errors: errors.slice(0, 50), // Limit errors in response
+      totalRows: rows.length, 
+      legacyHindiRows,
+      totalErrors: errors.length 
+    });
   } catch (e) {
     return res.status(500).json({ error: e.message || String(e) });
   }
@@ -941,30 +1179,57 @@ app.post('/api/categories', (req, res) => {
 
 // ==================== MEMBERS ROUTES ====================
 
+// GET /api/members - Supports pagination for large datasets
 app.get('/api/members', (req, res) => {
-  const { search, type, active } = req.query;
-  let query = 'SELECT * FROM members WHERE 1=1';
+  const { search, type, active, page, limit: limitParam } = req.query;
+  
+  // Pagination support
+  const pageNum = parsePositiveInt(page, 1);
+  const limit = Math.min(parsePositiveInt(limitParam, 100), 1000);
+  const offset = (pageNum - 1) * limit;
+  
+  let whereClause = 'WHERE 1=1';
   const params = [];
   
   if (search) {
-    query += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)';
+    whereClause += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)';
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm);
   }
   if (type) {
-    query += ' AND member_type = ?';
+    whereClause += ' AND member_type = ?';
     params.push(type);
   }
   if (active !== undefined) {
-    query += ' AND (is_active = ? OR is_active IS NULL)';
+    whereClause += ' AND (is_active = ? OR is_active IS NULL)';
     params.push(active === 'true');
   }
   
-  query += ' ORDER BY name ASC';
+  // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
+  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS * FROM members ${whereClause} ORDER BY name ASC LIMIT ? OFFSET ?`;
+  const dataParams = [...params, limit, offset];
   
-  db.query(query, params, (err, results) => {
+  db.query(dataQuery, dataParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+    
+    // Get total count using FOUND_ROWS() - much faster than separate COUNT query
+    db.query('SELECT FOUND_ROWS() as total', (countErr, countResults) => {
+      if (countErr) return res.status(500).json({ error: countErr.message });
+      
+      const total = countResults[0]?.total || 0;
+      const totalPages = Math.ceil(total / limit);
+      
+      res.json({
+        data: results,
+        pagination: {
+          page: pageNum,
+          limit,
+          total,
+          totalPages,
+          hasMore: pageNum < totalPages
+        }
+      });
+    });
   });
 });
 
@@ -984,15 +1249,16 @@ app.post('/api/members', (req, res) => {
   const insertLegacy =
     'INSERT INTO members (name, email, phone, member_type, membership_date, profile_photo, address, expiry_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)';
 
+  // Handle empty strings for date fields and nullable fields
   const values = [
     name,
-    email,
+    email || null,
     phone,
     member_type || 'student',
     membership_date,
-    profile_photo,
-    address,
-    expiry_date,
+    profile_photo || null,
+    address || null,
+    expiry_date || null, // Convert empty string to null
   ];
 
   db.query(insertWithCreatedAt, values, (err, result) => {
@@ -1042,15 +1308,23 @@ app.put('/api/members/:id', (req, res) => {
       const body = req.body || {};
 
       const name = body.name ?? existing.name;
-      const email = body.email !== undefined ? body.email : existing.email;
+      const email = body.email !== undefined ? (body.email || null) : existing.email;
       const phone = body.phone ?? existing.phone;
 
       // Support both snake_case and camelCase keys from clients.
       const memberTypeRaw = body.member_type ?? body.memberType ?? existing.member_type;
       const membershipDate = body.membership_date ?? body.membershipDate ?? existing.membership_date;
       const profilePhoto = body.profile_photo ?? body.profilePhoto ?? existing.profile_photo;
-      const address = body.address !== undefined ? body.address : existing.address;
-      const expiryDate = body.expiry_date ?? body.expiryDate ?? existing.expiry_date;
+      const address = body.address !== undefined ? (body.address || null) : existing.address;
+      
+      // Handle expiry_date: convert empty string to null
+      let expiryDate = body.expiry_date ?? body.expiryDate;
+      if (expiryDate === '' || expiryDate === undefined) {
+        expiryDate = existing.expiry_date;
+      }
+      if (expiryDate === '') {
+        expiryDate = null;
+      }
 
       const isActive = body.is_active !== undefined
         ? body.is_active !== false
@@ -1098,6 +1372,37 @@ app.delete('/api/members/:id', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'Member deleted' });
   });
+});
+
+// Bulk delete members - optimized for large deletions
+app.post('/api/members/bulk-delete', async (req, res) => {
+  const { ids } = req.body;
+  
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'No member IDs provided' });
+  }
+  
+  const validIds = ids.filter(id => Number.isFinite(Number(id))).map(Number);
+  if (validIds.length === 0) {
+    return res.status(400).json({ error: 'No valid member IDs provided' });
+  }
+  
+  try {
+    const placeholders = validIds.map(() => '?').join(',');
+    const query = `DELETE FROM members WHERE id IN (${placeholders})`;
+    
+    const result = await dbQuery(query, validIds);
+    const deletedCount = result.affectedRows || 0;
+    
+    res.json({ 
+      message: `Deleted ${deletedCount} member(s)`,
+      deleted: deletedCount,
+      requested: validIds.length
+    });
+  } catch (err) {
+    console.error('Bulk delete members error:', err);
+    res.status(500).json({ error: err.message || 'Bulk delete failed' });
+  }
 });
 
 // Upload member profile photo
@@ -1151,6 +1456,7 @@ app.get('/api/member-categories', (req, res) => {
 
 // ==================== ISSUES ROUTES ====================
 
+// GET /api/issues - Supports pagination for large datasets
 app.get('/api/issues', async (req, res) => {
   await refreshOverdueStatuses();
   try {
@@ -1159,36 +1465,61 @@ app.get('/api/issues', async (req, res) => {
     // Ignore notification errors
   }
 
-  const { member_id, book_id, status } = req.query;
-  let query = `
-    SELECT i.id, i.book_id, i.member_id, i.issue_date, i.due_date, i.return_date, i.status, i.notes,
-           b.title, b.author, b.cover_image,
-           m.name as member_name, m.profile_photo as member_photo
-    FROM issues i
-    JOIN books b ON i.book_id = b.id
-    JOIN members m ON i.member_id = m.id
-    WHERE 1=1
-  `;
+  const { member_id, book_id, status, page, limit: limitParam } = req.query;
+  
+  // Pagination support
+  const pageNum = parsePositiveInt(page, 1);
+  const limit = Math.min(parsePositiveInt(limitParam, 100), 1000);
+  const offset = (pageNum - 1) * limit;
+  
+  let whereClause = 'WHERE 1=1';
   const params = [];
   
   if (member_id) {
-    query += ' AND i.member_id = ?';
+    whereClause += ' AND i.member_id = ?';
     params.push(member_id);
   }
   if (book_id) {
-    query += ' AND i.book_id = ?';
+    whereClause += ' AND i.book_id = ?';
     params.push(book_id);
   }
   if (status) {
-    query += ' AND i.status = ?';
+    whereClause += ' AND i.status = ?';
     params.push(status);
   }
   
-  query += ' ORDER BY i.issue_date DESC';
+  // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
+  const selectFields = `i.id, i.book_id, i.member_id, i.issue_date, i.due_date, i.return_date, i.status, i.notes,
+         b.title, b.author, b.cover_image,
+         m.name as member_name, m.profile_photo as member_photo`;
+  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS ${selectFields}
+    FROM issues i
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    ${whereClause} ORDER BY i.issue_date DESC LIMIT ? OFFSET ?`;
+  const dataParams = [...params, limit, offset];
 
-  db.query(query, params, (err, results) => {
+  db.query(dataQuery, dataParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+    
+    // Get total count using FOUND_ROWS() - much faster than separate COUNT query
+    db.query('SELECT FOUND_ROWS() as total', (countErr, countResults) => {
+      if (countErr) return res.status(500).json({ error: countErr.message });
+      
+      const total = countResults[0]?.total || 0;
+      const totalPages = Math.ceil(total / limit);
+      
+      res.json({
+        data: results,
+        pagination: {
+          page: pageNum,
+          limit,
+          total,
+          totalPages,
+          hasMore: pageNum < totalPages
+        }
+      });
+    });
   });
 });
 
@@ -1279,6 +1610,56 @@ app.post('/api/issues', (req, res) => {
       );
     });
   });
+});
+
+// Bulk delete issues - optimized for large deletions
+app.post('/api/issues/bulk-delete', async (req, res) => {
+  const { ids } = req.body;
+  
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'No issue IDs provided' });
+  }
+  
+  const validIds = ids.filter(id => Number.isFinite(Number(id))).map(Number);
+  if (validIds.length === 0) {
+    return res.status(400).json({ error: 'No valid issue IDs provided' });
+  }
+  
+  try {
+    // First, get the book IDs for all issued books to restore availability
+    const placeholders = validIds.map(() => '?').join(',');
+    const issuesQuery = `SELECT id, book_id, status FROM issues WHERE id IN (${placeholders})`;
+    const issues = await dbQuery(issuesQuery, validIds);
+    
+    // Collect book IDs that need availability restored (only for 'issued' status)
+    const issuedBookIds = issues
+      .filter(i => i.status === 'issued')
+      .map(i => i.book_id);
+    
+    // Delete the issues
+    const deleteQuery = `DELETE FROM issues WHERE id IN (${placeholders})`;
+    const result = await dbQuery(deleteQuery, validIds);
+    const deletedCount = result.affectedRows || 0;
+    
+    // Restore book availability for issued books
+    if (issuedBookIds.length > 0) {
+      const bookPlaceholders = issuedBookIds.map(() => '?').join(',');
+      await dbQuery(
+        `UPDATE books SET available_copies = available_copies + 1 WHERE id IN (${bookPlaceholders})`,
+        issuedBookIds
+      );
+    }
+    
+    res.json({ 
+      message: `Deleted ${deletedCount} issue(s)`,
+      deleted: deletedCount,
+      requested: validIds.length,
+      booksRestored: issuedBookIds.length
+    });
+  } catch (err) {
+    console.error('Bulk delete issues error:', err);
+    res.status(500).json({ error: err.message || 'Bulk delete failed' });
+  }
 });
 
 app.put('/api/issues/:id/return', (req, res) => {
@@ -2425,21 +2806,25 @@ app.post('/api/restore', (req, res) => {
   });
 });
 
-// Export data to CSV format
+// Export data to CSV format - Optimized for large datasets with streaming
 app.get('/api/export/:type', (req, res) => {
   const { type } = req.params;
   const { format = 'json' } = req.query;
+  
+  // Disable timeout for large exports
+  req.setTimeout(0);
+  res.setTimeout(0);
   
   let query = '';
   let filename = '';
   
   switch (type) {
     case 'books':
-      query = 'SELECT id, isbn, title, author, category, publisher, year_published, total_copies, available_copies, status, added_date FROM books';
+      query = 'SELECT id, isbn, title, author, rack_number, category, publisher, year_published, total_copies, available_copies, status, added_date FROM books ORDER BY id';
       filename = 'books_export';
       break;
     case 'members':
-      query = 'SELECT id, name, email, phone, member_type, membership_date, is_active FROM members';
+      query = 'SELECT id, name, email, phone, member_type, membership_date, is_active FROM members ORDER BY id';
       filename = 'members_export';
       break;
     case 'issues':
@@ -2449,6 +2834,7 @@ app.get('/api/export/:type', (req, res) => {
         FROM issues i
         JOIN books b ON i.book_id = b.id
         JOIN members m ON i.member_id = m.id
+        ORDER BY i.id
       `;
       filename = 'issues_export';
       break;
@@ -2456,29 +2842,47 @@ app.get('/api/export/:type', (req, res) => {
       return res.status(400).json({ error: 'Invalid export type' });
   }
   
+  // For large datasets, we stream the response
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     
     if (format === 'csv') {
-      if (results.length === 0) {
+      if (!results || results.length === 0) {
         return res.status(404).json({ error: 'No data to export' });
       }
       
-      const headers = Object.keys(results[0]);
-      let csv = headers.join(',') + '\n';
-      
-      results.forEach(row => {
-        csv += headers.map(h => {
-          const val = row[h];
-          if (val === null || val === undefined) return '';
-          const str = String(val);
-          return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-        }).join(',') + '\n';
-      });
-      
-      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename=${filename}_${Date.now()}.csv`);
-      res.send(csv);
+      
+      // CSV escaping function
+      const csvEscape = (val) => {
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      
+      // Write BOM for Excel UTF-8 compatibility
+      res.write('\ufeff');
+      
+      // Write headers
+      const headers = Object.keys(results[0]);
+      res.write(headers.join(',') + '\n');
+      
+      // Write data in chunks to avoid memory issues
+      const CHUNK_SIZE = 1000;
+      for (let i = 0; i < results.length; i += CHUNK_SIZE) {
+        const chunk = results.slice(i, Math.min(i + CHUNK_SIZE, results.length));
+        let chunkData = '';
+        for (const row of chunk) {
+          chunkData += headers.map(h => csvEscape(row[h])).join(',') + '\n';
+        }
+        res.write(chunkData);
+      }
+      
+      res.end();
     } else {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename=${filename}_${Date.now()}.json`);

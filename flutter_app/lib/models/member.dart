@@ -47,13 +47,13 @@ class Member {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'email': email,
+      'email': email?.isEmpty == true ? null : email,
       'phone': phone,
       'member_type': memberType,
       'membership_date': membershipDate,
       'profile_photo': profilePhoto,
-      'address': address,
-      'expiry_date': expiryDate,
+      'address': address?.isEmpty == true ? null : address,
+      'expiry_date': expiryDate?.isEmpty == true ? null : expiryDate,
       'is_active': isActive,
     };
   }
@@ -124,5 +124,51 @@ class Member {
       default:
         return memberType;
     }
+  }
+}
+
+/// Pagination metadata for member list responses
+class MembersPagination {
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+  final bool hasMore;
+
+  MembersPagination({
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+    required this.hasMore,
+  });
+
+  factory MembersPagination.fromJson(Map<String, dynamic> json) {
+    return MembersPagination(
+      page: json['page'] ?? 1,
+      limit: json['limit'] ?? 100,
+      total: json['total'] ?? 0,
+      totalPages: json['totalPages'] ?? 1,
+      hasMore: json['hasMore'] ?? false,
+    );
+  }
+}
+
+/// Paginated response for member list
+class MembersResponse {
+  final List<Member> data;
+  final MembersPagination pagination;
+
+  MembersResponse({
+    required this.data,
+    required this.pagination,
+  });
+
+  factory MembersResponse.fromJson(Map<String, dynamic> json) {
+    final dataList = json['data'] as List<dynamic>? ?? [];
+    return MembersResponse(
+      data: dataList.map((item) => Member.fromJson(item)).toList(),
+      pagination: MembersPagination.fromJson(json['pagination'] ?? {}),
+    );
   }
 }

@@ -24,7 +24,18 @@ class ApiService {
     'API_SERVER_ORIGIN',
     defaultValue: 'http://localhost:3000',
   );
-  static const Duration timeout = Duration(seconds: 10);
+  static const Duration timeout = Duration(
+    seconds: 15,
+  ); // Reduced for faster feedback
+  static const Duration longTimeout = Duration(
+    minutes: 10,
+  ); // For large file uploads
+
+  // Persistent HTTP client for connection reuse (keep-alive)
+  static final http.Client _client = http.Client();
+
+  // Cache duration for categories
+  static const Duration _categoriesCacheDuration = Duration(minutes: 5);
 
   static const String _tokenKey = 'token';
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
@@ -175,7 +186,7 @@ class ApiService {
   // ==================== AUTH ====================
 
   static Future<User> login(String username, String password) async {
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'username': username, 'password': password}),
@@ -213,16 +224,22 @@ class ApiService {
 
   // ==================== BOOKS ====================
 
-  static Future<List<Book>> getBooks({
+  /// Paginated response for books
+  static Future<BooksResponse> getBooksPaginated({
     String? search,
     String? category,
     String? author,
     int? year,
     String? status,
     bool? available,
+    int page = 1,
+    int limit = 100,
   }) async {
     final headers = await getHeaders();
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
     if (category != null && category.isNotEmpty) {
       queryParams['category'] = category;
@@ -234,23 +251,111 @@ class ApiService {
 
     final uri = Uri.parse(
       '$baseUrl/books',
-    ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    _log('DEBUG: Fetching books from $uri');
+    ).replace(queryParameters: queryParams);
+    _log('DEBUG: Fetching books paginated from $uri');
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       _log('DEBUG: Books response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _log('DEBUG: Parsed ${data.length} books');
-        return data.map((json) => Book.fromJson(json)).toList();
+        final decoded = jsonDecode(response.body);
+        return BooksResponse.fromJson(decoded);
       } else {
         await _throwIfUnauthorized(response);
         throw Exception(
           'Failed to load books: ${response.statusCode} - ${response.body}',
         );
       }
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error loading books: $e');
+      throw Exception(
+        'Cannot connect to server. Make sure backend is running at $serverOrigin',
+      );
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout loading books: $e');
+      throw Exception('Request timeout. Server is not responding.');
+    } catch (e) {
+      _log('DEBUG: Error loading books: $e');
+      rethrow;
+    }
+  }
+
+  /// Get all books (loads all pages for backward compatibility)
+  /// For large datasets, prefer getBooksPaginated
+  static Future<List<Book>> getBooks({
+    String? search,
+    String? category,
+    String? author,
+    int? year,
+    String? status,
+    bool? available,
+  }) async {
+    final headers = await getHeaders();
+    final queryParams = <String, String>{
+      'limit': '1000', // Get more books per page for efficiency
+    };
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (category != null && category.isNotEmpty) {
+      queryParams['category'] = category;
+    }
+    if (author != null && author.isNotEmpty) queryParams['author'] = author;
+    if (year != null) queryParams['year'] = year.toString();
+    if (status != null && status.isNotEmpty) queryParams['status'] = status;
+    if (available == true) queryParams['available'] = 'true';
+
+    try {
+      final List<Book> allBooks = [];
+      int currentPage = 1;
+      bool hasMore = true;
+
+      while (hasMore) {
+        queryParams['page'] = currentPage.toString();
+        final uri = Uri.parse(
+          '$baseUrl/books',
+        ).replace(queryParameters: queryParams);
+        _log('DEBUG: Fetching books page $currentPage from $uri');
+
+        final response = await _client
+            .get(uri, headers: headers)
+            .timeout(timeout);
+        _log('DEBUG: Books response status: ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body);
+
+          // Handle both old (array) and new (paginated) response formats
+          if (decoded is List) {
+            // Old format: just an array of books
+            _log('DEBUG: Parsed ${decoded.length} books (legacy format)');
+            return decoded.map((json) => Book.fromJson(json)).toList();
+          } else if (decoded is Map<String, dynamic>) {
+            // New format: paginated response
+            final data = decoded['data'] as List<dynamic>? ?? [];
+            final pagination = decoded['pagination'] as Map<String, dynamic>?;
+
+            allBooks.addAll(data.map((json) => Book.fromJson(json)));
+            _log(
+              'DEBUG: Loaded page $currentPage with ${data.length} books (total so far: ${allBooks.length})',
+            );
+
+            hasMore = pagination?['hasMore'] == true;
+            currentPage++;
+          } else {
+            throw Exception('Unexpected response format');
+          }
+        } else {
+          await _throwIfUnauthorized(response);
+          throw Exception(
+            'Failed to load books: ${response.statusCode} - ${response.body}',
+          );
+        }
+      }
+
+      _log('DEBUG: Total books loaded: ${allBooks.length}');
+      return allBooks;
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading books: $e');
       throw Exception(
@@ -377,6 +482,108 @@ class ApiService {
     }
   }
 
+  /// Bulk delete books - optimized for large deletions
+  static Future<Map<String, dynamic>> bulkDeleteBooks(List<int> ids) async {
+    final headers = await getHeaders();
+    _log('DEBUG: Bulk deleting ${ids.length} books');
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/books/bulk-delete'),
+            headers: headers,
+            body: jsonEncode({'ids': ids}),
+          )
+          .timeout(longTimeout); // Use long timeout for bulk operations
+
+      _log('DEBUG: Bulk delete response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to bulk delete books: ${response.statusCode} - ${response.body}',
+        );
+      }
+      _notifyDataChanged();
+      return jsonDecode(response.body);
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error bulk deleting books: $e');
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout bulk deleting books: $e');
+      throw Exception('Request timeout. Server is not responding.');
+    } catch (e) {
+      _log('DEBUG: Error bulk deleting books: $e');
+      rethrow;
+    }
+  }
+
+  /// Bulk delete members - optimized for large deletions
+  static Future<Map<String, dynamic>> bulkDeleteMembers(List<int> ids) async {
+    final headers = await getHeaders();
+    _log('DEBUG: Bulk deleting ${ids.length} members');
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/members/bulk-delete'),
+            headers: headers,
+            body: jsonEncode({'ids': ids}),
+          )
+          .timeout(longTimeout); // Use long timeout for bulk operations
+
+      _log(
+        'DEBUG: Bulk delete members response status: ${response.statusCode}',
+      );
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to bulk delete members: ${response.statusCode} - ${response.body}',
+        );
+      }
+      _notifyDataChanged();
+      return jsonDecode(response.body);
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error bulk deleting members: $e');
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout bulk deleting members: $e');
+      throw Exception('Request timeout. Server is not responding.');
+    } catch (e) {
+      _log('DEBUG: Error bulk deleting members: $e');
+      rethrow;
+    }
+  }
+
+  /// Bulk delete issues - optimized for large deletions
+  static Future<Map<String, dynamic>> bulkDeleteIssues(List<int> ids) async {
+    final headers = await getHeaders();
+    _log('DEBUG: Bulk deleting ${ids.length} issues');
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/issues/bulk-delete'),
+            headers: headers,
+            body: jsonEncode({'ids': ids}),
+          )
+          .timeout(longTimeout); // Use long timeout for bulk operations
+
+      _log('DEBUG: Bulk delete issues response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to bulk delete issues: ${response.statusCode} - ${response.body}',
+        );
+      }
+      _notifyDataChanged();
+      return jsonDecode(response.body);
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error bulk deleting issues: $e');
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout bulk deleting issues: $e');
+      throw Exception('Request timeout. Server is not responding.');
+    } catch (e) {
+      _log('DEBUG: Error bulk deleting issues: $e');
+      rethrow;
+    }
+  }
+
+  /// Import books from CSV/XLSX file. Uses long timeout for large files (10k+ books).
   static Future<Map<String, dynamic>> importBooksFile({
     required String filePath,
     String fieldName = 'file',
@@ -416,7 +623,8 @@ class ApiService {
       ),
     );
 
-    final response = await request.send().timeout(timeout);
+    // Use long timeout for large file imports (10k+ books can take several minutes)
+    final response = await request.send().timeout(longTimeout);
     final body = await response.stream.bytesToString();
 
     if (response.statusCode == 401 || response.statusCode == 403) {
@@ -438,21 +646,47 @@ class ApiService {
 
   // ==================== CATEGORIES ====================
 
-  static Future<List<BookCategory>> getCategories() async {
+  // Cache for categories list
+  static List<BookCategory>? _categoriesListCache;
+  static DateTime? _categoriesListCacheTime;
+
+  /// Clear categories cache (call after adding new category)
+  static void clearCategoriesCache() {
+    _categoriesListCache = null;
+    _categoriesListCacheTime = null;
+  }
+
+  static Future<List<BookCategory>> getCategories({bool forceRefresh = false}) async {
+    // Return cached data if still valid
+    if (!forceRefresh &&
+        _categoriesListCache != null &&
+        _categoriesListCacheTime != null &&
+        DateTime.now().difference(_categoriesListCacheTime!) < _categoriesCacheDuration) {
+      return _categoriesListCache!;
+    }
+
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/categories'), headers: headers)
           .timeout(timeout);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => BookCategory.fromJson(json)).toList();
+        final categories = data.map((json) => BookCategory.fromJson(json)).toList();
+        // Cache the result
+        _categoriesListCache = categories;
+        _categoriesListCacheTime = DateTime.now();
+        return categories;
       } else {
         throw Exception('Failed to load categories');
       }
     } catch (e) {
       _log('DEBUG: Error loading categories: $e');
+      // Return cached data if available, otherwise defaults
+      if (_categoriesListCache != null) {
+        return _categoriesListCache!;
+      }
       // Return default categories on error
       return [
             'Fiction',
@@ -474,7 +708,7 @@ class ApiService {
 
   static Future<void> addCategory(String name, String? description) async {
     final headers = await getHeaders();
-    final response = await http
+    final response = await _client
         .post(
           Uri.parse('$baseUrl/categories'),
           headers: headers,
@@ -485,40 +719,70 @@ class ApiService {
     if (response.statusCode != 200) {
       throw Exception('Failed to add category');
     }
+    // Clear cache so new category is fetched
+    clearCategoriesCache();
   }
 
   // ==================== MEMBERS ====================
 
+  /// Get all members (loads all pages for backward compatibility)
   static Future<List<Member>> getMembers({
     String? search,
     String? type,
     bool? active,
   }) async {
     final headers = await getHeaders();
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{
+      'limit': '1000', // Get more members per page
+    };
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
     if (type != null && type.isNotEmpty) queryParams['type'] = type;
     if (active != null) queryParams['active'] = active.toString();
 
-    final uri = Uri.parse(
-      '$baseUrl/members',
-    ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    _log('DEBUG: Fetching members from $uri');
-
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
-      _log('DEBUG: Members response status: ${response.statusCode}');
+      final List<Member> allMembers = [];
+      int currentPage = 1;
+      bool hasMore = true;
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _log('DEBUG: Parsed ${data.length} members');
-        return data.map((json) => Member.fromJson(json)).toList();
-      } else {
-        await _throwIfUnauthorized(response);
-        throw Exception(
-          'Failed to load members: ${response.statusCode} - ${response.body}',
-        );
+      while (hasMore) {
+        queryParams['page'] = currentPage.toString();
+        final uri = Uri.parse(
+          '$baseUrl/members',
+        ).replace(queryParameters: queryParams);
+        _log('DEBUG: Fetching members page $currentPage from $uri');
+
+        final response = await _client
+            .get(uri, headers: headers)
+            .timeout(timeout);
+        _log('DEBUG: Members response status: ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body);
+
+          // Handle both old (array) and new (paginated) response formats
+          if (decoded is List) {
+            _log('DEBUG: Parsed ${decoded.length} members (legacy format)');
+            return decoded.map((json) => Member.fromJson(json)).toList();
+          } else if (decoded is Map<String, dynamic>) {
+            final data = decoded['data'] as List<dynamic>? ?? [];
+            final pagination = decoded['pagination'] as Map<String, dynamic>?;
+
+            allMembers.addAll(data.map((json) => Member.fromJson(json)));
+            _log('DEBUG: Loaded page $currentPage with ${data.length} members');
+
+            hasMore = pagination?['hasMore'] == true;
+            currentPage++;
+          }
+        } else {
+          await _throwIfUnauthorized(response);
+          throw Exception(
+            'Failed to load members: ${response.statusCode} - ${response.body}',
+          );
+        }
       }
+
+      _log('DEBUG: Total members loaded: ${allMembers.length}');
+      return allMembers;
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading members: $e');
       throw Exception(
@@ -530,6 +794,48 @@ class ApiService {
     } catch (e) {
       _log('DEBUG: Error loading members: $e');
       rethrow;
+    }
+  }
+
+  /// Paginated members fetch
+  static Future<MembersResponse> getMembersPaginated({
+    String? search,
+    String? type,
+    bool? active,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    final headers = await getHeaders();
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (type != null && type.isNotEmpty) queryParams['type'] = type;
+    if (active != null) queryParams['active'] = active.toString();
+
+    final uri = Uri.parse(
+      '$baseUrl/members',
+    ).replace(queryParameters: queryParams);
+    _log('DEBUG: Fetching members paginated from $uri');
+
+    try {
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return MembersResponse.fromJson(decoded);
+      } else {
+        await _throwIfUnauthorized(response);
+        throw Exception('Failed to load members: ${response.statusCode}');
+      }
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error: $e');
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException {
+      throw Exception('Request timeout.');
     }
   }
 
@@ -685,36 +991,64 @@ class ApiService {
 
   // ==================== ISSUES ====================
 
+  /// Get all issues (loads all pages for backward compatibility)
   static Future<List<Issue>> getIssues({
     int? memberId,
     int? bookId,
     String? status,
   }) async {
     final headers = await getHeaders();
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{
+      'limit': '1000', // Get more issues per page
+    };
     if (memberId != null) queryParams['member_id'] = memberId.toString();
     if (bookId != null) queryParams['book_id'] = bookId.toString();
     if (status != null && status.isNotEmpty) queryParams['status'] = status;
 
-    final uri = Uri.parse(
-      '$baseUrl/issues',
-    ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-    _log('DEBUG: Fetching issues from $uri');
-
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
-      _log('DEBUG: Issues response status: ${response.statusCode}');
+      final List<Issue> allIssues = [];
+      int currentPage = 1;
+      bool hasMore = true;
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _log('DEBUG: Parsed ${data.length} issues');
-        return data.map((json) => Issue.fromJson(json)).toList();
-      } else {
-        await _throwIfUnauthorized(response);
-        throw Exception(
-          'Failed to load issues: ${response.statusCode} - ${response.body}',
-        );
+      while (hasMore) {
+        queryParams['page'] = currentPage.toString();
+        final uri = Uri.parse(
+          '$baseUrl/issues',
+        ).replace(queryParameters: queryParams);
+        _log('DEBUG: Fetching issues page $currentPage from $uri');
+
+        final response = await _client
+            .get(uri, headers: headers)
+            .timeout(timeout);
+        _log('DEBUG: Issues response status: ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body);
+
+          // Handle both old (array) and new (paginated) response formats
+          if (decoded is List) {
+            _log('DEBUG: Parsed ${decoded.length} issues (legacy format)');
+            return decoded.map((json) => Issue.fromJson(json)).toList();
+          } else if (decoded is Map<String, dynamic>) {
+            final data = decoded['data'] as List<dynamic>? ?? [];
+            final pagination = decoded['pagination'] as Map<String, dynamic>?;
+
+            allIssues.addAll(data.map((json) => Issue.fromJson(json)));
+            _log('DEBUG: Loaded page $currentPage with ${data.length} issues');
+
+            hasMore = pagination?['hasMore'] == true;
+            currentPage++;
+          }
+        } else {
+          await _throwIfUnauthorized(response);
+          throw Exception(
+            'Failed to load issues: ${response.statusCode} - ${response.body}',
+          );
+        }
       }
+
+      _log('DEBUG: Total issues loaded: ${allIssues.length}');
+      return allIssues;
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading issues: $e');
       throw Exception(
@@ -726,6 +1060,48 @@ class ApiService {
     } catch (e) {
       _log('DEBUG: Error loading issues: $e');
       rethrow;
+    }
+  }
+
+  /// Paginated issues fetch
+  static Future<IssuesResponse> getIssuesPaginated({
+    int? memberId,
+    int? bookId,
+    String? status,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    final headers = await getHeaders();
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (memberId != null) queryParams['member_id'] = memberId.toString();
+    if (bookId != null) queryParams['book_id'] = bookId.toString();
+    if (status != null && status.isNotEmpty) queryParams['status'] = status;
+
+    final uri = Uri.parse(
+      '$baseUrl/issues',
+    ).replace(queryParameters: queryParams);
+    _log('DEBUG: Fetching issues paginated from $uri');
+
+    try {
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return IssuesResponse.fromJson(decoded);
+      } else {
+        await _throwIfUnauthorized(response);
+        throw Exception('Failed to load issues: ${response.statusCode}');
+      }
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error: $e');
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException {
+      throw Exception('Request timeout.');
     }
   }
 
@@ -857,7 +1233,9 @@ class ApiService {
     _log('DEBUG: Fetching dashboard stats from $uri');
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       _log('DEBUG: Dashboard stats response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
@@ -963,7 +1341,9 @@ class ApiService {
     );
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         return Map<String, dynamic>.from(jsonDecode(response.body));
       }
@@ -985,7 +1365,9 @@ class ApiService {
     ).replace(queryParameters: {'limit': limit.toString()});
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return List<Map<String, dynamic>>.from(data);
@@ -1088,7 +1470,9 @@ class ApiService {
     _log('DEBUG: Fetching issued report from $uri');
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         _log('DEBUG: Parsed ${data.length} issued reports');
@@ -1110,7 +1494,9 @@ class ApiService {
     _log('DEBUG: Fetching overdue report from $uri');
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         _log('DEBUG: Parsed ${data.length} overdue reports');
@@ -1139,7 +1525,9 @@ class ApiService {
     ).replace(queryParameters: queryParams);
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => PopularBook.fromJson(json)).toList();
@@ -1166,7 +1554,9 @@ class ApiService {
     ).replace(queryParameters: queryParams);
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => ActiveMember.fromJson(json)).toList();
@@ -1190,7 +1580,9 @@ class ApiService {
     ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => MonthlyStats.fromJson(json)).toList();
@@ -1240,7 +1632,9 @@ class ApiService {
     ).replace(queryParameters: queryParams);
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => AppNotification.fromJson(json)).toList();
@@ -1336,7 +1730,9 @@ class ApiService {
     ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
     try {
-      final response = await http.get(uri, headers: headers).timeout(timeout);
+      final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
@@ -1436,7 +1832,10 @@ class ApiService {
     }
   }
 
-  static Future<String> exportData(
+  /// Export data (books, members, issues) as CSV or JSON
+  /// Uses longer timeout for large datasets
+  /// Returns raw bytes to handle BOM and encoding properly
+  static Future<List<int>> exportData(
     String type, {
     String format = 'json',
   }) async {
@@ -1448,12 +1847,12 @@ class ApiService {
             Uri.parse('$baseUrl/export/$type?format=$format'),
             headers: headers,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(longTimeout); // Use long timeout for large exports
 
       if (response.statusCode == 200) {
-        return response.body;
+        return response.bodyBytes;
       } else {
-        throw Exception('Failed to export data');
+        throw Exception('Failed to export data: ${response.statusCode}');
       }
     } catch (e) {
       _log('DEBUG: Error exporting data: $e');

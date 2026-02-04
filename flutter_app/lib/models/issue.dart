@@ -61,3 +61,76 @@ class Issue {
     return DateTime.now().difference(due).inDays;
   }
 }
+
+/// Pagination information for Issues
+class IssuesPagination {
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+  final bool hasMore;
+
+  IssuesPagination({
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+    required this.hasMore,
+  });
+
+  factory IssuesPagination.fromJson(Map<String, dynamic> json) {
+    return IssuesPagination(
+      page: json['page'] ?? 1,
+      limit: json['limit'] ?? 100,
+      total: json['total'] ?? 0,
+      totalPages: json['totalPages'] ?? 1,
+      hasMore: json['hasMore'] ?? false,
+    );
+  }
+
+  factory IssuesPagination.empty() {
+    return IssuesPagination(
+      page: 1,
+      limit: 100,
+      total: 0,
+      totalPages: 1,
+      hasMore: false,
+    );
+  }
+}
+
+/// Paginated response for Issues
+class IssuesResponse {
+  final List<Issue> data;
+  final IssuesPagination pagination;
+
+  IssuesResponse({
+    required this.data,
+    required this.pagination,
+  });
+
+  factory IssuesResponse.fromJson(Map<String, dynamic> json) {
+    // Handle both old (array) and new (paginated) response formats
+    if (json.containsKey('data')) {
+      final dataList = (json['data'] as List<dynamic>?) ?? [];
+      final paginationJson = json['pagination'] as Map<String, dynamic>? ?? {};
+      return IssuesResponse(
+        data: dataList.map((e) => Issue.fromJson(e)).toList(),
+        pagination: IssuesPagination.fromJson(paginationJson),
+      );
+    } else {
+      // Legacy array format - shouldn't happen but handle gracefully
+      return IssuesResponse(
+        data: [],
+        pagination: IssuesPagination.empty(),
+      );
+    }
+  }
+
+  factory IssuesResponse.empty() {
+    return IssuesResponse(
+      data: [],
+      pagination: IssuesPagination.empty(),
+    );
+  }
+}

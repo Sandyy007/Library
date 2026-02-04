@@ -69,9 +69,11 @@ class NotificationProvider with ChangeNotifier {
         unreadOnly: unreadOnly,
       );
       _unreadCount = _notifications.where((n) => !n.isRead).length;
-      if (kDebugMode) debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'DEBUG [NotificationProvider]: Loaded ${_notifications.length} notifications',
       );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('DEBUG [NotificationProvider]: Error loading notifications: $e');
     }
@@ -111,9 +113,11 @@ class NotificationProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      if (kDebugMode) debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'DEBUG [NotificationProvider]: Error marking notification as read: $e',
       );
+      }
     }
   }
 

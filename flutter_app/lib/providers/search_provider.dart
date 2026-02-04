@@ -143,9 +143,11 @@ class SearchProvider with ChangeNotifier {
         _searchBooks = (results['books'])?.cast<Book>() ?? [];
       }
 
-      if (kDebugMode) debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'DEBUG [SearchProvider]: Found ${_searchBooks.length} results for "$query"',
       );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('DEBUG [SearchProvider]: Error in advanced search: $e');
       _searchBooks = [];
@@ -161,9 +163,11 @@ class SearchProvider with ChangeNotifier {
 
     try {
       _recommendations = await ApiService.getRecommendations(memberId);
-      if (kDebugMode) debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'DEBUG [SearchProvider]: Loaded ${_recommendations.length} recommendations',
       );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('DEBUG [SearchProvider]: Error loading recommendations: $e');
       _recommendations = [];

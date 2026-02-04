@@ -1,3 +1,2 @@
 Server running on port 3000
-Connected to MySQL database
-Database migrations completed
+Connected to MySQL database (pool)

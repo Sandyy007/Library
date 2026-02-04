@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -33,6 +32,7 @@ class _IssuesContentState extends State<IssuesContent> {
   final TextEditingController _searchController = TextEditingController();
   List filteredIssues = [];
   Timer? _searchDebounceTimer;
+  StreamSubscription<void>? _dataChangedSub;
 
   Future<T?> _showSearchPicker<T>({
     required BuildContext context,
@@ -129,6 +129,10 @@ class _IssuesContentState extends State<IssuesContent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllData();
     });
+    // Listen for data changes from other components
+    _dataChangedSub = ApiService.dataChangedStream.listen((_) {
+      _loadAllData();
+    });
   }
 
   void _loadAllData() {
@@ -148,8 +152,14 @@ class _IssuesContentState extends State<IssuesContent> {
   }
 
   List getFilteredIssues(List issues, List books, List members) {
-    final query = _searchController.text.toLowerCase();
+    final rawQuery = _searchController.text;
+    final query = rawQuery.toLowerCase();
     if (query.isEmpty) return issues;
+
+    // Normalize query for Hindi matching
+    final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
+    final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
+
     return issues.where((issue) {
       final book = books.firstWhere(
         (b) => b.id == issue.bookId,
@@ -174,8 +184,31 @@ class _IssuesContentState extends State<IssuesContent> {
           membershipDate: '',
         ),
       );
+
+      // Normalize book and member names for Hindi matching
+      final normalizedTitle = normalizeHindiForDisplay(
+        book.title,
+      ).toLowerCase();
+      final normalizedAuthor = normalizeHindiForDisplay(
+        book.author,
+      ).toLowerCase();
+      final normalizedMemberName = normalizeHindiForDisplay(
+        member.name,
+      ).toLowerCase();
+
       return book.title.toLowerCase().contains(query) ||
+          normalizedTitle.contains(query) ||
+          normalizedTitle.contains(normalizedQuery) ||
+          book.title.toLowerCase().contains(krutiDevQuery) ||
+          book.author.toLowerCase().contains(query) ||
+          normalizedAuthor.contains(query) ||
+          normalizedAuthor.contains(normalizedQuery) ||
+          book.isbn.toLowerCase().contains(query) ||
           member.name.toLowerCase().contains(query) ||
+          normalizedMemberName.contains(query) ||
+          normalizedMemberName.contains(normalizedQuery) ||
+          member.name.toLowerCase().contains(krutiDevQuery) ||
+          (member.phone ?? '').contains(query) ||
           issue.status.toLowerCase().contains(query);
     }).toList();
   }
@@ -189,6 +222,7 @@ class _IssuesContentState extends State<IssuesContent> {
 
   @override
   void dispose() {
+    _dataChangedSub?.cancel();
     _searchDebounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -548,6 +582,65 @@ class _IssuesContentState extends State<IssuesContent> {
                       ),
               ),
             ),
+
+            // Pagination controls
+            if (!issueProvider.isLoading && issueProvider.issues.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${issueProvider.issues.length} of ${issueProvider.totalIssues} issues',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Page ${issueProvider.currentPage} of ${issueProvider.totalPages}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: issueProvider.currentPage > 1
+                              ? () => issueProvider.loadPage(
+                                  issueProvider.currentPage - 1,
+                                )
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: issueProvider.hasMore
+                              ? () => issueProvider.loadPage(
+                                  issueProvider.currentPage + 1,
+                                )
+                              : null,
+                        ),
+                        if (issueProvider.hasMore)
+                          TextButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Load More'),
+                            onPressed: () => issueProvider.loadMoreIssues(),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -850,76 +943,72 @@ class _IssuesContentState extends State<IssuesContent> {
   }
 
   Future<void> _exportIssuesCsv(BuildContext context) async {
-    final issues = context.read<IssueProvider>().issues;
-    if (issues.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No issues to export')));
-      return;
-    }
+    final messenger = ScaffoldMessenger.of(context);
 
-    final path = await FilePicker.platform.saveFile(
-      dialogTitle: 'Save Issues Export (CSV)',
-      fileName:
-          'issues_export_${DateTime.now().toIso8601String().split('T')[0]}.csv',
-      type: FileType.custom,
-      allowedExtensions: const ['csv'],
-    );
-    if (path == null || path.isEmpty) return;
-
-    String csvEscape(String value) {
-      final safe = value.replaceAll('"', '""');
-      if (safe.contains(',') ||
-          safe.contains('\n') ||
-          safe.contains('\r') ||
-          safe.contains('"')) {
-        return '"$safe"';
-      }
-      return safe;
-    }
-
-    final buffer = StringBuffer();
-    buffer.writeln(
-      [
-        'Issue ID',
-        'Book Title',
-        'Book Author',
-        'Member',
-        'Issue Date',
-        'Due Date',
-        'Return Date',
-        'Status',
-        'Notes',
-      ].map(csvEscape).join(','),
+    // Show loading dialog for large exports
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'Exporting issues data...\nThis may take a while for large datasets.',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
 
-    for (final issue in issues) {
-      buffer.writeln(
-        [
-          issue.id.toString(),
-          issue.bookTitle,
-          issue.bookAuthor,
-          issue.memberName,
-          DateFormatter.formatDateIndian(issue.issueDate),
-          DateFormatter.formatDateIndian(issue.dueDate),
-          issue.returnDate == null
-              ? ''
-              : DateFormatter.formatDateIndian(issue.returnDate),
-          issue.status,
-          issue.notes ?? '',
-        ].map((v) => csvEscape(v.toString())).join(','),
+    try {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close dialog temporarily
+
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Issues Export (CSV)',
+        fileName:
+            'issues_export_${DateTime.now().toIso8601String().split('T')[0]}.csv',
+        type: FileType.custom,
+        allowedExtensions: const ['csv'],
       );
+      if (path == null || path.isEmpty) return;
+
+      // Show loading dialog again
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Exporting issues data...\nThis may take a while for large datasets.',
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Use server-side export for large datasets
+      final bytes = await ApiService.exportData('issues', format: 'csv');
+      await File(path).writeAsBytes(bytes, flush: true);
+
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      messenger.showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
-
-    // Excel on Windows often mis-detects UTF-8 without BOM.
-    final bytes = utf8.encode(buffer.toString());
-    const bom = <int>[0xEF, 0xBB, 0xBF];
-    await File(path).writeAsBytes([...bom, ...bytes], flush: true);
-
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
   }
 
   Future<void> _exportIssuesPdf(BuildContext context) async {

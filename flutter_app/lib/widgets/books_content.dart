@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -24,6 +24,7 @@ class _BooksContentState extends State<BooksContent> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCategory;
   final Set<int> _selectedBookIds = <int>{};
+  StreamSubscription<void>? _dataChangedSub;
 
   bool _containsDevanagari(String text) {
     return RegExp(r'[\u0900-\u097F]').hasMatch(text);
@@ -78,16 +79,21 @@ class _BooksContentState extends State<BooksContent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadBooks();
     });
+    // Listen for data changes from other components
+    _dataChangedSub = ApiService.dataChangedStream.listen((_) {
+      _loadBooks();
+    });
   }
 
   void _loadBooks() {
     try {
       if (kDebugMode) debugPrint('DEBUG [BooksContent]: Calling loadBooks');
       context.read<BookProvider>().loadBooks().catchError((error) {
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint(
             'DEBUG [BooksContent]: Error caught in catchError: $error',
           );
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -99,8 +105,9 @@ class _BooksContentState extends State<BooksContent> {
         }
       });
     } catch (e) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('DEBUG [BooksContent]: Error in try block: $e');
+      }
     }
   }
 
@@ -739,6 +746,58 @@ class _BooksContentState extends State<BooksContent> {
                       ),
               ),
             ),
+            
+            // Pagination controls
+            if (!bookProvider.isLoading && bookProvider.books.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${bookProvider.books.length} of ${bookProvider.totalBooks} books',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Page ${bookProvider.currentPage} of ${bookProvider.totalPages}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: bookProvider.currentPage > 1
+                              ? () => bookProvider.loadPage(bookProvider.currentPage - 1)
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: bookProvider.hasMore
+                              ? () => bookProvider.loadPage(bookProvider.currentPage + 1)
+                              : null,
+                        ),
+                        if (bookProvider.hasMore)
+                          TextButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Load More'),
+                            onPressed: () => bookProvider.loadMoreBooks(),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -877,17 +936,23 @@ class _BooksContentState extends State<BooksContent> {
   }
 
   Future<void> _exportBooksCsv() async {
+    final pageContext = context;
     try {
-      final books = await ApiService.getBooks();
-      if (!mounted) return;
-
-      if (books.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('No books to export')));
-        return;
-      }
-
+      // Show loading indicator
+      showDialog(
+        context: pageContext,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Exporting books... This may take a moment for large datasets.'),
+            ],
+          ),
+        ),
+      );
+      
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Books Export (CSV)',
         fileName:
@@ -895,69 +960,28 @@ class _BooksContentState extends State<BooksContent> {
         type: FileType.custom,
         allowedExtensions: const ['csv'],
       );
-      if (path == null || path.isEmpty) return;
-
-      String csvEscape(String value) {
-        final safe = value.replaceAll('"', '""');
-        if (safe.contains(',') ||
-            safe.contains('\n') ||
-            safe.contains('\r') ||
-            safe.contains('"')) {
-          return '"$safe"';
-        }
-        return safe;
+      
+      if (path == null || path.isEmpty) {
+        if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
+        return;
       }
 
-      final buffer = StringBuffer();
-      buffer.writeln(
-        [
-          'ID',
-          'ISBN',
-          'Title',
-          'Author',
-          'Rack Number',
-          'Category',
-          'Publisher',
-          'Year Published',
-          'Total Copies',
-          'Available Copies',
-          'Status',
-          'Added Date',
-        ].map(csvEscape).join(','),
-      );
-
-      for (final b in books) {
-        buffer.writeln(
-          [
-            b.id.toString(),
-            b.isbn,
-            b.title,
-            b.author,
-            b.rackNumber ?? '',
-            b.category ?? '',
-            b.publisher ?? '',
-            b.yearPublished?.toString() ?? '',
-            b.totalCopies.toString(),
-            b.availableCopies.toString(),
-            b.status,
-            b.addedDate,
-          ].map((v) => csvEscape(v.toString())).join(','),
-        );
-      }
-
-      // Excel on Windows often mis-detects UTF-8 without BOM.
-      final bytes = utf8.encode(buffer.toString());
-      const bom = <int>[0xEF, 0xBB, 0xBF];
-      await File(path).writeAsBytes([...bom, ...bytes], flush: true);
+      // Use server-side export for better performance with large datasets
+      // Server already adds BOM for UTF-8 compatibility
+      final csvBytes = await ApiService.exportData('books', format: 'csv');
+      await File(path).writeAsBytes(csvBytes, flush: true);
 
       if (!mounted) return;
+      if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
+      
       ScaffoldMessenger.of(
-        context,
+        pageContext,
       ).showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
     } catch (e) {
       if (!mounted) return;
+      if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
       ScaffoldMessenger.of(
-        context,
+        pageContext,
       ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
@@ -1050,37 +1074,26 @@ class _BooksContentState extends State<BooksContent> {
       ),
     );
 
-    int deleted = 0;
-    final failures = <String>[];
-
     try {
       final navigator = Navigator.of(pageContext);
       final messenger = ScaffoldMessenger.of(pageContext);
-      final bookProvider = pageContext.read<BookProvider>();
-      final issueProvider = pageContext.read<IssueProvider>();
-      for (final id in ids) {
-        try {
-          await bookProvider.deleteBook(id);
-          deleted++;
-        } catch (e) {
-          failures.add('ID $id: $e');
-        }
-      }
+      
+      // Use optimized bulk delete API
+      final result = await ApiService.bulkDeleteBooks(ids);
+      final deletedCount = result['deleted'] ?? 0;
 
       if (!mounted) return;
       navigator.pop();
-      await issueProvider.loadStats();
+      
+      // Refresh data after bulk delete
+      await pageContext.read<BookProvider>().loadBooks();
+      await pageContext.read<IssueProvider>().loadStats();
+      
       if (!mounted) return;
       setState(() => _selectedBookIds.clear());
 
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            failures.isEmpty
-                ? 'Deleted $deleted book(s).'
-                : 'Deleted $deleted. Failed: ${failures.length}.',
-          ),
-        ),
+        SnackBar(content: Text('Deleted $deletedCount book(s) successfully.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1186,6 +1199,7 @@ class _BooksContentState extends State<BooksContent> {
 
   @override
   void dispose() {
+    _dataChangedSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }

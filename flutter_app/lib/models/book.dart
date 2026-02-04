@@ -109,3 +109,49 @@ class Book {
     );
   }
 }
+
+/// Pagination metadata for book list responses
+class BooksPagination {
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+  final bool hasMore;
+
+  BooksPagination({
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+    required this.hasMore,
+  });
+
+  factory BooksPagination.fromJson(Map<String, dynamic> json) {
+    return BooksPagination(
+      page: json['page'] ?? 1,
+      limit: json['limit'] ?? 100,
+      total: json['total'] ?? 0,
+      totalPages: json['totalPages'] ?? 1,
+      hasMore: json['hasMore'] ?? false,
+    );
+  }
+}
+
+/// Paginated response for book list
+class BooksResponse {
+  final List<Book> data;
+  final BooksPagination pagination;
+
+  BooksResponse({
+    required this.data,
+    required this.pagination,
+  });
+
+  factory BooksResponse.fromJson(Map<String, dynamic> json) {
+    final dataList = json['data'] as List<dynamic>? ?? [];
+    return BooksResponse(
+      data: dataList.map((item) => Book.fromJson(item)).toList(),
+      pagination: BooksPagination.fromJson(json['pagination'] ?? {}),
+    );
+  }
+}

@@ -277,14 +277,15 @@ class _MemberDialogState extends State<MemberDialog> {
           validator: (value) {
             if (value == null || value.isEmpty) return 'Phone is required';
             final phoneRegex = RegExp(r'^\d{10}$');
-            if (!phoneRegex.hasMatch(value))
+            if (!phoneRegex.hasMatch(value)) {
               return 'Enter a valid 10-digit phone number';
+            }
             return null;
           },
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          value: _selectedType,
+          initialValue: _selectedType,
           decoration: const InputDecoration(
             labelText: 'Member Type',
             prefixIcon: Icon(Icons.badge),
@@ -551,7 +552,7 @@ class _MemberDialogState extends State<MemberDialog> {
         address: address.isEmpty ? null : address,
         memberType: _selectedType!,
         membershipDate: _membershipDateController.text,
-        expiryDate: _expiryDateController.text,
+        expiryDate: _expiryDateController.text.isEmpty ? null : _expiryDateController.text,
         profilePhoto: photoPath,
         isActive: _isActive,
       );

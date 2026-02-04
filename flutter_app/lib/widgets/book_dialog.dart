@@ -229,12 +229,13 @@ class _BookDialogState extends State<BookDialog> {
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          initialValue: _selectedCategory,
+          initialValue: _getAllCategories().contains(_selectedCategory) ? _selectedCategory : null,
           decoration: const InputDecoration(
             labelText: 'Category',
             prefixIcon: Icon(Icons.category),
           ),
-          items: _categories
+          items: _getAllCategories()
+              .toSet() // Remove duplicates
               .map(
                 (category) =>
                     DropdownMenuItem(value: category, child: Text(category)),
@@ -682,6 +683,17 @@ class _BookDialogState extends State<BookDialog> {
     'Graphic Novels',
     'GST',
   ];
+
+  /// Get all categories including the current book's category if it's not in the list
+  List<String> _getAllCategories() {
+    final categories = List<String>.from(_categories);
+    if (_selectedCategory != null && 
+        _selectedCategory!.isNotEmpty && 
+        !categories.contains(_selectedCategory)) {
+      categories.insert(0, _selectedCategory!);
+    }
+    return categories;
+  }
 
   @override
   void dispose() {

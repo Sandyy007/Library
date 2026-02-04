@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -26,6 +26,7 @@ class MembersContent extends StatefulWidget {
 class _MembersContentState extends State<MembersContent> {
   final TextEditingController _searchController = TextEditingController();
   MemberStatusFilter _statusFilter = MemberStatusFilter.all;
+  StreamSubscription<void>? _dataChangedSub;
 
   TextStyle _textStyleForHindi(String text, TextStyle base) {
     if (containsDevanagari(text) || looksLikeLegacyHindi(text)) {
@@ -46,6 +47,17 @@ class _MembersContentState extends State<MembersContent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadMembers();
     });
+    // Listen for data changes from other components
+    _dataChangedSub = ApiService.dataChangedStream.listen((_) {
+      _loadMembers();
+    });
+  }
+
+  @override
+  void dispose() {
+    _dataChangedSub?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _loadMembers() {
@@ -105,19 +117,26 @@ class _MembersContentState extends State<MembersContent> {
   Future<void> _exportMembersActivityCsv() async {
     final messenger = ScaffoldMessenger.of(context);
 
+    // Show loading dialog for large exports
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Exporting members data...\nThis may take a while for large datasets.')),
+          ],
+        ),
+      ),
+    );
+
     try {
-      final members = await ApiService.getMembers();
-      final issues = await ApiService.getIssues();
-
+      // Get path first so user doesn't wait if they cancel
       if (!mounted) return;
-
-      if (members.isEmpty) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('No members to export')),
-        );
-        return;
-      }
-
+      Navigator.of(context).pop(); // Close dialog temporarily
+      
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Members Export (CSV)',
         fileName:
@@ -127,109 +146,32 @@ class _MembersContentState extends State<MembersContent> {
       );
       if (path == null || path.isEmpty) return;
 
-      String csvEscape(String value) {
-        final safe = value.replaceAll('"', '""');
-        if (safe.contains(',') ||
-            safe.contains('\n') ||
-            safe.contains('\r') ||
-            safe.contains('"')) {
-          return '"$safe"';
-        }
-        return safe;
-      }
-
-      final totalByMember = <int, int>{};
-      final issuedByMember = <int, int>{};
-      final returnedByMember = <int, int>{};
-      final overdueByMember = <int, int>{};
-      final lastActivityByMember = <int, DateTime>{};
-
-      DateTime? tryParseDate(String? s) {
-        if (s == null) return null;
-        final t = s.trim();
-        if (t.isEmpty) return null;
-        return DateTime.tryParse(t);
-      }
-
-      for (final issue in issues) {
-        final mid = issue.memberId;
-        totalByMember[mid] = (totalByMember[mid] ?? 0) + 1;
-
-        if (issue.status == 'returned') {
-          returnedByMember[mid] = (returnedByMember[mid] ?? 0) + 1;
-        } else {
-          issuedByMember[mid] = (issuedByMember[mid] ?? 0) + 1;
-          if (issue.status == 'overdue' || issue.isOverdue) {
-            overdueByMember[mid] = (overdueByMember[mid] ?? 0) + 1;
-          }
-        }
-
-        final date =
-            tryParseDate(issue.returnDate) ??
-            tryParseDate(issue.issueDate) ??
-            tryParseDate(issue.dueDate);
-        if (date != null) {
-          final prev = lastActivityByMember[mid];
-          if (prev == null || date.isAfter(prev)) {
-            lastActivityByMember[mid] = date;
-          }
-        }
-      }
-
-      final buffer = StringBuffer();
-      buffer.writeln(
-        [
-          'Member ID',
-          'Name',
-          'Email',
-          'Phone',
-          'Type',
-          'Active',
-          'Membership Date',
-          'Expiry Date',
-          'Total Issues',
-          'Currently Issued',
-          'Returned',
-          'Overdue',
-          'Last Activity',
-        ].map(csvEscape).join(','),
+      // Show loading dialog again
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Expanded(child: Text('Exporting members data...\nThis may take a while for large datasets.')),
+            ],
+          ),
+        ),
       );
 
-      for (final m in members) {
-        final mid = m.id;
-        final last = lastActivityByMember[mid];
-        final lastStr = last == null
-            ? ''
-            : last.toIso8601String().split('T')[0];
-
-        buffer.writeln(
-          [
-            m.id.toString(),
-            m.name,
-            m.email ?? '',
-            m.phone ?? '',
-            m.memberType,
-            m.isActive ? 'Yes' : 'No',
-            m.membershipDate,
-            m.expiryDate ?? '',
-            (totalByMember[mid] ?? 0).toString(),
-            (issuedByMember[mid] ?? 0).toString(),
-            (returnedByMember[mid] ?? 0).toString(),
-            (overdueByMember[mid] ?? 0).toString(),
-            lastStr,
-          ].map((v) => csvEscape(v.toString())).join(','),
-        );
-      }
-
-      // Excel on Windows often mis-detects UTF-8 without BOM.
-      final bytes = utf8.encode(buffer.toString());
-      const bom = <int>[0xEF, 0xBB, 0xBF];
-      await File(path).writeAsBytes([...bom, ...bytes], flush: true);
+      // Use server-side export for large datasets
+      final bytes = await ApiService.exportData('members', format: 'csv');
+      await File(path).writeAsBytes(bytes, flush: true);
 
       if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
       messenger.showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
     } catch (e) {
       if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
       messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
@@ -521,6 +463,58 @@ class _MembersContentState extends State<MembersContent> {
                       ),
               ),
             ),
+            
+            // Pagination controls
+            if (!memberProvider.isLoading && memberProvider.members.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing ${memberProvider.members.length} of ${memberProvider.totalMembers} members',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Page ${memberProvider.currentPage} of ${memberProvider.totalPages}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: memberProvider.currentPage > 1
+                              ? () => memberProvider.loadPage(memberProvider.currentPage - 1)
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: memberProvider.hasMore
+                              ? () => memberProvider.loadPage(memberProvider.currentPage + 1)
+                              : null,
+                        ),
+                        if (memberProvider.hasMore)
+                          TextButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Load More'),
+                            onPressed: () => memberProvider.loadMoreMembers(),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
