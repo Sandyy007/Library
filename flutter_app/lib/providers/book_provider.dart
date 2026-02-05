@@ -90,6 +90,43 @@ class BookProvider with ChangeNotifier {
     }
   }
 
+  /// Load ALL books without pagination (for local Hindi search filtering)
+  /// This fetches all pages to enable client-side filtering
+  Future<void> loadAllBooksForLocalSearch({String? category}) async {
+    if (_isLoading) return;
+    
+    _isLoading = true;
+    _error = null;
+    _currentSearch = null;
+    _currentCategory = category;
+    notifyListeners();
+    
+    if (kDebugMode) {
+      debugPrint('DEBUG [BookProvider]: Loading ALL books for local search, category=$category');
+    }
+
+    try {
+      final allBooks = await ApiService.getBooks(category: category);
+      
+      _books = allBooks;
+      _currentPage = 1;
+      _totalPages = 1;
+      _totalBooks = allBooks.length;
+      _hasMore = false;
+      
+      if (kDebugMode) {
+        debugPrint('DEBUG [BookProvider]: Loaded ALL ${allBooks.length} books for local filtering');
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('DEBUG [BookProvider]: Error loading all books: $e');
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> addBook(Book book) async {
     try {
       final newBook = await ApiService.addBook(book);

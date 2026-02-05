@@ -32,6 +32,8 @@ class _MembersContentState extends State<MembersContent> {
     if (containsDevanagari(text) || looksLikeLegacyHindi(text)) {
       return base.copyWith(
         fontFamilyFallback: const [
+          'KrutiDev',
+          'NotoSansDevanagari',
           'Nirmala UI',
           'Mangal',
           'Noto Sans Devanagari',
@@ -77,11 +79,6 @@ class _MembersContentState extends State<MembersContent> {
 
   List getFilteredMembers(List members) {
     final rawQuery = _searchController.text;
-    final query = rawQuery.toLowerCase();
-    // Normalize query for Hindi matching
-    final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
-    // Convert to KrutiDev for matching legacy data
-    final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
 
     final filteredByStatus = members.where((member) {
       final m = member as Member;
@@ -95,18 +92,46 @@ class _MembersContentState extends State<MembersContent> {
       }
     }).toList();
 
-    if (query.isEmpty) return filteredByStatus;
+    if (rawQuery.trim().isEmpty) return filteredByStatus;
+
+    final query = rawQuery.toLowerCase();
+    // Normalize query for Hindi matching (converts Krutidev query to Unicode)
+    final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
+    // Convert Unicode Hindi query to KrutiDev for matching legacy data
+    final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
+
     return filteredByStatus.where((member) {
       final m = member as Member;
       // Normalize member name for Hindi matching
       final normalizedName = normalizeHindiForDisplay(m.name).toLowerCase();
       final rawName = m.name.toLowerCase();
-      return normalizedName.contains(query) ||
+
+      // Comprehensive matching: support all Hindi encodings
+      // 1. Direct match (raw query vs raw data)
+      // 2. Normalized query vs normalized data
+      // 3. KrutiDev query vs raw data (handles Unicode query against Krutidev data)
+      // 4. Raw query vs normalized data (handles Krutidev query against Unicode data)
+      final matchesName =
+          rawName.contains(query) ||
+          normalizedName.contains(query) ||
           normalizedName.contains(normalizedQuery) ||
-          rawName.contains(krutiDevQuery) ||
-          m.name.toLowerCase().contains(query) ||
-          (m.email ?? '').toLowerCase().contains(query) ||
-          (m.phone ?? '').contains(query);
+          rawName.contains(krutiDevQuery);
+
+      final matchesEmail = (m.email ?? '').toLowerCase().contains(query);
+      final matchesPhone = (m.phone ?? '').contains(query);
+
+      // Also match member type (might be in Hindi)
+      final normalizedType = normalizeHindiForDisplay(
+        m.memberType,
+      ).toLowerCase();
+      final rawType = m.memberType.toLowerCase();
+      final matchesType =
+          rawType.contains(query) ||
+          normalizedType.contains(query) ||
+          normalizedType.contains(normalizedQuery) ||
+          rawType.contains(krutiDevQuery);
+
+      return matchesName || matchesEmail || matchesPhone || matchesType;
     }).toList();
   }
 
@@ -126,7 +151,11 @@ class _MembersContentState extends State<MembersContent> {
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 16),
-            Expanded(child: Text('Exporting members data...\nThis may take a while for large datasets.')),
+            Expanded(
+              child: Text(
+                'Exporting members data...\nThis may take a while for large datasets.',
+              ),
+            ),
           ],
         ),
       ),
@@ -136,7 +165,7 @@ class _MembersContentState extends State<MembersContent> {
       // Get path first so user doesn't wait if they cancel
       if (!mounted) return;
       Navigator.of(context).pop(); // Close dialog temporarily
-      
+
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Members Export (CSV)',
         fileName:
@@ -156,7 +185,11 @@ class _MembersContentState extends State<MembersContent> {
             children: [
               CircularProgressIndicator(),
               SizedBox(width: 16),
-              Expanded(child: Text('Exporting members data...\nThis may take a while for large datasets.')),
+              Expanded(
+                child: Text(
+                  'Exporting members data...\nThis may take a while for large datasets.',
+                ),
+              ),
             ],
           ),
         ),
@@ -463,11 +496,14 @@ class _MembersContentState extends State<MembersContent> {
                       ),
               ),
             ),
-            
+
             // Pagination controls
             if (!memberProvider.isLoading && memberProvider.members.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
@@ -495,13 +531,17 @@ class _MembersContentState extends State<MembersContent> {
                         IconButton(
                           icon: const Icon(Icons.chevron_left),
                           onPressed: memberProvider.currentPage > 1
-                              ? () => memberProvider.loadPage(memberProvider.currentPage - 1)
+                              ? () => memberProvider.loadPage(
+                                  memberProvider.currentPage - 1,
+                                )
                               : null,
                         ),
                         IconButton(
                           icon: const Icon(Icons.chevron_right),
                           onPressed: memberProvider.hasMore
-                              ? () => memberProvider.loadPage(memberProvider.currentPage + 1)
+                              ? () => memberProvider.loadPage(
+                                  memberProvider.currentPage + 1,
+                                )
                               : null,
                         ),
                         if (memberProvider.hasMore)

@@ -166,7 +166,7 @@ flutter run -d windows
 
 | Role | Username | Password |
 |------|----------|----------|
-| Admin | `admin` | `admin` |
+| Admin | `admin` | `Library#123` |
 
 Only admin users are allowed to log in (enforced by the backend).
 

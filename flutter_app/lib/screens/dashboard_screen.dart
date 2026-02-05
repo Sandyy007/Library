@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:async';
 import '../providers/issue_provider.dart';
 import '../providers/book_provider.dart';
 import '../providers/member_provider.dart';
@@ -33,7 +32,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   final TextEditingController _searchController = TextEditingController();
-  Timer? _searchDebounceTimer;
 
   final List<Widget> _screens = [
     const DashboardContent(),
@@ -213,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ),
                                 child: TextField(
                                   controller: _searchController,
-                                  onChanged: (value) => _onSearchChanged(value),
+                                  onSubmitted: (value) => _performSearch(value),
                                   decoration: InputDecoration(
                                     hintText: 'Search...',
                                     prefixIcon: Icon(
@@ -222,6 +220,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         context,
                                       ).colorScheme.primary,
                                       size: 22,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        Icons.arrow_forward_rounded,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => _performSearch(_searchController.text),
+                                      tooltip: 'Search',
                                     ),
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
@@ -298,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             onSubmitted: (value) {
               Navigator.of(dialogContext).pop();
-              _onSearchChanged(value);
+              _performSearch(value);
             },
           ),
         ),
@@ -310,7 +317,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              _onSearchChanged(_searchController.text);
+              _performSearch(_searchController.text);
             },
             child: const Text('Search'),
           ),
@@ -319,42 +326,40 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  void _onSearchChanged(String query) async {
-    // Cancel previous timer
-    _searchDebounceTimer?.cancel();
-
+  void _performSearch(String query) async {
     if (query.trim().isEmpty) {
       context.read<SearchProvider>().clearSearch();
       return;
     }
 
-    // Start a new timer - search will run after 800ms of inactivity
-    _searchDebounceTimer = Timer(const Duration(milliseconds: 800), () async {
-      try {
-        await context.read<SearchProvider>().searchAll(query);
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => const SearchResultsDialog(),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Search failed: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+    try {
+      await context.read<SearchProvider>().searchAll(query);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => const SearchResultsDialog(),
+        );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Search failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Keep for backward compatibility but no longer used with debouncing
+  void _onSearchChanged(String query) async {
+    _performSearch(query);
   }
 
   @override
   void dispose() {
     _animationController.dispose();
-    _searchDebounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }

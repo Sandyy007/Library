@@ -80,9 +80,10 @@ TextStyle hindiAwareTextStyle(
       // Devanagari often looks optically smaller at the same point size.
       fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
       fontFamilyFallback: const [
-        'Nirmala UI',
-        'Mangal',
-        'Noto Sans Devanagari',
+        'NotoSansDevanagari', // Bundled font
+        'Nirmala UI', // Windows system font
+        'Mangal', // Windows system font
+        'Noto Sans Devanagari', // Android/Linux system font
       ],
     );
   }
@@ -91,13 +92,23 @@ TextStyle hindiAwareTextStyle(
   if (looksLikeLegacyHindi(text)) {
     return base.copyWith(
       fontSize: (effectiveSize * 1.10).clamp(10, 30).toDouble(),
-      fontFamily: 'Kruti Dev 010',
-      fontFamilyFallback: const ['Kruti Dev 010', 'Nirmala UI', 'Mangal'],
+      fontFamily: 'KrutiDev', // Bundled font
+      fontFamilyFallback: const [
+        'KrutiDev', // Bundled font
+        'Kruti Dev 010', // Alternate name / system font
+        'Nirmala UI', // Windows fallback
+        'Mangal', // Windows fallback
+      ],
     );
   }
 
   // Default: still provide Devanagari fallback so mixed strings display.
   return base.copyWith(
-    fontFamilyFallback: const ['Nirmala UI', 'Mangal', 'Noto Sans Devanagari'],
+    fontFamilyFallback: const [
+      'NotoSansDevanagari', // Bundled font
+      'Nirmala UI', // Windows system font
+      'Mangal', // Windows system font
+      'Noto Sans Devanagari', // Android/Linux system font
+    ],
   );
 }

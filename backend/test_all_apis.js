@@ -54,7 +54,7 @@ async function runTests() {
     console.log('1. Testing Login Endpoint...');
     const loginRes = await makeRequest('POST', '/api/auth/login', {
       username: 'admin',
-      password: 'admin'
+      password: 'Library#123'
     });
     
     if (loginRes.status === 200 && loginRes.data.token) {
@@ -66,36 +66,40 @@ async function runTests() {
       process.exit(1);
     }
 
-    // Test 2: Get Books
+    // Test 2: Get Books (paginated response)
     console.log('\n2. Testing GET /api/books...');
     const booksRes = await makeRequest('GET', '/api/books', null, token);
-    if (booksRes.status === 200 && Array.isArray(booksRes.data)) {
-      console.log(`✓ Books retrieved: ${booksRes.data.length} books`);
-      booksRes.data.forEach((book, i) => {
+    const booksData = booksRes.data.data || booksRes.data;
+    if (booksRes.status === 200 && Array.isArray(booksData)) {
+      console.log(`✓ Books retrieved: ${booksData.length} books (page ${booksRes.data.pagination?.page || 1})`);
+      booksData.slice(0, 5).forEach((book, i) => {
         console.log(`  ${i + 1}. ${book.title} by ${book.author}`);
       });
+      if (booksData.length > 5) console.log(`  ... and ${booksData.length - 5} more`);
     } else {
       console.log('✗ Get books failed:', booksRes.status);
     }
 
-    // Test 3: Get Members
+    // Test 3: Get Members (paginated response)
     console.log('\n3. Testing GET /api/members...');
     const membersRes = await makeRequest('GET', '/api/members', null, token);
-    if (membersRes.status === 200 && Array.isArray(membersRes.data)) {
-      console.log(`✓ Members retrieved: ${membersRes.data.length} members`);
-      membersRes.data.forEach((member, i) => {
+    const membersData = membersRes.data.data || membersRes.data;
+    if (membersRes.status === 200 && Array.isArray(membersData)) {
+      console.log(`✓ Members retrieved: ${membersData.length} members`);
+      membersData.forEach((member, i) => {
         console.log(`  ${i + 1}. ${member.name} (${member.email})`);
       });
     } else {
       console.log('✗ Get members failed:', membersRes.status);
     }
 
-    // Test 4: Get Issues
+    // Test 4: Get Issues (paginated response)
     console.log('\n4. Testing GET /api/issues...');
     const issuesRes = await makeRequest('GET', '/api/issues', null, token);
-    if (issuesRes.status === 200 && Array.isArray(issuesRes.data)) {
-      console.log(`✓ Issues retrieved: ${issuesRes.data.length} issues`);
-      issuesRes.data.forEach((issue, i) => {
+    const issuesData = issuesRes.data.data || issuesRes.data;
+    if (issuesRes.status === 200 && Array.isArray(issuesData)) {
+      console.log(`✓ Issues retrieved: ${issuesData.length} issues`);
+      issuesData.forEach((issue, i) => {
         console.log(`  ${i + 1}. ${issue.member_name} - ${issue.title}`);
       });
     } else {

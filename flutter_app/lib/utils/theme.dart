@@ -15,9 +15,13 @@ class AppTheme {
     scaffoldBackgroundColor: backgroundColor,
     fontFamily: 'Roboto', // Modern font
     fontFamilyFallback: const [
+      // Bundled fonts
+      'KrutiDev',
+      'NotoSansDevanagari',
       // Windows Devanagari fonts
       'Nirmala UI',
       'Mangal',
+      'Kruti Dev 010',
       // Cross-platform common
       'Noto Sans Devanagari',
       'Segoe UI',
@@ -103,8 +107,14 @@ class AppTheme {
     scaffoldBackgroundColor: const Color(0xFF1A1D2E), // Lighter dark background
     fontFamily: 'Roboto', // Modern font
     fontFamilyFallback: const [
+      // Bundled fonts
+      'KrutiDev',
+      'NotoSansDevanagari',
+      // Windows Devanagari fonts
       'Nirmala UI',
       'Mangal',
+      'Kruti Dev 010',
+      // Cross-platform common
       'Noto Sans Devanagari',
       'Segoe UI',
     ],

@@ -153,11 +153,12 @@ class _IssuesContentState extends State<IssuesContent> {
 
   List getFilteredIssues(List issues, List books, List members) {
     final rawQuery = _searchController.text;
-    final query = rawQuery.toLowerCase();
-    if (query.isEmpty) return issues;
+    if (rawQuery.trim().isEmpty) return issues;
 
-    // Normalize query for Hindi matching
+    final query = rawQuery.toLowerCase();
+    // Normalize query for Hindi matching (converts Krutidev query to Unicode)
     final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
+    // Convert Unicode Hindi query to KrutiDev for matching legacy data
     final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
 
     return issues.where((issue) {
@@ -195,21 +196,39 @@ class _IssuesContentState extends State<IssuesContent> {
       final normalizedMemberName = normalizeHindiForDisplay(
         member.name,
       ).toLowerCase();
+      final rawTitle = book.title.toLowerCase();
+      final rawAuthor = book.author.toLowerCase();
+      final rawMemberName = member.name.toLowerCase();
 
-      return book.title.toLowerCase().contains(query) ||
+      // Comprehensive matching: support all Hindi encodings
+      final matchesTitle =
+          rawTitle.contains(query) ||
           normalizedTitle.contains(query) ||
           normalizedTitle.contains(normalizedQuery) ||
-          book.title.toLowerCase().contains(krutiDevQuery) ||
-          book.author.toLowerCase().contains(query) ||
+          rawTitle.contains(krutiDevQuery);
+
+      final matchesAuthor =
+          rawAuthor.contains(query) ||
           normalizedAuthor.contains(query) ||
           normalizedAuthor.contains(normalizedQuery) ||
-          book.isbn.toLowerCase().contains(query) ||
-          member.name.toLowerCase().contains(query) ||
+          rawAuthor.contains(krutiDevQuery);
+
+      final matchesMember =
+          rawMemberName.contains(query) ||
           normalizedMemberName.contains(query) ||
           normalizedMemberName.contains(normalizedQuery) ||
-          member.name.toLowerCase().contains(krutiDevQuery) ||
-          (member.phone ?? '').contains(query) ||
-          issue.status.toLowerCase().contains(query);
+          rawMemberName.contains(krutiDevQuery);
+
+      final matchesIsbn = book.isbn.toLowerCase().contains(query);
+      final matchesPhone = (member.phone ?? '').contains(query);
+      final matchesStatus = issue.status.toLowerCase().contains(query);
+
+      return matchesTitle ||
+          matchesAuthor ||
+          matchesMember ||
+          matchesIsbn ||
+          matchesPhone ||
+          matchesStatus;
     }).toList();
   }
 
@@ -458,6 +477,8 @@ class _IssuesContentState extends State<IssuesContent> {
                                           ),
                                           style: const TextStyle(
                                             fontFamilyFallback: [
+                                              'KrutiDev',
+                                              'NotoSansDevanagari',
                                               'Nirmala UI',
                                               'Mangal',
                                               'Noto Sans Devanagari',
@@ -475,6 +496,8 @@ class _IssuesContentState extends State<IssuesContent> {
                                                 .onSurface
                                                 .withValues(alpha: 0.6),
                                             fontFamilyFallback: const [
+                                              'KrutiDev',
+                                              'NotoSansDevanagari',
                                               'Nirmala UI',
                                               'Mangal',
                                               'Noto Sans Devanagari',
@@ -493,6 +516,8 @@ class _IssuesContentState extends State<IssuesContent> {
                                       ),
                                       style: const TextStyle(
                                         fontFamilyFallback: [
+                                          'KrutiDev',
+                                          'NotoSansDevanagari',
                                           'Nirmala UI',
                                           'Mangal',
                                           'Noto Sans Devanagari',
@@ -649,7 +674,7 @@ class _IssuesContentState extends State<IssuesContent> {
 
   Future<void> _showIssueDialog(
     BuildContext context,
-    List<Book> books,
+    List<Book> books, // ignored - we fetch all books directly
     List<Member> members,
   ) async {
     int? selectedBookId;
@@ -665,23 +690,54 @@ class _IssuesContentState extends State<IssuesContent> {
         .split('T')[0];
     final dueController = TextEditingController(text: dueDate);
 
-    final availableBooks = books.where((b) => b.status == 'available').toList();
+    // Fetch ALL available books directly to ensure all Hindi books are included
+    List<Book> allBooks;
+    try {
+      allBooks = await ApiService.getBooks(available: true);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error fetching all books: $e');
+      // Fallback to passed books if API fails
+      allBooks = books;
+    }
+    final availableBooks = allBooks.where((b) => b.status == 'available').toList();
 
     Future<void> pickBook({String initialQuery = ''}) async {
       final picked = await _showSearchPicker<Book>(
         context: context,
         title: 'Select Book',
         items: availableBooks,
-        labelFor: (b) => '${b.title} by ${b.author}',
+        labelFor: (b) {
+          // Display normalized Hindi text
+          final title = normalizeHindiForDisplay(b.title);
+          final author = normalizeHindiForDisplay(b.author);
+          return '$title by $author';
+        },
         matches: (b, q) {
-          final title = b.title.toLowerCase();
-          final author = b.author.toLowerCase();
-          final isbn = b.isbn.toLowerCase();
-          final category = (b.category ?? '').toLowerCase();
-          return title.contains(q) ||
-              author.contains(q) ||
-              isbn.contains(q) ||
-              category.contains(q);
+          // Raw and normalized text for comprehensive Hindi matching
+          final rawTitle = b.title.toLowerCase();
+          final rawAuthor = b.author.toLowerCase();
+          final rawIsbn = b.isbn.toLowerCase();
+          final rawCategory = (b.category ?? '').toLowerCase();
+          
+          // Normalize for Hindi text matching
+          final normalizedTitle = normalizeHindiForDisplay(b.title).toLowerCase();
+          final normalizedAuthor = normalizeHindiForDisplay(b.author).toLowerCase();
+          final normalizedCategory = normalizeHindiForDisplay(b.category ?? '').toLowerCase();
+          final normalizedQuery = normalizeHindiForDisplay(q).toLowerCase();
+          final krutiDevQuery = unicodeToKrutiDevApprox(q).toLowerCase();
+          
+          // Match raw, normalized, and krutidev variants
+          return rawTitle.contains(q) ||
+              rawAuthor.contains(q) ||
+              rawIsbn.contains(q) ||
+              rawCategory.contains(q) ||
+              normalizedTitle.contains(q) ||
+              normalizedAuthor.contains(q) ||
+              normalizedCategory.contains(q) ||
+              normalizedTitle.contains(normalizedQuery) ||
+              normalizedAuthor.contains(normalizedQuery) ||
+              rawTitle.contains(krutiDevQuery) ||
+              rawAuthor.contains(krutiDevQuery);
         },
         initialQuery: initialQuery,
       );

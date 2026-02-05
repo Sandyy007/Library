@@ -60,13 +60,19 @@ class _BooksContentState extends State<BooksContent> {
       );
     }
 
-    // If it looks like legacy Hindi (KrutiDev-style), try to render it using that font
-    // when installed on the machine.
+    // If it looks like legacy Hindi (KrutiDev-style), try to render it using the bundled font
+    // with fallback to system fonts when not available.
     if (_looksLikeLegacyHindi(text)) {
       return base.copyWith(
         fontSize: (effectiveSize * 1.10).clamp(10, 30).toDouble(),
-        fontFamily: 'Kruti Dev 010',
-        fontFamilyFallback: const ['Kruti Dev 010', 'Nirmala UI', 'Mangal'],
+        fontFamily: 'KrutiDev', // Bundled font
+        fontFamilyFallback: const [
+          'KrutiDev',
+          'Kruti Dev 010',
+          'NotoSansDevanagari',
+          'Nirmala UI',
+          'Mangal',
+        ],
       );
     }
 
@@ -746,11 +752,14 @@ class _BooksContentState extends State<BooksContent> {
                       ),
               ),
             ),
-            
+
             // Pagination controls
             if (!bookProvider.isLoading && bookProvider.books.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
@@ -778,13 +787,17 @@ class _BooksContentState extends State<BooksContent> {
                         IconButton(
                           icon: const Icon(Icons.chevron_left),
                           onPressed: bookProvider.currentPage > 1
-                              ? () => bookProvider.loadPage(bookProvider.currentPage - 1)
+                              ? () => bookProvider.loadPage(
+                                  bookProvider.currentPage - 1,
+                                )
                               : null,
                         ),
                         IconButton(
                           icon: const Icon(Icons.chevron_right),
                           onPressed: bookProvider.hasMore
-                              ? () => bookProvider.loadPage(bookProvider.currentPage + 1)
+                              ? () => bookProvider.loadPage(
+                                  bookProvider.currentPage + 1,
+                                )
                               : null,
                         ),
                         if (bookProvider.hasMore)
@@ -808,17 +821,20 @@ class _BooksContentState extends State<BooksContent> {
     final bookProvider = Provider.of<BookProvider>(context, listen: false);
     final searchText = _searchController.text;
 
-    // If search contains Devanagari (Hindi), fetch all books and filter locally
+    // If search contains Devanagari (Hindi), fetch ALL books and filter locally
     // because the backend may have legacy-encoded data that won't match Unicode search
     final containsHindi = RegExp(r'[\u0900-\u097F]').hasMatch(searchText);
 
-    if (containsHindi || searchText.isEmpty) {
-      // Fetch all books, local filtering will handle the Hindi matching
+    if (containsHindi && searchText.isNotEmpty) {
+      // Fetch ALL books for local Hindi filtering - bypasses pagination
+      bookProvider.loadAllBooksForLocalSearch(category: _selectedCategory);
+    } else if (searchText.isEmpty) {
+      // Empty search - load paginated books
       bookProvider.loadBooks(category: _selectedCategory);
     } else {
-      // For non-Hindi search, use backend search
+      // For non-Hindi search, use backend search with pagination
       bookProvider.loadBooks(
-        search: searchText.isEmpty ? null : searchText,
+        search: searchText,
         category: _selectedCategory,
       );
     }
@@ -947,12 +963,14 @@ class _BooksContentState extends State<BooksContent> {
             children: [
               CircularProgressIndicator(),
               SizedBox(width: 20),
-              Text('Exporting books... This may take a moment for large datasets.'),
+              Text(
+                'Exporting books... This may take a moment for large datasets.',
+              ),
             ],
           ),
         ),
       );
-      
+
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Books Export (CSV)',
         fileName:
@@ -960,7 +978,7 @@ class _BooksContentState extends State<BooksContent> {
         type: FileType.custom,
         allowedExtensions: const ['csv'],
       );
-      
+
       if (path == null || path.isEmpty) {
         if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
         return;
@@ -973,7 +991,7 @@ class _BooksContentState extends State<BooksContent> {
 
       if (!mounted) return;
       if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
-      
+
       ScaffoldMessenger.of(
         pageContext,
       ).showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
@@ -1077,18 +1095,18 @@ class _BooksContentState extends State<BooksContent> {
     try {
       final navigator = Navigator.of(pageContext);
       final messenger = ScaffoldMessenger.of(pageContext);
-      
+
       // Use optimized bulk delete API
       final result = await ApiService.bulkDeleteBooks(ids);
       final deletedCount = result['deleted'] ?? 0;
 
       if (!mounted) return;
       navigator.pop();
-      
+
       // Refresh data after bulk delete
       await pageContext.read<BookProvider>().loadBooks();
       await pageContext.read<IssueProvider>().loadStats();
-      
+
       if (!mounted) return;
       setState(() => _selectedBookIds.clear());
 
@@ -1106,12 +1124,19 @@ class _BooksContentState extends State<BooksContent> {
 
   List<Book> getFilteredBooks(List<Book> books) {
     final rawQuery = _searchController.text;
+    if (rawQuery.trim().isEmpty) {
+      final category = _selectedCategory;
+      if (category == null) return books;
+      return books.where((book) => book.category == category).toList();
+    }
+
     final query = rawQuery.toLowerCase();
     // Also normalize the query from legacy Hindi to Unicode for proper matching
     final normalizedQuery = normalizeHindiForDisplay(rawQuery).toLowerCase();
     // Convert Unicode Hindi query to KrutiDev for matching legacy data
     final krutiDevQuery = unicodeToKrutiDevApprox(rawQuery).toLowerCase();
     final category = _selectedCategory;
+
     return books.where((book) {
       // Normalize title and author from legacy Hindi to Unicode
       final normalizedTitle = normalizeHindiForDisplay(
@@ -1120,25 +1145,53 @@ class _BooksContentState extends State<BooksContent> {
       final normalizedAuthor = normalizeHindiForDisplay(
         book.author,
       ).toLowerCase();
+      final normalizedCategory = normalizeHindiForDisplay(
+        book.category ?? '',
+      ).toLowerCase();
+
       // Also keep raw title/author for legacy matching
       final rawTitle = book.title.toLowerCase();
       final rawAuthor = book.author.toLowerCase();
+      final rawCategory = (book.category ?? '').toLowerCase();
       final lowerIsbn = book.isbn.toLowerCase();
       final lowerRack = (book.rackNumber ?? '').toLowerCase();
 
-      // Match against all versions to handle legacy data
-      final matchesQuery =
-          query.isEmpty ||
+      // Comprehensive matching: support all Hindi encodings in both query and data
+      // 1. Direct match (raw query vs raw data)
+      // 2. Normalized query vs normalized data (handles Krutidev data)
+      // 3. KrutiDev query vs raw data (handles Unicode query against Krutidev data)
+      // 4. Raw query vs normalized data (handles Krutidev query against Unicode data)
+      final matchesTitle =
+          rawTitle.contains(query) ||
           normalizedTitle.contains(query) ||
           normalizedTitle.contains(normalizedQuery) ||
+          rawTitle.contains(krutiDevQuery);
+
+      final matchesAuthor =
+          rawAuthor.contains(query) ||
           normalizedAuthor.contains(query) ||
           normalizedAuthor.contains(normalizedQuery) ||
-          rawTitle.contains(krutiDevQuery) ||
-          rawAuthor.contains(krutiDevQuery) ||
-          lowerIsbn.contains(query) ||
-          lowerRack.contains(query);
-      final matchesCategory = category == null || book.category == category;
-      return matchesQuery && matchesCategory;
+          rawAuthor.contains(krutiDevQuery);
+
+      final matchesIsbn = lowerIsbn.contains(query);
+      final matchesRack = lowerRack.contains(query);
+
+      final matchesCategorySearch =
+          rawCategory.contains(query) ||
+          normalizedCategory.contains(query) ||
+          normalizedCategory.contains(normalizedQuery) ||
+          rawCategory.contains(krutiDevQuery);
+
+      final matchesQuery =
+          matchesTitle ||
+          matchesAuthor ||
+          matchesIsbn ||
+          matchesRack ||
+          matchesCategorySearch;
+
+      final matchesCategoryFilter =
+          category == null || book.category == category;
+      return matchesQuery && matchesCategoryFilter;
     }).toList();
   }
 

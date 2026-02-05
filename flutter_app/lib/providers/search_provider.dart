@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../models/member.dart';
 import '../models/issue.dart';
@@ -70,10 +69,85 @@ class SearchProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await ApiService.advancedSearch(query: query);
-      _searchBooks = (results['books'])?.cast<Book>() ?? [];
-      _searchMembers = (results['members'])?.cast<Member>() ?? [];
-      _searchIssues = (results['issues'])?.cast<Issue>() ?? [];
+      // Check if query contains Hindi (Devanagari) characters or looks like Krutidev
+      final containsHindi = RegExp(r'[\u0900-\u097F]').hasMatch(query);
+      final looksLikeKrutidev = looksLikeLegacyHindi(query);
+
+      if (containsHindi || looksLikeKrutidev) {
+        // For Hindi search (Unicode or Krutidev), fetch all data and filter locally
+        // since backend may have data in different encodings
+        final results = await ApiService.advancedSearch();
+
+        final queryLower = query.toLowerCase();
+        final normalizedQuery = normalizeHindiForDisplay(query).toLowerCase();
+        final krutiDevQuery = unicodeToKrutiDevApprox(query).toLowerCase();
+
+        // Filter books with comprehensive Hindi matching
+        final allBooks = (results['books'])?.cast<Book>() ?? [];
+        _searchBooks = allBooks.where((book) {
+          final rawTitle = book.title.toLowerCase();
+          final rawAuthor = book.author.toLowerCase();
+          final normalizedTitle = normalizeHindiForDisplay(
+            book.title,
+          ).toLowerCase();
+          final normalizedAuthor = normalizeHindiForDisplay(
+            book.author,
+          ).toLowerCase();
+          return rawTitle.contains(queryLower) ||
+              rawAuthor.contains(queryLower) ||
+              normalizedTitle.contains(queryLower) ||
+              normalizedAuthor.contains(queryLower) ||
+              normalizedTitle.contains(normalizedQuery) ||
+              normalizedAuthor.contains(normalizedQuery) ||
+              rawTitle.contains(krutiDevQuery) ||
+              rawAuthor.contains(krutiDevQuery) ||
+              rawTitle.contains(normalizedQuery) ||
+              rawAuthor.contains(normalizedQuery);
+        }).toList();
+
+        // Filter members with comprehensive Hindi matching
+        final allMembers = (results['members'])?.cast<Member>() ?? [];
+        _searchMembers = allMembers.where((member) {
+          final rawName = member.name.toLowerCase();
+          final normalizedName = normalizeHindiForDisplay(
+            member.name,
+          ).toLowerCase();
+          return rawName.contains(queryLower) ||
+              normalizedName.contains(queryLower) ||
+              normalizedName.contains(normalizedQuery) ||
+              rawName.contains(krutiDevQuery) ||
+              rawName.contains(normalizedQuery);
+        }).toList();
+
+        // Filter issues with comprehensive Hindi matching
+        final allIssues = (results['issues'])?.cast<Issue>() ?? [];
+        _searchIssues = allIssues.where((issue) {
+          final rawTitle = issue.bookTitle.toLowerCase();
+          final rawMember = issue.memberName.toLowerCase();
+          final normalizedTitle = normalizeHindiForDisplay(
+            issue.bookTitle,
+          ).toLowerCase();
+          final normalizedMember = normalizeHindiForDisplay(
+            issue.memberName,
+          ).toLowerCase();
+          return rawTitle.contains(queryLower) ||
+              rawMember.contains(queryLower) ||
+              normalizedTitle.contains(queryLower) ||
+              normalizedMember.contains(queryLower) ||
+              normalizedTitle.contains(normalizedQuery) ||
+              normalizedMember.contains(normalizedQuery) ||
+              rawTitle.contains(krutiDevQuery) ||
+              rawMember.contains(krutiDevQuery) ||
+              rawTitle.contains(normalizedQuery) ||
+              rawMember.contains(normalizedQuery);
+        }).toList();
+      } else {
+        // For non-Hindi search, use backend search
+        final results = await ApiService.advancedSearch(query: query);
+        _searchBooks = (results['books'])?.cast<Book>() ?? [];
+        _searchMembers = (results['members'])?.cast<Member>() ?? [];
+        _searchIssues = (results['issues'])?.cast<Issue>() ?? [];
+      }
 
       notifyListeners();
     } catch (e) {
@@ -100,38 +174,47 @@ class SearchProvider with ChangeNotifier {
     try {
       // Check if query contains Hindi (Devanagari) characters
       final containsHindi = RegExp(r'[\u0900-\u097F]').hasMatch(query);
+      // Check if query looks like Krutidev (legacy Hindi encoding)
+      final looksLikeKrutidev = looksLikeLegacyHindi(query);
 
       List<Book> allBooks;
-      if (containsHindi) {
-        // For Hindi search, fetch all books (or with category filter only)
-        // and filter locally since backend may have legacy-encoded data
+      if (containsHindi || looksLikeKrutidev) {
+        // For Hindi search (Unicode or Krutidev), fetch all books and filter locally
+        // since backend may have data in different encodings
         final results = await ApiService.advancedSearch(
           category: _categoryFilter == 'all' ? null : _categoryFilter,
           status: _availabilityFilter == 'all' ? null : _availabilityFilter,
         );
         allBooks = (results['books'])?.cast<Book>() ?? [];
 
-        // Filter locally with Hindi normalization
-        final normalizedQuery = normalizeHindiForDisplay(query).toLowerCase();
+        // Filter locally with comprehensive Hindi normalization
         final queryLower = query.toLowerCase();
-        // Also convert to KrutiDev for matching legacy data
+        // Convert Krutidev query to Unicode for matching
+        final normalizedQuery = normalizeHindiForDisplay(query).toLowerCase();
+        // Convert Unicode query to KrutiDev for matching legacy data
         final krutiDevQuery = unicodeToKrutiDevApprox(query).toLowerCase();
 
         _searchBooks = allBooks.where((book) {
+          final rawTitle = book.title.toLowerCase();
+          final rawAuthor = book.author.toLowerCase();
           final normalizedTitle = normalizeHindiForDisplay(
             book.title,
           ).toLowerCase();
           final normalizedAuthor = normalizeHindiForDisplay(
             book.author,
           ).toLowerCase();
-          final rawTitle = book.title.toLowerCase();
-          final rawAuthor = book.author.toLowerCase();
-          return normalizedTitle.contains(queryLower) ||
-              normalizedTitle.contains(normalizedQuery) ||
+
+          // Match all combinations of query and data encodings
+          return rawTitle.contains(queryLower) ||
+              rawAuthor.contains(queryLower) ||
+              normalizedTitle.contains(queryLower) ||
               normalizedAuthor.contains(queryLower) ||
+              normalizedTitle.contains(normalizedQuery) ||
               normalizedAuthor.contains(normalizedQuery) ||
               rawTitle.contains(krutiDevQuery) ||
-              rawAuthor.contains(krutiDevQuery);
+              rawAuthor.contains(krutiDevQuery) ||
+              rawTitle.contains(normalizedQuery) ||
+              rawAuthor.contains(normalizedQuery);
         }).toList();
       } else {
         // For non-Hindi search, use backend search
@@ -145,11 +228,13 @@ class SearchProvider with ChangeNotifier {
 
       if (kDebugMode) {
         debugPrint(
-        'DEBUG [SearchProvider]: Found ${_searchBooks.length} results for "$query"',
-      );
+          'DEBUG [SearchProvider]: Found ${_searchBooks.length} results for "$query"',
+        );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('DEBUG [SearchProvider]: Error in advanced search: $e');
+      if (kDebugMode) {
+        debugPrint('DEBUG [SearchProvider]: Error in advanced search: $e');
+      }
       _searchBooks = [];
     }
 
@@ -165,11 +250,13 @@ class SearchProvider with ChangeNotifier {
       _recommendations = await ApiService.getRecommendations(memberId);
       if (kDebugMode) {
         debugPrint(
-        'DEBUG [SearchProvider]: Loaded ${_recommendations.length} recommendations',
-      );
+          'DEBUG [SearchProvider]: Loaded ${_recommendations.length} recommendations',
+        );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('DEBUG [SearchProvider]: Error loading recommendations: $e');
+      if (kDebugMode) {
+        debugPrint('DEBUG [SearchProvider]: Error loading recommendations: $e');
+      }
       _recommendations = [];
     }
 

@@ -62,6 +62,41 @@ class ApiService {
     }
   }
 
+  /// Throws appropriate exception for rate limit (429) responses
+  static void _throwIfRateLimited(http.Response response, [String? context]) {
+    if (response.statusCode == 429) {
+      throw Exception(
+        context ?? 'Too many requests. Please wait a moment and try again.',
+      );
+    }
+  }
+
+  /// Safely parses JSON error response, returns null if parsing fails
+  static String? _parseErrorMessage(http.Response response) {
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map && data['error'] != null) {
+        return data['error'].toString();
+      }
+    } catch (_) {
+      // Response is not valid JSON
+    }
+    return null;
+  }
+
+  /// Standard error handler for API responses - handles 429, auth, and JSON parsing
+  static void _handleErrorResponse(http.Response response, String operation) {
+    _throwIfRateLimited(
+      response,
+      'Too many requests during $operation. Please wait.',
+    );
+    final errorMsg = _parseErrorMessage(response);
+    throw Exception(
+      errorMsg ??
+          '$operation failed: ${response.reasonPhrase ?? 'Unknown error'}',
+    );
+  }
+
   static void _log(String message) {
     if (kDebugMode) {
       debugPrint(message);
@@ -186,18 +221,45 @@ class ApiService {
   // ==================== AUTH ====================
 
   static Future<User> login(String username, String password) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'username': username, 'password': password}),
+          )
+          .timeout(timeout);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      await setToken(data['token']);
-      return User.fromJson(data['user']);
-    } else {
-      throw Exception(jsonDecode(response.body)['error']);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await setToken(data['token']);
+        return User.fromJson(data['user']);
+      } else if (response.statusCode == 429) {
+        // Rate limited
+        throw Exception(
+          'Too many login attempts. Please wait a moment and try again.',
+        );
+      } else {
+        // Try to parse error from JSON response
+        try {
+          final errorData = jsonDecode(response.body);
+          throw Exception(errorData['error'] ?? 'Login failed');
+        } catch (e) {
+          if (e is FormatException) {
+            // Response is not valid JSON
+            throw Exception(
+              'Login failed: ${response.reasonPhrase ?? 'Unknown error'}',
+            );
+          }
+          rethrow;
+        }
+      }
+    } on SocketException catch (_) {
+      throw Exception(
+        'Cannot connect to server. Please check your connection.',
+      );
+    } on TimeoutException catch (_) {
+      throw Exception('Connection timed out. Please try again.');
     }
   }
 
@@ -206,20 +268,28 @@ class ApiService {
   }
 
   static Future<User> getMe() async {
-    final headers = await getHeaders();
-    final response = await http
-        .get(Uri.parse('$baseUrl/auth/me'), headers: headers)
-        .timeout(timeout);
+    try {
+      final headers = await getHeaders();
+      final response = await http
+          .get(Uri.parse('$baseUrl/auth/me'), headers: headers)
+          .timeout(timeout);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return User.fromJson(data['user']);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return User.fromJson(data['user']);
+      }
+
+      _throwIfRateLimited(response, 'Too many requests. Please wait.');
+      await _throwIfUnauthorized(response);
+      _handleErrorResponse(response, 'Loading user');
+      throw Exception('Failed to load current user');
+    } on SocketException catch (_) {
+      throw Exception(
+        'Cannot connect to server. Please check your connection.',
+      );
+    } on TimeoutException catch (_) {
+      throw Exception('Connection timed out. Please try again.');
     }
-
-    await _throwIfUnauthorized(response);
-    throw Exception(
-      'Failed to load current user: ${response.statusCode} - ${response.body}',
-    );
   }
 
   // ==================== BOOKS ====================
@@ -264,10 +334,10 @@ class ApiService {
         final decoded = jsonDecode(response.body);
         return BooksResponse.fromJson(decoded);
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        throw Exception(
-          'Failed to load books: ${response.statusCode} - ${response.body}',
-        );
+        _handleErrorResponse(response, 'Loading books');
+        throw Exception('Failed to load books');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading books: $e');
@@ -347,10 +417,10 @@ class ApiService {
             throw Exception('Unexpected response format');
           }
         } else {
+          _throwIfRateLimited(response);
           await _throwIfUnauthorized(response);
-          throw Exception(
-            'Failed to load books: ${response.statusCode} - ${response.body}',
-          );
+          _handleErrorResponse(response, 'Loading books');
+          throw Exception('Failed to load books');
         }
       }
 
@@ -371,15 +441,24 @@ class ApiService {
   }
 
   static Future<Book> getBook(int id) async {
-    final headers = await getHeaders();
-    final response = await http
-        .get(Uri.parse('$baseUrl/books/$id'), headers: headers)
-        .timeout(timeout);
+    try {
+      final headers = await getHeaders();
+      final response = await http
+          .get(Uri.parse('$baseUrl/books/$id'), headers: headers)
+          .timeout(timeout);
 
-    if (response.statusCode == 200) {
-      return Book.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load book: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        return Book.fromJson(jsonDecode(response.body));
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading book');
+        throw Exception('Failed to load book');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     }
   }
 
@@ -402,9 +481,10 @@ class ApiService {
         _notifyDataChanged();
         return book.copyWith(id: data['id']);
       } else {
-        throw Exception(
-          'Failed to add book: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Adding book');
+        throw Exception('Failed to add book');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error adding book: $e');
@@ -434,9 +514,9 @@ class ApiService {
 
       _log('DEBUG: Update book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to update book: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Updating book');
       }
       _notifyDataChanged();
     } on SocketException catch (e) {
@@ -463,9 +543,9 @@ class ApiService {
 
       _log('DEBUG: Delete book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to delete book: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Deleting book');
       }
       _notifyDataChanged();
     } on SocketException catch (e) {
@@ -497,9 +577,9 @@ class ApiService {
 
       _log('DEBUG: Bulk delete response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to bulk delete books: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Bulk deleting books');
       }
       _notifyDataChanged();
       return jsonDecode(response.body);
@@ -532,9 +612,9 @@ class ApiService {
         'DEBUG: Bulk delete members response status: ${response.statusCode}',
       );
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to bulk delete members: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Bulk deleting members');
       }
       _notifyDataChanged();
       return jsonDecode(response.body);
@@ -565,9 +645,9 @@ class ApiService {
 
       _log('DEBUG: Bulk delete issues response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to bulk delete issues: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Bulk deleting issues');
       }
       _notifyDataChanged();
       return jsonDecode(response.body);
@@ -656,12 +736,15 @@ class ApiService {
     _categoriesListCacheTime = null;
   }
 
-  static Future<List<BookCategory>> getCategories({bool forceRefresh = false}) async {
+  static Future<List<BookCategory>> getCategories({
+    bool forceRefresh = false,
+  }) async {
     // Return cached data if still valid
     if (!forceRefresh &&
         _categoriesListCache != null &&
         _categoriesListCacheTime != null &&
-        DateTime.now().difference(_categoriesListCacheTime!) < _categoriesCacheDuration) {
+        DateTime.now().difference(_categoriesListCacheTime!) <
+            _categoriesCacheDuration) {
       return _categoriesListCache!;
     }
 
@@ -673,7 +756,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final categories = data.map((json) => BookCategory.fromJson(json)).toList();
+        final categories = data
+            .map((json) => BookCategory.fromJson(json))
+            .toList();
         // Cache the result
         _categoriesListCache = categories;
         _categoriesListCacheTime = DateTime.now();
@@ -774,10 +859,10 @@ class ApiService {
             currentPage++;
           }
         } else {
+          _throwIfRateLimited(response);
           await _throwIfUnauthorized(response);
-          throw Exception(
-            'Failed to load members: ${response.statusCode} - ${response.body}',
-          );
+          _handleErrorResponse(response, 'Loading members');
+          throw Exception('Failed to load members');
         }
       }
 
@@ -828,8 +913,10 @@ class ApiService {
         final decoded = jsonDecode(response.body);
         return MembersResponse.fromJson(decoded);
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        throw Exception('Failed to load members: ${response.statusCode}');
+        _handleErrorResponse(response, 'Loading members');
+        throw Exception('Failed to load members');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error: $e');
@@ -840,15 +927,24 @@ class ApiService {
   }
 
   static Future<Member> getMember(int id) async {
-    final headers = await getHeaders();
-    final response = await http
-        .get(Uri.parse('$baseUrl/members/$id'), headers: headers)
-        .timeout(timeout);
+    try {
+      final headers = await getHeaders();
+      final response = await http
+          .get(Uri.parse('$baseUrl/members/$id'), headers: headers)
+          .timeout(timeout);
 
-    if (response.statusCode == 200) {
-      return Member.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load member: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        return Member.fromJson(jsonDecode(response.body));
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading member');
+        throw Exception('Failed to load member');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     }
   }
 
@@ -871,9 +967,10 @@ class ApiService {
         _notifyDataChanged();
         return member.copyWith(id: data['id']);
       } else {
-        throw Exception(
-          'Failed to add member: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Adding member');
+        throw Exception('Failed to add member');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error adding member: $e');
@@ -903,9 +1000,9 @@ class ApiService {
 
       _log('DEBUG: Update member response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to update member: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Updating member');
       }
 
       _notifyDataChanged();
@@ -933,9 +1030,9 @@ class ApiService {
 
       _log('DEBUG: Delete member response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to delete member: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Deleting member');
       }
 
       _notifyDataChanged();
@@ -1040,10 +1137,10 @@ class ApiService {
             currentPage++;
           }
         } else {
+          _throwIfRateLimited(response);
           await _throwIfUnauthorized(response);
-          throw Exception(
-            'Failed to load issues: ${response.statusCode} - ${response.body}',
-          );
+          _handleErrorResponse(response, 'Loading issues');
+          throw Exception('Failed to load issues');
         }
       }
 
@@ -1094,8 +1191,10 @@ class ApiService {
         final decoded = jsonDecode(response.body);
         return IssuesResponse.fromJson(decoded);
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        throw Exception('Failed to load issues: ${response.statusCode}');
+        _handleErrorResponse(response, 'Loading issues');
+        throw Exception('Failed to load issues');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error: $e');
@@ -1127,10 +1226,9 @@ class ApiService {
 
       _log('DEBUG: Issue book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        final error =
-            jsonDecode(response.body)['error'] ?? 'Failed to issue book';
-        throw Exception(error);
+        _handleErrorResponse(response, 'Issuing book');
       }
 
       _notifyDataChanged();
@@ -1158,10 +1256,9 @@ class ApiService {
 
       _log('DEBUG: Return book response status: ${response.statusCode}');
       if (response.statusCode != 200) {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        throw Exception(
-          'Failed to return book: ${response.statusCode} - ${response.body}',
-        );
+        _handleErrorResponse(response, 'Returning book');
       }
 
       _notifyDataChanged();
@@ -1204,10 +1301,9 @@ class ApiService {
 
       _log('DEBUG: Update issue response status: ${response.statusCode}');
       if (response.statusCode != 200) {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        throw Exception(
-          'Failed to update issue: ${response.statusCode} - ${response.body}',
-        );
+        _handleErrorResponse(response, 'Updating issue');
       }
 
       _notifyDataChanged();
@@ -1248,10 +1344,10 @@ class ApiService {
           ),
         );
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
-        throw Exception(
-          'Failed to load dashboard stats: ${response.statusCode} - ${response.body}',
-        );
+        _handleErrorResponse(response, 'Loading dashboard stats');
+        throw Exception('Failed to load dashboard stats');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading dashboard stats: $e');
@@ -1347,9 +1443,14 @@ class ApiService {
       if (response.statusCode == 200) {
         return Map<String, dynamic>.from(jsonDecode(response.body));
       }
-      throw Exception(
-        'Failed to load dashboard alerts: ${response.statusCode} - ${response.body}',
-      );
+      _throwIfRateLimited(response);
+      await _throwIfUnauthorized(response);
+      _handleErrorResponse(response, 'Loading dashboard alerts');
+      throw Exception('Failed to load dashboard alerts');
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading dashboard alerts: $e');
       rethrow;
@@ -1372,9 +1473,14 @@ class ApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return List<Map<String, dynamic>>.from(data);
       }
-      throw Exception(
-        'Failed to load dashboard activity: ${response.statusCode} - ${response.body}',
-      );
+      _throwIfRateLimited(response);
+      await _throwIfUnauthorized(response);
+      _handleErrorResponse(response, 'Loading dashboard activity');
+      throw Exception('Failed to load dashboard activity');
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading dashboard activity: $e');
       rethrow;
@@ -1391,10 +1497,14 @@ class ApiService {
           )
           .timeout(timeout);
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to clear activity: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Clearing activity');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error clearing dashboard activity: $e');
       rethrow;
@@ -1408,10 +1518,14 @@ class ApiService {
           .post(Uri.parse('$baseUrl/issues/$issueId/remind'), headers: headers)
           .timeout(timeout);
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to send reminder: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Sending reminder');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error sending reminder: $e');
       rethrow;
@@ -1428,12 +1542,16 @@ class ApiService {
           )
           .timeout(timeout);
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to deactivate member: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Deactivating member');
       }
 
       _notifyDataChanged();
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error deactivating member: $e');
       rethrow;
@@ -1450,12 +1568,16 @@ class ApiService {
           )
           .timeout(timeout);
       if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to activate member: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Activating member');
       }
 
       _notifyDataChanged();
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error activating member: $e');
       rethrow;
@@ -1478,10 +1600,15 @@ class ApiService {
         _log('DEBUG: Parsed ${data.length} issued reports');
         return List<Map<String, dynamic>>.from(data);
       } else {
-        throw Exception(
-          'Failed to load issued report: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading issued report');
+        throw Exception('Failed to load issued report');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading issued report: $e');
       rethrow;
@@ -1502,10 +1629,15 @@ class ApiService {
         _log('DEBUG: Parsed ${data.length} overdue reports');
         return List<Map<String, dynamic>>.from(data);
       } else {
-        throw Exception(
-          'Failed to load overdue report: ${response.statusCode} - ${response.body}',
-        );
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading overdue report');
+        throw Exception('Failed to load overdue report');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading overdue report: $e');
       rethrow;
@@ -1532,9 +1664,15 @@ class ApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => PopularBook.fromJson(json)).toList();
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading popular books');
         throw Exception('Failed to load popular books');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading popular books: $e');
       rethrow;
@@ -1561,9 +1699,15 @@ class ApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => ActiveMember.fromJson(json)).toList();
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading active members');
         throw Exception('Failed to load active members');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading active members: $e');
       rethrow;
@@ -1587,9 +1731,15 @@ class ApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => MonthlyStats.fromJson(json)).toList();
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading monthly stats');
         throw Exception('Failed to load monthly stats');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading monthly stats: $e');
       rethrow;
@@ -1608,9 +1758,15 @@ class ApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => CategoryStats.fromJson(json)).toList();
       } else {
+        _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading category stats');
         throw Exception('Failed to load category stats');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error loading category stats: $e');
       rethrow;
@@ -1753,8 +1909,15 @@ class ApiService {
               [],
         };
       } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Search');
         throw Exception('Search failed');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timed out.');
     } catch (e) {
       _log('DEBUG: Error in advanced search: $e');
       rethrow;
@@ -1797,8 +1960,15 @@ class ApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Creating backup');
         throw Exception('Failed to create backup');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Backup request timed out.');
     } catch (e) {
       _log('DEBUG: Error creating backup: $e');
       rethrow;
@@ -1824,8 +1994,14 @@ class ApiService {
           .timeout(const Duration(seconds: 60));
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to restore backup');
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Restoring backup');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Restore request timed out.');
     } catch (e) {
       _log('DEBUG: Error restoring backup: $e');
       rethrow;
@@ -1852,8 +2028,15 @@ class ApiService {
       if (response.statusCode == 200) {
         return response.bodyBytes;
       } else {
-        throw Exception('Failed to export data: ${response.statusCode}');
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Exporting data');
+        throw Exception('Failed to export data');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Export request timed out.');
     } catch (e) {
       _log('DEBUG: Error exporting data: $e');
       rethrow;
@@ -1896,11 +2079,20 @@ class ApiService {
         final data = jsonDecode(response.body);
         final url = data['url'];
         return url;
+      } else if (response.statusCode == 429) {
+        throw Exception('Too many uploads. Please wait a moment.');
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        await clearToken();
+        _unauthorizedController.add(null);
+        throw Exception('Session expired. Please login again.');
       } else {
-        throw Exception(
-          'Failed to upload cover image: ${response.statusCode} - ${response.body}',
-        );
+        final errorMsg = _parseErrorMessage(response);
+        throw Exception(errorMsg ?? 'Failed to upload cover image');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Upload timed out.');
     } catch (e) {
       _log('DEBUG: Error uploading book cover: $e');
       rethrow;
@@ -1941,11 +2133,20 @@ class ApiService {
         final data = jsonDecode(response.body);
         final url = data['url'];
         return url;
+      } else if (response.statusCode == 429) {
+        throw Exception('Too many uploads. Please wait a moment.');
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        await clearToken();
+        _unauthorizedController.add(null);
+        throw Exception('Session expired. Please login again.');
       } else {
-        throw Exception(
-          'Failed to upload member photo: ${response.statusCode} - ${response.body}',
-        );
+        final errorMsg = _parseErrorMessage(response);
+        throw Exception(errorMsg ?? 'Failed to upload member photo');
       }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Upload timed out.');
     } catch (e) {
       _log('DEBUG: Error uploading member photo: $e');
       rethrow;

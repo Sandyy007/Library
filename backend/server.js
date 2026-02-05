@@ -68,6 +68,10 @@ if (isProduction && rateLimitEnabled) {
       max: Number(process.env.RATE_LIMIT_MAX || 300),
       standardHeaders: true,
       legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+      handler: (req, res) => {
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+      },
     })
   );
 }

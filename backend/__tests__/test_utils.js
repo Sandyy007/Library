@@ -5,7 +5,7 @@ async function loginAdminOrSkip() {
   try {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ username: 'admin', password: 'admin' });
+      .send({ username: 'admin', password: 'Library#123' });
 
     if (res.statusCode !== 200 || !res.body || !res.body.token) {
       return { skip: true, reason: `Login failed: ${res.statusCode} ${JSON.stringify(res.body)}` };

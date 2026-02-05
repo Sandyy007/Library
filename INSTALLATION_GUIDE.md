@@ -10,7 +10,6 @@
 6. [Production Deployment](#production-deployment)
 7. [Configuration](#configuration)
 8. [Troubleshooting](#troubleshooting)
-
 ---
 
 ## 🖥️ System Requirements
@@ -129,7 +128,7 @@ node seed.js
 
 This creates a default admin user:
 - **Username:** `admin`
-- **Password:** `admin`
+- **Password:** `Library#123`
 
 > ⚠️ **Important:** Change the default admin password immediately after first login!
 

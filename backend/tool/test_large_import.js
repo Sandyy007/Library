@@ -123,7 +123,7 @@ async function login() {
   console.log('Logging in as admin...');
   const result = await apiRequest('POST', '/api/auth/login', {
     username: 'admin',
-    password: 'admin'
+    password: 'Library#123'
   });
   
   if (result.status === 200 && result.data?.token) {

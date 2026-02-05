@@ -70,8 +70,8 @@ CREATE TABLE issues (
 
 -- Sample data (Admin only)
 INSERT INTO users (username, password_hash, role) VALUES
-('admin', '$2b$10$6W0zDqIEBMezJOSEpnIT7O2AyoMKbDd0dbZwV442BQT984WTt7sXu', 'admin'),
-('librarian', '$2b$10$ausiZpSowIStAv4gdLu42uYSGdXBGVz0M5Hn2c62vXR3wR3sHU1AG', 'admin');
+('admin', '$2b$10$5noxZoO0TwLU6R6JdSKkTe3Yj8mVUky2VMlOQNZsAvkA7KrRQrUsa', 'admin'),
+('librarian', '$2b$10$5noxZoO0TwLU6R6JdSKkTe3Yj8mVUky2VMlOQNZsAvkA7KrRQrUsa', 'admin');
 
 INSERT INTO books (isbn, title, author, category, publisher, year_published) VALUES
 ('978-0-123456-78-9', 'Sample Book 1', 'Author 1', 'Fiction', 'Publisher 1', 2020),

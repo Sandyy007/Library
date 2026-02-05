@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -12,8 +13,16 @@ import 'providers/dashboard_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'utils/theme.dart';
+import 'services/backend_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Start backend server automatically on Windows
+  if (Platform.isWindows) {
+    await BackendService.startBackend();
+  }
+  
   runApp(const MyApp());
 }
 

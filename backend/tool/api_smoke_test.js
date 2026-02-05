@@ -12,7 +12,7 @@ async function main() {
   const loginRes = await fetch(`${base}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'admin', password: 'admin' }),
+    body: JSON.stringify({ username: 'admin', password: 'Library#123' }),
   });
   const loginBody = await readBody(loginRes);
   if (loginRes.status !== 200) {

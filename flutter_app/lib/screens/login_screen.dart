@@ -37,11 +37,13 @@ class _LoginScreenState extends State<LoginScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-        CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutBack,
+          ),
+        );
     _animationController.forward();
   }
 
@@ -49,41 +51,43 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 600;
+    final isLargeScreen = screenSize.width >= 1200;
+    final isExtraLargeScreen = screenSize.width >= 1600;
 
     return Scaffold(
       body: Stack(
         children: [
           // Animated gradient background
           _buildAnimatedBackground(),
-          
+
           // Floating book decorations
           if (!isSmallScreen) ...[
             _buildFloatingBook(
               left: screenSize.width * 0.05,
               top: screenSize.height * 0.1,
               rotation: -0.2,
-              scale: 0.8,
+              scale: isLargeScreen ? 1.0 : 0.8,
               delay: 0,
             ),
             _buildFloatingBook(
               right: screenSize.width * 0.08,
               top: screenSize.height * 0.15,
               rotation: 0.15,
-              scale: 1.0,
+              scale: isLargeScreen ? 1.2 : 1.0,
               delay: 0.3,
             ),
             _buildFloatingBook(
               left: screenSize.width * 0.1,
               bottom: screenSize.height * 0.15,
               rotation: 0.1,
-              scale: 0.7,
+              scale: isLargeScreen ? 0.9 : 0.7,
               delay: 0.6,
             ),
             _buildFloatingBook(
               right: screenSize.width * 0.05,
               bottom: screenSize.height * 0.2,
               rotation: -0.1,
-              scale: 0.9,
+              scale: isLargeScreen ? 1.1 : 0.9,
               delay: 0.9,
             ),
             // Book stack decoration
@@ -96,6 +100,64 @@ class _LoginScreenState extends State<LoginScreen>
               bottom: screenSize.height * 0.4,
               mirrored: true,
             ),
+            // Extra floating books for large screens
+            if (isLargeScreen) ...[
+              _buildFloatingBook(
+                left: screenSize.width * 0.15,
+                top: screenSize.height * 0.25,
+                rotation: 0.08,
+                scale: 0.85,
+                delay: 0.2,
+              ),
+              _buildFloatingBook(
+                right: screenSize.width * 0.15,
+                bottom: screenSize.height * 0.35,
+                rotation: -0.12,
+                scale: 0.95,
+                delay: 0.5,
+              ),
+            ],
+            // Even more decorations for extra-large screens
+            if (isExtraLargeScreen) ...[
+              _buildFloatingBook(
+                left: screenSize.width * 0.22,
+                top: screenSize.height * 0.08,
+                rotation: -0.05,
+                scale: 0.75,
+                delay: 0.4,
+              ),
+              _buildFloatingBook(
+                right: screenSize.width * 0.22,
+                top: screenSize.height * 0.3,
+                rotation: 0.1,
+                scale: 0.8,
+                delay: 0.7,
+              ),
+              _buildFloatingBook(
+                left: screenSize.width * 0.25,
+                bottom: screenSize.height * 0.25,
+                rotation: -0.08,
+                scale: 0.7,
+                delay: 0.8,
+              ),
+              _buildFloatingBook(
+                right: screenSize.width * 0.25,
+                bottom: screenSize.height * 0.12,
+                rotation: 0.06,
+                scale: 0.85,
+                delay: 1.0,
+              ),
+              // Additional book stacks for extra-large screens
+              _buildBookStack(
+                left: screenSize.width * 0.12,
+                bottom: screenSize.height * 0.15,
+              ),
+              _buildBookStack(
+                right: screenSize.width * 0.12,
+                top: screenSize.height * 0.15,
+                mirrored: true,
+              ),
+            ],
           ],
 
           // Main login card
@@ -118,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildAnimatedBackground() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return AnimatedBuilder(
       animation: _floatingController,
       builder: (context, child) {
@@ -127,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: isDark 
+              colors: isDark
                   ? [
                       Color.lerp(
                         const Color(0xFF1A1D2E),
@@ -182,7 +244,9 @@ class _LoginScreenState extends State<LoginScreen>
     return AnimatedBuilder(
       animation: _floatingController,
       builder: (context, child) {
-        final value = math.sin((_floatingController.value + delay) * math.pi * 2);
+        final value = math.sin(
+          (_floatingController.value + delay) * math.pi * 2,
+        );
         return Positioned(
           left: left,
           right: right,
@@ -190,10 +254,7 @@ class _LoginScreenState extends State<LoginScreen>
           bottom: bottom != null ? bottom + (value * 10) : null,
           child: Transform.rotate(
             angle: rotation + (value * 0.05),
-            child: Transform.scale(
-              scale: scale,
-              child: _buildBookIcon(),
-            ),
+            child: Transform.scale(scale: scale, child: _buildBookIcon()),
           ),
         );
       },
@@ -286,29 +347,47 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginCard(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isLargeScreen = screenSize.width >= 1200;
+    final isExtraLargeScreen = screenSize.width >= 1600;
+
+    // Scale up card for larger screens
+    final maxCardWidth = isExtraLargeScreen
+        ? 480.0
+        : (isLargeScreen ? 450.0 : 420.0);
+    final cardPadding = isExtraLargeScreen
+        ? 48.0
+        : (isLargeScreen ? 44.0 : 40.0);
+    final iconSize = isExtraLargeScreen ? 52.0 : (isLargeScreen ? 48.0 : 44.0);
+    final titleFontSize = isExtraLargeScreen
+        ? 32.0
+        : (isLargeScreen ? 30.0 : 28.0);
+
     return Container(
-      constraints: const BoxConstraints(maxWidth: 420),
+      constraints: BoxConstraints(maxWidth: maxCardWidth),
       child: Card(
-        elevation: 24,
-        shadowColor: Colors.purple.withValues(alpha: 0.2),
+        elevation: isLargeScreen ? 28 : 24,
+        shadowColor: Colors.purple.withValues(
+          alpha: isLargeScreen ? 0.25 : 0.2,
+        ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(isLargeScreen ? 32 : 28),
         ),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(isLargeScreen ? 32 : 28),
             color: Theme.of(context).colorScheme.surface,
           ),
-          padding: const EdgeInsets.all(40),
+          padding: EdgeInsets.all(cardPadding),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Library Icon with animation
-                _buildAnimatedIcon(),
-                const SizedBox(height: 28),
-                
+                _buildAnimatedIcon(iconSize: iconSize),
+                SizedBox(height: isLargeScreen ? 32 : 28),
+
                 // Title with book decoration
                 FittedBox(
                   fit: BoxFit.scaleDown,
@@ -318,7 +397,7 @@ class _LoginScreenState extends State<LoginScreen>
                     children: [
                       Icon(
                         Icons.auto_stories,
-                        size: 20,
+                        size: isLargeScreen ? 24 : 20,
                         color: Colors.purple.withValues(alpha: 0.5),
                       ),
                       const SizedBox(width: 8),
@@ -326,10 +405,10 @@ class _LoginScreenState extends State<LoginScreen>
                         shaderCallback: (bounds) => const LinearGradient(
                           colors: [Color(0xFF7C3AED), Color(0xFFDB2777)],
                         ).createShader(bounds),
-                        child: const Text(
+                        child: Text(
                           'Admin Login',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: titleFontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -338,14 +417,14 @@ class _LoginScreenState extends State<LoginScreen>
                       const SizedBox(width: 8),
                       Icon(
                         Icons.auto_stories,
-                        size: 20,
+                        size: isLargeScreen ? 24 : 20,
                         color: Colors.purple.withValues(alpha: 0.5),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Subtitle with book icons
                 FittedBox(
                   fit: BoxFit.scaleDown,
@@ -370,7 +449,9 @@ class _LoginScreenState extends State<LoginScreen>
                         'Library Management System',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -434,21 +515,27 @@ class _LoginScreenState extends State<LoginScreen>
                     Icon(
                       Icons.menu_book_outlined,
                       size: 14,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Secure Admin Portal',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Icon(
                       Icons.verified_user_outlined,
                       size: 14,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ],
                 ),
@@ -460,14 +547,20 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildAnimatedIcon() {
+  Widget _buildAnimatedIcon({double iconSize = 44}) {
+    final containerPadding = iconSize * 0.45;
+    final badgeSize = iconSize * 0.32;
+
     return AnimatedBuilder(
       animation: _floatingController,
       builder: (context, child) {
         return Transform.translate(
-          offset: Offset(0, math.sin(_floatingController.value * math.pi * 2) * 3),
+          offset: Offset(
+            0,
+            math.sin(_floatingController.value * math.pi * 2) * 3,
+          ),
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(containerPadding),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(
@@ -486,24 +579,24 @@ class _LoginScreenState extends State<LoginScreen>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.menu_book_rounded,
-                  size: 44,
+                  size: iconSize,
                   color: Colors.white,
                 ),
                 Positioned(
                   right: -2,
                   top: -2,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: EdgeInsets.all(badgeSize * 0.3),
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.admin_panel_settings,
-                      size: 14,
-                      color: Color(0xFF7C3AED),
+                      size: badgeSize,
+                      color: const Color(0xFF7C3AED),
                     ),
                   ),
                 ),
@@ -525,19 +618,20 @@ class _LoginScreenState extends State<LoginScreen>
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return TextFormField(
       controller: controller,
       obscureText: isPassword ? _obscurePassword : false,
-      style: TextStyle(
-        fontSize: 15,
-        color: colorScheme.onSurface,
-      ),
+      style: TextStyle(fontSize: 15, color: colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.8)),
-        hintStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.5)),
+        labelStyle: TextStyle(
+          color: colorScheme.onSurface.withValues(alpha: 0.8),
+        ),
+        hintStyle: TextStyle(
+          color: colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
         prefixIcon: Container(
           margin: const EdgeInsets.only(left: 12, right: 8),
           child: Icon(icon, color: const Color(0xFF7C3AED), size: 22),
@@ -551,11 +645,12 @@ class _LoginScreenState extends State<LoginScreen>
                   color: colorScheme.onSurface.withValues(alpha: 0.5),
                   size: 20,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               )
             : null,
         filled: true,
-        fillColor: isDark 
+        fillColor: isDark
             ? colorScheme.surface.withValues(alpha: 0.5)
             : Colors.grey.shade50,
         border: OutlineInputBorder(
@@ -565,7 +660,7 @@ class _LoginScreenState extends State<LoginScreen>
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: isDark 
+            color: isDark
                 ? colorScheme.outline.withValues(alpha: 0.5)
                 : Colors.grey.shade200,
           ),
@@ -578,7 +673,10 @@ class _LoginScreenState extends State<LoginScreen>
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: colorScheme.error),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
       validator: validator,
     );
@@ -619,7 +717,11 @@ class _LoginScreenState extends State<LoginScreen>
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                      const Icon(
+                        Icons.login_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       const Text(
                         'Sign In',
@@ -668,7 +770,9 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             margin: const EdgeInsets.all(16),
           ),
         );
