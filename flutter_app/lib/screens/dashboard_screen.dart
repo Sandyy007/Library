@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/issue_provider.dart';
 import '../providers/book_provider.dart';
@@ -15,7 +16,9 @@ import '../widgets/issues_content.dart';
 import '../widgets/reports_content.dart';
 import '../widgets/search_results_dialog.dart';
 import '../widgets/notification_bell.dart';
+import '../services/api_service.dart';
 import '../utils/error_utils.dart';
+import 'dart:async';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,12 +30,15 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
+  int _previousIndex = 0;
   bool _booksLoaded = false;
   bool _membersLoaded = false;
   bool _issuesLoaded = false;
+  bool _isOffline = false;
+  Timer? _connectivityTimer;
   late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _keyboardFocusNode = FocusNode();
 
   final List<Widget> _screens = [
     const DashboardContent(),
@@ -57,15 +63,30 @@ class _DashboardScreenState extends State<DashboardScreen>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
     _animationController.forward();
 
     // Load initial data for all screens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
+      _startConnectivityCheck();
     });
+  }
+
+  void _startConnectivityCheck() {
+    _checkConnectivity();
+    _connectivityTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _checkConnectivity(),
+    );
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      await ApiService.healthCheck();
+      if (_isOffline && mounted) setState(() => _isOffline = false);
+    } catch (_) {
+      if (!_isOffline && mounted) setState(() => _isOffline = true);
+    }
   }
 
   void _loadInitialData() {
@@ -112,7 +133,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     final isCompact = screenWidth < 900;
     final isVeryCompact = screenWidth < 600;
 
-    return Scaffold(
+    return KeyboardListener(
+      focusNode: _keyboardFocusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Scaffold(
       drawer: isCompact
           ? Drawer(
               child: Sidebar(
@@ -199,7 +224,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             Flexible(
                               flex: 0,
                               child: Container(
-                                width: 280,
+                                width: screenWidth < 1000 ? 220 : 280,
                                 height: 44,
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.surface,
@@ -255,16 +280,57 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                   ),
-                  // Content Area
+                  // Offline banner
+                  if (_isOffline)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: Colors.orange.shade700,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.cloud_off, color: Colors.white, size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Backend unreachable — retrying...',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Content Area with slide+fade transition
                   Expanded(
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 400),
-                        child: Padding(
-                          padding: EdgeInsets.all(isVeryCompact ? 12 : 20),
-                          child: _screens[_selectedIndex],
-                        ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 350),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        // Determine slide direction based on tab index
+                        final isForward = _selectedIndex >= _previousIndex;
+                        final slideOffset = Tween<Offset>(
+                          begin: Offset(isForward ? 0.05 : -0.05, 0),
+                          end: Offset.zero,
+                        ).animate(animation);
+                        return SlideTransition(
+                          position: slideOffset,
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey<int>(_selectedIndex),
+                        child: _screens[_selectedIndex],
                       ),
                     ),
                   ),
@@ -274,11 +340,44 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       ),
+    ),
     );
+  }
+
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
+    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+
+    // Ctrl+1..5 to switch tabs
+    if (isCtrl) {
+      const tabKeys = [
+        LogicalKeyboardKey.digit1,
+        LogicalKeyboardKey.digit2,
+        LogicalKeyboardKey.digit3,
+        LogicalKeyboardKey.digit4,
+        LogicalKeyboardKey.digit5,
+      ];
+      for (var i = 0; i < tabKeys.length; i++) {
+        if (event.logicalKey == tabKeys[i]) {
+          _onItemSelected(i);
+          return;
+        }
+      }
+      // Ctrl+F to focus search
+      if (event.logicalKey == LogicalKeyboardKey.keyF) {
+        // Show search dialog on small screens, focus search bar on large
+        final screenWidth = MediaQuery.of(context).size.width;
+        if (screenWidth < 600) {
+          _showSearchDialog(context);
+        }
+        return;
+      }
+    }
   }
 
   void _onItemSelected(int index) {
     if (_selectedIndex != index) {
+      _previousIndex = _selectedIndex;
       _animationController.reset();
       setState(() => _selectedIndex = index);
       _animationController.forward();
@@ -289,12 +388,15 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _showSearchDialog(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Search'),
-        content: SizedBox(
-          width: 300,
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: sw < 500 ? sw * 0.85 : 300,
+          ),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -355,6 +457,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    _connectivityTimer?.cancel();
+    _keyboardFocusNode.dispose();
     _animationController.dispose();
     _searchController.dispose();
     super.dispose();

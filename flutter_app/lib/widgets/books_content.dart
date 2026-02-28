@@ -13,6 +13,8 @@ import '../widgets/book_dialog.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import '../utils/color_extensions.dart';
+import '../widgets/common_widgets.dart';
 
 class BooksContent extends StatefulWidget {
   const BooksContent({super.key});
@@ -26,6 +28,7 @@ class _BooksContentState extends State<BooksContent> {
   String? _selectedCategory;
   final Set<int> _selectedBookIds = <int>{};
   StreamSubscription<void>? _dataChangedSub;
+  Timer? _searchDebounce;
 
   bool _containsDevanagari(String text) {
     return RegExp(r'[\u0900-\u097F]').hasMatch(text);
@@ -188,15 +191,16 @@ class _BooksContentState extends State<BooksContent> {
     final filteredBooks = getFilteredBooks(bookProvider.books);
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 800;
+    final isVeryCompact = screenWidth < 600;
 
     return Scaffold(
       body: Padding(
-        padding: EdgeInsets.all(isCompact ? 12 : 20),
+        padding: EdgeInsets.all(isVeryCompact ? 8 : (isCompact ? 14 : 20)),
         child: Column(
           children: [
             // Search, Filter, and Action buttons - all in one bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: isVeryCompact ? 8 : 16, vertical: 10),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
@@ -212,14 +216,17 @@ class _BooksContentState extends State<BooksContent> {
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Row(
+                    children: [
                   // Search field
                   Expanded(
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search books...',
+                        hintText: isVeryCompact ? 'Search...' : 'Search books...',
                         prefixIcon: const Icon(Icons.search, size: 20),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -232,104 +239,31 @@ class _BooksContentState extends State<BooksContent> {
                         ),
                         isDense: true,
                       ),
-                      onChanged: (value) => _filterBooks(),
+                      onChanged: (value) {
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 350),
+                          _filterBooks,
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Category filter
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                      color: Theme.of(context).colorScheme.surface,
-                    ),
-                    child: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        setState(
-                          () => _selectedCategory = value == 'All Categories'
-                              ? null
-                              : value,
-                        );
-                        _filterBooks();
-                      },
-                      itemBuilder: (context) {
-                        final categories = getUniqueCategories(
-                          bookProvider.books,
-                        );
-                        return categories.map((category) {
-                          final isSelected =
-                              (_selectedCategory == null &&
-                                  category == 'All Categories') ||
-                              (_selectedCategory == category);
-                          return PopupMenuItem<String>(
-                            value: category,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isSelected
-                                      ? Icons.check_circle
-                                      : Icons.circle_outlined,
-                                  size: 20,
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  category,
-                                  style: TextStyle(
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList();
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.filter_list,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _selectedCategory ?? 'All Categories',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  if (!isVeryCompact) const SizedBox(width: 12),
+                  if (!isVeryCompact)
+                    _buildCategoryFilterPopup(bookProvider),
+                    ],
                   ),
-                  const SizedBox(width: 12),
+                  // Action buttons row - scrollable
+                  if (isVeryCompact) const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                  if (isVeryCompact)
+                    _buildCategoryFilterPopup(bookProvider),
+                  if (isVeryCompact) const SizedBox(width: 8),
                   // Selection actions
-                  if (selectedCount > 0) ...[
+                  if (selectedCount > 0) ...[  
                     IconButton(
                       tooltip: 'Delete ($selectedCount)',
                       onPressed: _deleteSelectedBooks,
@@ -373,6 +307,13 @@ class _BooksContentState extends State<BooksContent> {
                     icon: const Icon(Icons.download, size: 20),
                     visualDensity: VisualDensity.compact,
                   ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: _loadBooks,
+                    icon: const Icon(Icons.refresh, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   const SizedBox(width: 8),
                   // Add Book button
                   ElevatedButton.icon(
@@ -384,6 +325,9 @@ class _BooksContentState extends State<BooksContent> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                    ),
+                  ),
+                      ],
                     ),
                   ),
                 ],
@@ -401,48 +345,14 @@ class _BooksContentState extends State<BooksContent> {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: bookProvider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const ShimmerTable(rows: 8, columns: 6)
                     : bookProvider.books.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.library_books_outlined,
-                              size: 80,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.4),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No books found',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Click "Add Book" to create a new book',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: _loadBooks,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
+                    ? EmptyStateWidget(
+                        icon: Icons.library_books_outlined,
+                        title: 'No books found',
+                        subtitle: 'Click "Add Book" to create a new book',
+                        actionLabel: 'Retry',
+                        onAction: _loadBooks,
                       )
                     : Theme(
                         data: Theme.of(context).copyWith(
@@ -539,8 +449,17 @@ class _BooksContentState extends State<BooksContent> {
                             ),
                           ],
                           rows: filteredBooks
+                              .asMap()
+                              .entries
                               .map(
-                                (book) => DataRow(
+                                (entry) {
+                                  final idx = entry.key;
+                                  final book = entry.value;
+                                  return DataRow(
+                                  color: idx.isEven
+                                      ? WidgetStateProperty.all(
+                                          Theme.of(context).colorScheme.zebraStripe)
+                                      : null,
                                   selected: _selectedBookIds.contains(book.id),
                                   onSelectChanged: (selected) {
                                     if (selected == null) return;
@@ -756,7 +675,8 @@ class _BooksContentState extends State<BooksContent> {
                                       ),
                                     ),
                                   ],
-                                ),
+                                );
+                                },
                               )
                               .toList(),
                         ),
@@ -828,6 +748,81 @@ class _BooksContentState extends State<BooksContent> {
     );
   }
 
+  Widget _buildCategoryFilterPopup(BookProvider bookProvider) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        color: Theme.of(context).colorScheme.surface,
+      ),
+      child: PopupMenuButton<String>(
+        onSelected: (value) {
+          setState(
+            () => _selectedCategory =
+                value == 'All Categories' ? null : value,
+          );
+          _filterBooks();
+        },
+        itemBuilder: (context) {
+          final categories = getUniqueCategories(bookProvider.books);
+          return categories.map((category) {
+            final isSelected = (_selectedCategory == null &&
+                    category == 'All Categories') ||
+                (_selectedCategory == category);
+            return PopupMenuItem<String>(
+              value: category,
+              child: Row(
+                children: [
+                  Icon(
+                    isSelected ? Icons.check_circle : Icons.circle_outlined,
+                    size: 20,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    category,
+                    style: TextStyle(
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.filter_list,
+                  color: Theme.of(context).colorScheme.primary, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                _selectedCategory ?? 'All Categories',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _filterBooks() {
     final bookProvider = Provider.of<BookProvider>(context, listen: false);
     final searchText = _searchController.text;
@@ -864,13 +859,15 @@ class _BooksContentState extends State<BooksContent> {
   }
 
   void _showBookDialog({Book? book}) async {
+    final bookProvider = context.read<BookProvider>();
+    final issueProvider = context.read<IssueProvider>();
     final result = await showDialog(
       context: context,
       builder: (context) => BookDialog(book: book),
     );
     if (mounted && result == true) {
-      await context.read<BookProvider>().loadBooks();
-      await context.read<IssueProvider>().loadStats();
+      await bookProvider.loadBooks();
+      await issueProvider.loadStats();
     }
   }
 
@@ -975,13 +972,14 @@ class _BooksContentState extends State<BooksContent> {
   }
 
   Future<void> _exportBooksCsv() async {
-    final pageContext = context;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       // Show loading indicator
       showDialog(
-        context: pageContext,
+        context: context,
         barrierDismissible: false,
-        builder: (context) => const AlertDialog(
+        builder: (ctx) => const AlertDialog(
           content: Row(
             children: [
               CircularProgressIndicator(),
@@ -1003,7 +1001,7 @@ class _BooksContentState extends State<BooksContent> {
       );
 
       if (path == null || path.isEmpty) {
-        if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
+        if (navigator.canPop()) navigator.pop();
         return;
       }
 
@@ -1013,24 +1011,22 @@ class _BooksContentState extends State<BooksContent> {
       await File(path).writeAsBytes(csvBytes, flush: true);
 
       if (!mounted) return;
-      if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
+      if (navigator.canPop()) navigator.pop();
 
-      ScaffoldMessenger.of(
-        pageContext,
-      ).showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
+      messenger.showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
     } catch (e) {
       if (!mounted) return;
-      if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
-      ScaffoldMessenger.of(
-        pageContext,
-      ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
+      if (navigator.canPop()) navigator.pop();
+      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
     }
   }
 
   void _deleteBook(int id) {
-    final pageContext = context;
+    final bookProvider = context.read<BookProvider>();
+    final issueProvider = context.read<IssueProvider>();
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
-      context: pageContext,
+      context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Book'),
         content: const Text('Are you sure you want to delete this book?'),
@@ -1043,20 +1039,20 @@ class _BooksContentState extends State<BooksContent> {
             onPressed: () async {
               Navigator.of(dialogContext).pop();
               try {
-                await pageContext.read<BookProvider>().deleteBook(id);
+                await bookProvider.deleteBook(id);
 
                 if (!mounted) return;
                 setState(() => _selectedBookIds.remove(id));
 
-                await pageContext.read<IssueProvider>().loadStats();
+                await issueProvider.loadStats();
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(pageContext).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Book deleted successfully')),
                 );
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(pageContext).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(content: Text(getOperationErrorMessage('Delete book', e))),
                 );
               }
@@ -1072,9 +1068,13 @@ class _BooksContentState extends State<BooksContent> {
     final ids = _selectedBookIds.toList()..sort();
     if (ids.isEmpty) return;
 
-    final pageContext = context;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final bookProvider = context.read<BookProvider>();
+    final issueProvider = context.read<IssueProvider>();
+
     final confirmed = await showDialog<bool>(
-      context: pageContext,
+      context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete selected books'),
         content: Text('Delete ${ids.length} selected book(s)?'),
@@ -1098,7 +1098,7 @@ class _BooksContentState extends State<BooksContent> {
     if (confirmed != true || !mounted) return;
 
     showDialog(
-      context: pageContext,
+      context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         content: Row(
@@ -1116,9 +1116,6 @@ class _BooksContentState extends State<BooksContent> {
     );
 
     try {
-      final navigator = Navigator.of(pageContext);
-      final messenger = ScaffoldMessenger.of(pageContext);
-
       // Use optimized bulk delete API
       final result = await ApiService.bulkDeleteBooks(ids);
       final deletedCount = result['deleted'] ?? 0;
@@ -1127,8 +1124,8 @@ class _BooksContentState extends State<BooksContent> {
       navigator.pop();
 
       // Refresh data after bulk delete
-      await pageContext.read<BookProvider>().loadBooks();
-      await pageContext.read<IssueProvider>().loadStats();
+      await bookProvider.loadBooks();
+      await issueProvider.loadStats();
 
       if (!mounted) return;
       setState(() => _selectedBookIds.clear());
@@ -1138,10 +1135,8 @@ class _BooksContentState extends State<BooksContent> {
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.of(pageContext).maybePop();
-      ScaffoldMessenger.of(
-        pageContext,
-      ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Bulk delete', e))));
+      navigator.maybePop();
+      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Bulk delete', e))));
     }
   }
 
@@ -1275,6 +1270,7 @@ class _BooksContentState extends State<BooksContent> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _dataChangedSub?.cancel();
     _searchController.dispose();
     super.dispose();

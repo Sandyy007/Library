@@ -13,11 +13,15 @@ class SearchResultsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final searchProvider = Provider.of<SearchProvider>(context);
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isCompact = screenWidth < 600;
+
     return Dialog(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.8,
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(24),
+        width: isCompact ? screenWidth * 0.95 : screenWidth * 0.8,
+        height: screenHeight * 0.8,
+        padding: EdgeInsets.all(isCompact ? 12 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -190,8 +194,8 @@ class SearchResultsDialog extends StatelessWidget {
                 base: const TextStyle(),
               ),
             ),
-            trailing: SizedBox(
-              width: 120,
+            trailing: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 120),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,

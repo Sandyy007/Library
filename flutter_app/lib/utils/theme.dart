@@ -87,16 +87,36 @@ class AppTheme {
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
     ),
-    dataTableTheme: const DataTableThemeData(
-      headingTextStyle: TextStyle(
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 6,
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        splashFactory: InkRipple.splashFactory,
+      ),
+    ),
+    dataTableTheme: DataTableThemeData(
+      headingTextStyle: const TextStyle(
         inherit: false,
         fontWeight: FontWeight.w600,
         color: Colors.black87,
       ),
-      dataTextStyle: TextStyle(
+      dataTextStyle: const TextStyle(
         inherit: false,
         color: Colors.black87,
       ),
+      headingRowColor: WidgetStateProperty.all(
+        primaryColor.withValues(alpha: 0.06),
+      ),
+      dataRowColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.hovered)) {
+          return primaryColor.withValues(alpha: 0.04);
+        }
+        return null;
+      }),
+      dividerThickness: 1,
     ),
   );
 
@@ -232,6 +252,12 @@ class AppTheme {
       contentTextStyle: const TextStyle(color: Color(0xFFE2E8F0)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       behavior: SnackBarBehavior.floating,
+      elevation: 6,
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        splashFactory: InkRipple.splashFactory,
+      ),
     ),
     dataTableTheme: DataTableThemeData(
       headingTextStyle: const TextStyle(

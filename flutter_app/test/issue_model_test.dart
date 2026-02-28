@@ -128,5 +128,130 @@ void main() {
       });
       expect(returnedIssue.isOverdue, false);
     });
+
+    test('daysOverdue returns correct count for overdue issue', () {
+      final pastDue = DateTime.now().subtract(const Duration(days: 10));
+      final issue = Issue.fromJson({
+        'id': 1,
+        'book_id': 1,
+        'member_id': 1,
+        'issue_date': '2020-01-01',
+        'due_date': pastDue.toIso8601String(),
+        'status': 'issued',
+        'title': 'Book',
+        'author': 'Author',
+        'member_name': 'Member',
+      });
+      expect(issue.daysOverdue, greaterThanOrEqualTo(10));
+    });
+
+    test('daysOverdue returns 0 for non-overdue issue', () {
+      final futureDue = DateTime.now().add(const Duration(days: 30));
+      final issue = Issue.fromJson({
+        'id': 1,
+        'book_id': 1,
+        'member_id': 1,
+        'issue_date': '2024-01-01',
+        'due_date': futureDue.toIso8601String(),
+        'status': 'issued',
+        'title': 'Book',
+        'author': 'Author',
+        'member_name': 'Member',
+      });
+      expect(issue.daysOverdue, 0);
+    });
+
+    test('fromJson with empty map uses defaults', () {
+      final issue = Issue.fromJson({});
+      expect(issue.id, 0);
+      expect(issue.bookId, 0);
+      expect(issue.memberId, 0);
+      expect(issue.status, 'issued');
+      expect(issue.bookTitle, '');
+      expect(issue.bookAuthor, '');
+      expect(issue.memberName, '');
+    });
+  });
+
+  group('IssuesPagination', () {
+    test('fromJson parses correctly', () {
+      final p = IssuesPagination.fromJson({
+        'page': 3,
+        'limit': 50,
+        'total': 200,
+        'totalPages': 4,
+        'hasMore': true,
+      });
+      expect(p.page, 3);
+      expect(p.limit, 50);
+      expect(p.total, 200);
+      expect(p.totalPages, 4);
+      expect(p.hasMore, true);
+    });
+
+    test('empty returns defaults', () {
+      final p = IssuesPagination.empty();
+      expect(p.page, 1);
+      expect(p.limit, 100);
+      expect(p.total, 0);
+      expect(p.totalPages, 1);
+      expect(p.hasMore, false);
+    });
+  });
+
+  group('IssuesResponse', () {
+    test('fromJson with data key', () {
+      final response = IssuesResponse.fromJson({
+        'data': [
+          {
+            'id': 1,
+            'book_id': 10,
+            'member_id': 20,
+            'issue_date': '2024-01-01',
+            'due_date': '2024-01-15',
+            'status': 'issued',
+            'title': 'Book',
+            'author': 'Author',
+            'member_name': 'Member',
+          }
+        ],
+        'pagination': {
+          'page': 1,
+          'limit': 100,
+          'total': 1,
+          'totalPages': 1,
+          'hasMore': false,
+        },
+      });
+      expect(response.data.length, 1);
+      expect(response.data[0].bookTitle, 'Book');
+      expect(response.pagination.total, 1);
+    });
+
+    test('fromJson without data key (legacy array)', () {
+      final response = IssuesResponse.fromJson({
+        'issues': [  // not 'data'
+          {
+            'id': 1,
+            'book_id': 1,
+            'member_id': 1,
+            'issue_date': '2024-01-01',
+            'due_date': '2024-01-15',
+            'status': 'issued',
+            'title': 'Book',
+            'author': 'Author',
+            'member_name': 'Member',
+          }
+        ],
+      });
+      // Without 'data' key, should still work as empty data list
+      expect(response.data, isEmpty);
+    });
+
+    test('empty returns defaults', () {
+      final response = IssuesResponse.empty();
+      expect(response.data, isEmpty);
+      expect(response.pagination.page, 1);
+    });
   });
 }

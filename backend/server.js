@@ -76,8 +76,28 @@ if (isProduction && rateLimitEnabled) {
   );
 }
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Stricter rate limit on login endpoint to prevent brute-force attacks.
+// Applies in ALL environments (not just production).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // 15 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' },
+  handler: (_req, res) => {
+    res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+  },
+  // Key by IP only (not auth header).
+  keyGenerator: (req) => req.ip,
+});
+
+// Serve uploaded files statically with security headers
+app.use('/uploads', (req, res, next) => {
+  // Prevent browsers from MIME-sniffing or opening files inline
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', 'inline');
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 3000;
 
@@ -104,7 +124,9 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    // Sanitize extension: allow only alphanumeric + dot; strip path separators
+    const ext = path.extname(file.originalname).replace(/[^a-zA-Z0-9.]/g, '');
+    cb(null, uniqueSuffix + ext);
   }
 });
 
@@ -316,7 +338,6 @@ const db = mysql.createPool({
   connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 30,  // Increased for heavy load
   queueLimit: 100,  // Queue up to 100 requests when pool is full
   connectTimeout: 60000,
-  multipleStatements: true,
   enableKeepAlive: true,  // Keep connections alive
   keepAliveInitialDelay: 10000,  // Initial delay before keepalive probes
 });
@@ -331,16 +352,28 @@ db.getConnection((err, conn) => {
     conn.release();
     // Run migrations on startup (skip in unit tests).
     if (process.env.NODE_ENV !== 'test') {
-      runMigrations();
+      runMigrations().catch(e => console.error('Migration error:', e.message));
     }
   }
 });
 
-// Run database migrations
-const runMigrations = () => {
+// Run database migrations sequentially to avoid deadlocks
+const runMigrations = async () => {
   const dbName = db.config?.database || process.env.DB_NAME || 'library_management';
 
+  // Helper: promisified single-query execution
+  const run = (sql) =>
+    new Promise((resolve) => {
+      db.query(sql, (err) => {
+        if (err && !err.message.includes('Duplicate') && !err.message.includes('already exists')) {
+          console.warn('Migration warning:', err.message.substring(0, 120));
+        }
+        resolve(); // always resolve – migrations are best-effort
+      });
+    });
+
   const migrations = [
+    // ── Character-set conversions ───────────────────────────────────────
     `ALTER DATABASE \`${dbName}\` CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci`,
     "ALTER TABLE books CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
     "ALTER TABLE members CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
@@ -350,12 +383,16 @@ const runMigrations = () => {
     "ALTER TABLE member_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
     "ALTER TABLE book_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
     "ALTER TABLE dashboard_settings CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+
+    // ── Schema additions (books) ────────────────────────────────────────
     "ALTER TABLE books MODIFY COLUMN isbn VARCHAR(20) NULL",
     "ALTER TABLE books ADD COLUMN cover_image TEXT",
     "ALTER TABLE books ADD COLUMN total_copies INT DEFAULT 1",
     "ALTER TABLE books ADD COLUMN available_copies INT DEFAULT 1",
     "ALTER TABLE books ADD COLUMN description TEXT",
     "ALTER TABLE books ADD COLUMN rack_number VARCHAR(50)",
+
+    // ── Schema additions (members) ──────────────────────────────────────
     // Support 'guest' (new name) while remaining backward compatible with existing 'student' values.
     "ALTER TABLE members MODIFY COLUMN member_type ENUM('student', 'guest', 'faculty', 'staff') NOT NULL DEFAULT 'guest'",
     "UPDATE members SET member_type = 'guest' WHERE member_type = 'student'",
@@ -363,15 +400,22 @@ const runMigrations = () => {
     "ALTER TABLE members ADD COLUMN address TEXT",
     "ALTER TABLE members ADD COLUMN expiry_date DATE",
     "ALTER TABLE members ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
+
+    // ── Schema additions (issues) ───────────────────────────────────────
     "ALTER TABLE issues ADD COLUMN notes TEXT",
     // Activity timestamps (enable truly realtime Recent Activity + reliable per-user Clear cutoff).
     "ALTER TABLE issues ADD COLUMN issued_at DATETIME NULL",
     "ALTER TABLE issues ADD COLUMN returned_at DATETIME NULL",
+
+    // ── Schema additions (members – timestamps) ─────────────────────────
     "ALTER TABLE members ADD COLUMN created_at DATETIME NULL",
-    // Best-effort backfill (safe to ignore if columns don't exist yet).
+
+    // ── Best-effort backfill (safe to ignore if columns don't exist yet) ─
     "UPDATE issues SET issued_at = CAST(issue_date AS DATETIME) WHERE issued_at IS NULL",
     "UPDATE issues SET returned_at = CAST(return_date AS DATETIME) WHERE returned_at IS NULL AND return_date IS NOT NULL",
     "UPDATE members SET created_at = CAST(membership_date AS DATETIME) WHERE created_at IS NULL",
+
+    // ── New tables ──────────────────────────────────────────────────────
     `CREATE TABLE IF NOT EXISTS member_categories (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(50) UNIQUE NOT NULL,
@@ -415,6 +459,8 @@ const runMigrations = () => {
       INDEX idx_occurred_at (occurred_at),
       INDEX idx_type (type)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ── Seed data ───────────────────────────────────────────────────────
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
       ('student', 3, 14)`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
@@ -422,34 +468,29 @@ const runMigrations = () => {
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
       ('staff', 5, 21)`,
     "UPDATE books SET total_copies = 1, available_copies = CASE WHEN status = 'available' THEN 1 ELSE 0 END WHERE total_copies IS NULL",
-    // Indexes for large database performance
-    "CREATE INDEX IF NOT EXISTS idx_books_title ON books(title(100))",
-    "CREATE INDEX IF NOT EXISTS idx_books_author ON books(author(100))",
-    "CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)",
-    "CREATE INDEX IF NOT EXISTS idx_books_category ON books(category(50))",
-    "CREATE INDEX IF NOT EXISTS idx_books_status ON books(status)",
-    "CREATE INDEX IF NOT EXISTS idx_books_title_author ON books(title(50), author(50))",
-    "CREATE INDEX IF NOT EXISTS idx_members_name ON members(name(100))",
-    "CREATE INDEX IF NOT EXISTS idx_members_email ON members(email)",
-    "CREATE INDEX IF NOT EXISTS idx_issues_book_id ON issues(book_id)",
-    "CREATE INDEX IF NOT EXISTS idx_issues_member_id ON issues(member_id)",
-    "CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status)",
-    "CREATE INDEX IF NOT EXISTS idx_issues_issue_date ON issues(issue_date)"
+
+    // ── Indexes for large-database performance ──────────────────────────
+    // (no IF NOT EXISTS – unsupported before MySQL 8.0.29; duplicate-key
+    //  errors are silently ignored by the run() helper above)
+    "CREATE INDEX idx_books_title ON books(title(100))",
+    "CREATE INDEX idx_books_author ON books(author(100))",
+    "CREATE INDEX idx_books_isbn ON books(isbn)",
+    "CREATE INDEX idx_books_category ON books(category(50))",
+    "CREATE INDEX idx_books_status ON books(status)",
+    "CREATE INDEX idx_books_title_author ON books(title(50), author(50))",
+    "CREATE INDEX idx_members_name ON members(name(100))",
+    "CREATE INDEX idx_members_email ON members(email)",
+    "CREATE INDEX idx_issues_book_id ON issues(book_id)",
+    "CREATE INDEX idx_issues_member_id ON issues(member_id)",
+    "CREATE INDEX idx_issues_status ON issues(status)",
+    "CREATE INDEX idx_issues_issue_date ON issues(issue_date)"
   ];
 
-  let completed = 0;
-  const total = migrations.length;
-  migrations.forEach(sql => {
-    db.query(sql, (err) => {
-      if (err && !err.message.includes('Duplicate') && !err.message.includes('already exists')) {
-        console.warn('Migration warning:', err.message.substring(0, 120));
-      }
-      completed++;
-      if (completed >= total) {
-        console.log('Database migrations completed');
-      }
-    });
-  });
+  // Run each migration one at a time to prevent deadlocks
+  for (const sql of migrations) {
+    await run(sql);
+  }
+  console.log('Database migrations completed');
 };
 
 // Middleware for authentication
@@ -512,6 +553,7 @@ app.get('/api/health/detailed', async (req, res) => {
 
 app.post(
   '/api/auth/login',
+  loginLimiter,
   body('username').isString().trim().isLength({ min: 1, max: 64 }),
   body('password').isString().isLength({ min: 1, max: 256 }),
   async (req, res) => {
@@ -1272,6 +1314,11 @@ app.get('/api/members/:id', (req, res) => {
 
 app.post('/api/members', (req, res) => {
   const { name, email, phone, member_type, membership_date, profile_photo, address, expiry_date } = req.body;
+
+  if (!name || (typeof name === 'string' && name.trim().length === 0)) {
+    return res.status(400).json({ error: 'Member name is required' });
+  }
+
   // Prefer storing a real creation timestamp when supported.
   const insertWithCreatedAt =
     'INSERT INTO members (name, email, phone, member_type, membership_date, profile_photo, address, expiry_date, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, NOW())';
@@ -2834,33 +2881,47 @@ app.get('/api/backup', (req, res) => {
   });
 });
 
+// Allowed tables and their valid columns for restore (whitelist to prevent SQL injection)
+const RESTORE_SCHEMA = {
+  books: ['id','isbn','title','author','rack_number','category','publisher','year_published','cover_image','total_copies','available_copies','description','status','created_at'],
+  members: ['id','name','email','phone','member_type','membership_date','profile_photo','address','expiry_date','is_active','created_at'],
+  issues: ['id','book_id','member_id','issue_date','due_date','return_date','status','fine_amount','returned_at','created_at'],
+};
+
 app.post('/api/restore', (req, res) => {
   const { data, clear_existing } = req.body;
-  
-  if (!data) {
+
+  if (!data || typeof data !== 'object') {
     return res.status(400).json({ error: 'No backup data provided' });
   }
-  
+
   const restoreTable = (table, rows, callback) => {
-    if (!rows || rows.length === 0) return callback();
-    
+    if (!rows || !Array.isArray(rows) || rows.length === 0) return callback();
+
+    const allowedCols = RESTORE_SCHEMA[table];
+    if (!allowedCols) return callback(); // Skip unknown tables entirely
+
     if (clear_existing) {
-      db.query(`DELETE FROM ${table}`, (err) => {
+      db.query(`DELETE FROM \`${table}\``, (err) => {
         if (err) console.error(`Error clearing ${table}:`, err.message);
         insertRows();
       });
     } else {
       insertRows();
     }
-    
+
     function insertRows() {
-      const columns = Object.keys(rows[0]);
+      // Only use columns that exist in the whitelist
+      const columns = Object.keys(rows[0]).filter((c) => allowedCols.includes(c));
+      if (columns.length === 0) return callback();
+
+      const escapedCols = columns.map((c) => `\`${c}\``).join(', ');
       const placeholders = columns.map(() => '?').join(', ');
-      const query = `INSERT IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
-      
+      const query = `INSERT IGNORE INTO \`${table}\` (${escapedCols}) VALUES (${placeholders})`;
+
       let completed = 0;
-      rows.forEach(row => {
-        const values = columns.map(col => row[col]);
+      rows.forEach((row) => {
+        const values = columns.map((col) => row[col] ?? null);
         db.query(query, values, () => {
           completed++;
           if (completed === rows.length) callback();
@@ -2868,8 +2929,8 @@ app.post('/api/restore', (req, res) => {
       });
     }
   };
-  
-  // Restore in order
+
+  // Restore in order (issues last because of FK dependencies)
   restoreTable('books', data.books, () => {
     restoreTable('members', data.members, () => {
       restoreTable('issues', data.issues, () => {
@@ -2968,6 +3029,11 @@ app.get('/api/export/:type', (req, res) => {
 
 app.get('/', (req, res) => {
   res.send('Library Management System API v2.0');
+});
+
+// 404 handler for unmatched API routes
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Endpoint not found: ${req.method} ${req.path}` });
 });
 
 // Error handling middleware

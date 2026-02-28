@@ -162,7 +162,8 @@ class MembersResponse {
     final dataList = json['data'] as List<dynamic>? ?? [];
     return MembersResponse(
       data: dataList.map((item) => Member.fromJson(item)).toList(),
-      pagination: MembersPagination.fromJson(json['pagination'] ?? {}),
+      pagination: MembersPagination.fromJson(
+          Map<String, dynamic>.from(json['pagination'] ?? {})),
     );
   }
 }

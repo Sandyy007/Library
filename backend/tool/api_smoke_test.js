@@ -56,7 +56,8 @@ async function main() {
 
   let members;
   try {
-    members = JSON.parse(membersBody);
+    const parsed = JSON.parse(membersBody);
+    members = Array.isArray(parsed) ? parsed : (parsed.data || []);
   } catch {
     console.log('members body', membersBody.slice(0, 500));
     throw new Error('Failed to parse /members response as JSON');

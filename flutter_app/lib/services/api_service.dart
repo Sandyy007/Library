@@ -220,6 +220,18 @@ class ApiService {
     }
   }
 
+  /// Lightweight connectivity probe (short timeout, no auth).
+  static Future<bool> healthCheck() async {
+    try {
+      final response = await http
+          .get(Uri.parse(serverOrigin))
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode >= 200 && response.statusCode < 500;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // ==================== AUTH ====================
 
   static Future<User> login(String username, String password) async {

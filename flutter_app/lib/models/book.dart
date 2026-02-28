@@ -151,7 +151,8 @@ class BooksResponse {
     final dataList = json['data'] as List<dynamic>? ?? [];
     return BooksResponse(
       data: dataList.map((item) => Book.fromJson(item)).toList(),
-      pagination: BooksPagination.fromJson(json['pagination'] ?? {}),
+      pagination: BooksPagination.fromJson(
+          Map<String, dynamic>.from(json['pagination'] ?? {})),
     );
   }
 }

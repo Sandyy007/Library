@@ -286,7 +286,7 @@ class _MemberDialogState extends State<MemberDialog> {
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          value: _selectedType,
+          initialValue: _selectedType,
           decoration: const InputDecoration(
             labelText: 'Member Type',
             prefixIcon: Icon(Icons.badge),

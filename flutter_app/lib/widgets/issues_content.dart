@@ -19,6 +19,8 @@ import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
+import '../utils/color_extensions.dart';
+import '../widgets/common_widgets.dart';
 
 enum _IssueDialogActiveField { book, member }
 
@@ -62,10 +64,12 @@ class _IssuesContentState extends State<IssuesContent> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           final results = filtered(queryController.text);
+          final pickerWidth = MediaQuery.of(context).size.width;
+          final effectiveWidth = pickerWidth < 580 ? pickerWidth * 0.9 : 520.0;
           return AlertDialog(
             title: Text(title),
             content: SizedBox(
-              width: 520,
+              width: effectiveWidth,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -319,6 +323,13 @@ class _IssuesContentState extends State<IssuesContent> {
                     onPressed: () => _exportIssuesCsv(context),
                     visualDensity: VisualDensity.compact,
                   ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: _loadAllData,
+                    icon: const Icon(Icons.refresh, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   const SizedBox(width: 8),
                   // Issue Book button
                   ElevatedButton.icon(
@@ -350,7 +361,7 @@ class _IssuesContentState extends State<IssuesContent> {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: issueProvider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const ShimmerTable(rows: 8, columns: 5)
                     : issueProvider.error != null
                     ? Center(
                         child: Padding(
@@ -402,46 +413,12 @@ class _IssuesContentState extends State<IssuesContent> {
                         ),
                       )
                     : issueProvider.issues.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.assignment_outlined,
-                              size: 80,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.4),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No issues found',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Click "Issue Book" to create a new issue',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: _loadAllData,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
+                    ? EmptyStateWidget(
+                        icon: Icons.assignment_outlined,
+                        title: 'No issues found',
+                        subtitle: 'Click "Issue Book" to create a new issue',
+                        actionLabel: 'Retry',
+                        onAction: _loadAllData,
                       )
                     : DataTable2(
                         columnSpacing: 8,
@@ -468,7 +445,9 @@ class _IssuesContentState extends State<IssuesContent> {
                               issueProvider.issues,
                               bookProvider.books,
                               memberProvider.members,
-                            ).map((issue) {
+                            ).toList().asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final issue = entry.value;
                               final statusColor = issue.status == 'returned'
                                   ? Colors.green
                                   : (issue.status == 'overdue'
@@ -476,6 +455,10 @@ class _IssuesContentState extends State<IssuesContent> {
                                         : Colors.orange);
 
                               return DataRow(
+                                color: idx.isEven
+                                    ? WidgetStateProperty.all(
+                                        Theme.of(context).colorScheme.zebraStripe)
+                                    : null,
                                 cells: [
                                   DataCell(
                                     Column(
@@ -724,6 +707,8 @@ class _IssuesContentState extends State<IssuesContent> {
     List<Book> books, // ignored - we fetch all books directly
     List<Member> members,
   ) async {
+    final issueProvider = context.read<IssueProvider>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
     int? selectedBookId;
     int? selectedMemberId;
     final selectedBookController = TextEditingController();
@@ -813,8 +798,10 @@ class _IssuesContentState extends State<IssuesContent> {
     }
 
     try {
+      if (!mounted) return;
       await showDialog<void>(
-        context: context,
+        // ignore: use_build_context_synchronously
+        context: this.context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (dialogContext, setState) => Focus(
             autofocus: true,
@@ -996,13 +983,10 @@ class _IssuesContentState extends State<IssuesContent> {
                                   final int memberId = selectedMemberId!;
                                   Navigator.of(dialogContext).pop();
                                   try {
-                                    await context
-                                        .read<IssueProvider>()
+                                    await issueProvider
                                         .issueBook(bookId, memberId, dueDate);
                                     if (mounted) {
-                                      ScaffoldMessenger.maybeOf(
-                                        context,
-                                      )?.showSnackBar(
+                                      messenger?.showSnackBar(
                                         const SnackBar(
                                           content: Text(
                                             'Book issued successfully',
@@ -1012,9 +996,7 @@ class _IssuesContentState extends State<IssuesContent> {
                                     }
                                   } catch (e) {
                                     if (mounted) {
-                                      ScaffoldMessenger.maybeOf(
-                                        context,
-                                      )?.showSnackBar(
+                                      messenger?.showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             getOperationErrorMessage('Issue book', e),
@@ -1199,28 +1181,28 @@ class _IssuesContentState extends State<IssuesContent> {
   }
 
   void _returnBook(BuildContext context, int issueId) async {
+    final issueProvider = Provider.of<IssueProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      await Provider.of<IssueProvider>(
-        context,
-        listen: false,
-      ).returnBook(issueId);
+      await issueProvider.returnBook(issueId);
       if (mounted) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Book returned successfully')),
         );
       }
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Return book', e))));
+        messenger.showSnackBar(
+          SnackBar(content: Text(getOperationErrorMessage('Return book', e))),
+        );
       }
     }
   }
 
   void _showEditIssueDialog(BuildContext context, dynamic issue) {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final issueProvider = context.read<IssueProvider>();
     String selectedStatus = issue.status;
     String? dueDateIso = issue.dueDate != null
         ? (issue.dueDate as String).split('T')[0]
@@ -1432,19 +1414,19 @@ class _IssuesContentState extends State<IssuesContent> {
                                   status: selectedStatus,
                                 );
                                 if (mounted) {
-                                  Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  navigator.pop();
+                                  messenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(
                                         'Issue updated successfully',
                                       ),
                                     ),
                                   );
-                                  context.read<IssueProvider>().loadIssues();
+                                  issueProvider.loadIssues();
                                 }
                               } catch (e) {
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(
                                         'Failed to update issue: $e',

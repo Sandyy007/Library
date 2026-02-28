@@ -55,4 +55,29 @@ class AppNotification {
         return 'ℹ️';
     }
   }
+
+  /// Creates a copy with optional field overrides.
+  AppNotification copyWith({
+    int? id,
+    int? userId,
+    String? title,
+    String? message,
+    String? type,
+    bool? isRead,
+    int? relatedId,
+    String? relatedType,
+    String? createdAt,
+  }) {
+    return AppNotification(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      type: type ?? this.type,
+      isRead: isRead ?? this.isRead,
+      relatedId: relatedId ?? this.relatedId,
+      relatedType: relatedType ?? this.relatedType,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

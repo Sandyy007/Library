@@ -162,17 +162,17 @@ class BookProvider with ChangeNotifier {
     }
   }
   
-  /// Delete multiple books
+  /// Delete multiple books using bulk delete API
   Future<void> deleteBooks(Set<int> ids) async {
-    for (final id in ids) {
-      try {
-        await ApiService.deleteBook(id);
-        _books.removeWhere((b) => b.id == id);
-        _totalBooks--;
-      } catch (e) {
-        if (kDebugMode) debugPrint('DEBUG [BookProvider]: Error deleting book $id: $e');
-      }
+    if (ids.isEmpty) return;
+    try {
+      await ApiService.bulkDeleteBooks(ids.toList());
+      _books.removeWhere((b) => ids.contains(b.id));
+      _totalBooks = (_totalBooks - ids.length).clamp(0, _totalBooks);
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) debugPrint('DEBUG [BookProvider]: Error bulk deleting books: $e');
+      rethrow;
     }
-    notifyListeners();
   }
 }

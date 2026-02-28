@@ -97,17 +97,7 @@ class NotificationProvider with ChangeNotifier {
       await ApiService.markNotificationAsRead(id);
       final index = _notifications.indexWhere((n) => n.id == id);
       if (index != -1) {
-        _notifications[index] = AppNotification(
-          id: _notifications[index].id,
-          userId: _notifications[index].userId,
-          title: _notifications[index].title,
-          message: _notifications[index].message,
-          type: _notifications[index].type,
-          isRead: true,
-          relatedId: _notifications[index].relatedId,
-          relatedType: _notifications[index].relatedType,
-          createdAt: _notifications[index].createdAt,
-        );
+        _notifications[index] = _notifications[index].copyWith(isRead: true);
         _unreadCount = _notifications.where((n) => !n.isRead).length;
         notifyListeners();
       }
@@ -124,19 +114,7 @@ class NotificationProvider with ChangeNotifier {
     try {
       await ApiService.markAllNotificationsAsRead();
       _notifications = _notifications
-          .map(
-            (n) => AppNotification(
-              id: n.id,
-              userId: n.userId,
-              title: n.title,
-              message: n.message,
-              type: n.type,
-              isRead: true,
-              relatedId: n.relatedId,
-              relatedType: n.relatedType,
-              createdAt: n.createdAt,
-            ),
-          )
+          .map((n) => n.copyWith(isRead: true))
           .toList();
       _unreadCount = 0;
       notifyListeners();

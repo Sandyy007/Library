@@ -385,7 +385,10 @@ class _LoginScreenState extends State<LoginScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Library Icon with animation
-                _buildAnimatedIcon(iconSize: iconSize),
+                Hero(
+                  tag: 'app-logo',
+                  child: _buildAnimatedIcon(iconSize: iconSize),
+                ),
                 SizedBox(height: isLargeScreen ? 32 : 28),
 
                 // Title with book decoration
@@ -754,7 +757,7 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       await authProvider.login(
-        _usernameController.text,
+        _usernameController.text.trim(),
         _passwordController.text,
       );
     } catch (e) {

@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import 'common_widgets.dart';
 
 class DashboardContent extends StatefulWidget {
   const DashboardContent({super.key});
@@ -234,9 +235,12 @@ class _DashboardContentState extends State<DashboardContent>
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: SafeArea(
-          child: SingleChildScrollView(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final contentPadding = constraints.maxWidth < 600 ? 12.0 : (constraints.maxWidth < 900 ? 16.0 : 24.0);
+              return SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(contentPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -296,8 +300,8 @@ class _DashboardContentState extends State<DashboardContent>
                                 Flexible(
                                   child: FittedBox(
                                     fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      stat['value'] as String,
+                                    child: AnimatedCounter(
+                                      value: int.tryParse(stat['value'] as String) ?? 0,
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleLarge
@@ -484,6 +488,8 @@ class _DashboardContentState extends State<DashboardContent>
                 ],
               ),
             ),
+          );
+            },
           ),
         ),
       ),
@@ -730,9 +736,12 @@ class _DashboardContentState extends State<DashboardContent>
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              Text(
-                                occurredAtText,
-                                style: Theme.of(context).textTheme.bodySmall,
+                              Tooltip(
+                                message: occurredAtText,
+                                child: Text(
+                                  formatRelativeTime(occurredAt),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
                               ),
                             ],
                           ),
@@ -947,9 +956,13 @@ class _DashboardContentState extends State<DashboardContent>
             Expanded(child: Text(title)),
           ],
         ),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.7,
-          height: MediaQuery.of(context).size.height * 0.6,
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width < 600
+                ? MediaQuery.of(context).size.width * 0.9
+                : MediaQuery.of(context).size.width * 0.7,
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
           child: items.isEmpty
               ? const Center(child: Text('No items'))
               : ListView.builder(
@@ -1496,15 +1509,14 @@ class _DashboardContentState extends State<DashboardContent>
     Future<void> Function() action, {
     required String successMessage,
   }) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(successMessage)));
+      messenger.showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(getOperationErrorMessage('Action', e)),
           backgroundColor: Colors.red,

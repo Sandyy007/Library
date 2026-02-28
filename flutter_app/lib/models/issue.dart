@@ -113,7 +113,7 @@ class IssuesResponse {
     // Handle both old (array) and new (paginated) response formats
     if (json.containsKey('data')) {
       final dataList = (json['data'] as List<dynamic>?) ?? [];
-      final paginationJson = json['pagination'] as Map<String, dynamic>? ?? {};
+      final paginationJson = Map<String, dynamic>.from(json['pagination'] ?? {});
       return IssuesResponse(
         data: dataList.map((e) => Issue.fromJson(e)).toList(),
         pagination: IssuesPagination.fromJson(paginationJson),

@@ -568,6 +568,9 @@ class _BookDialogState extends State<BookDialog> {
 
     try {
       String? coverImagePath = _coverImageUrl;
+      final bookProvider = Provider.of<BookProvider>(context, listen: false);
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
 
       if (_selectedImageBytes != null && _selectedImageName != null) {
         coverImagePath = await ApiService.uploadBookCover(
@@ -604,15 +607,14 @@ class _BookDialogState extends State<BookDialog> {
         description: description.isEmpty ? null : description,
       );
 
-      final bookProvider = Provider.of<BookProvider>(context, listen: false);
       if (widget.book != null) {
         await bookProvider.updateBook(widget.book!.id, book);
       } else {
         await bookProvider.addBook(book);
       }
       if (mounted) {
-        Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
+        navigator.pop(true);
+        messenger.showSnackBar(
           SnackBar(
             content: Text(
               'Book ${widget.book != null ? 'updated' : 'added'} successfully',

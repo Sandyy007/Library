@@ -1,4 +1,5 @@
 /// Utility functions for handling and displaying errors
+library;
 
 /// Extracts a user-friendly message from an exception.
 /// Removes 'Exception:', stack traces, and technical details.

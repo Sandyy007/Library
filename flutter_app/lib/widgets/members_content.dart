@@ -15,6 +15,8 @@ import '../widgets/borrowed_books_dialog.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import '../utils/color_extensions.dart';
+import '../widgets/common_widgets.dart';
 
 enum MemberStatusFilter { all, active, inactive }
 
@@ -29,6 +31,7 @@ class _MembersContentState extends State<MembersContent> {
   final TextEditingController _searchController = TextEditingController();
   MemberStatusFilter _statusFilter = MemberStatusFilter.all;
   StreamSubscription<void>? _dataChangedSub;
+  Timer? _searchDebounce;
 
   TextStyle _textStyleForHindi(String text, TextStyle base) {
     if (containsDevanagari(text) || looksLikeLegacyHindi(text)) {
@@ -59,6 +62,7 @@ class _MembersContentState extends State<MembersContent> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _dataChangedSub?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -219,7 +223,7 @@ class _MembersContentState extends State<MembersContent> {
 
     return Scaffold(
       body: Padding(
-        padding: EdgeInsets.all(isCompact ? 12 : 20),
+        padding: EdgeInsets.all(isCompact ? 8 : 20),
         child: Column(
           children: [
             // Search Bar, Status Filters, and Action buttons - all in one bar
@@ -242,11 +246,13 @@ class _MembersContentState extends State<MembersContent> {
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Row(
+                    children: [
                   // Search bar
-                  SizedBox(
-                    width: isCompact ? 160 : 240,
+                  Expanded(
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
@@ -263,7 +269,13 @@ class _MembersContentState extends State<MembersContent> {
                         ),
                         isDense: true,
                       ),
-                      onChanged: (value) => _filterMembers(),
+                      onChanged: (value) {
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 350),
+                          _filterMembers,
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -303,12 +315,25 @@ class _MembersContentState extends State<MembersContent> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                    ],
+                  ),
+                  if (isCompact) const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
                   // Export
                   IconButton(
                     tooltip: 'Export CSV',
                     onPressed: _exportMembersActivityCsv,
                     icon: const Icon(Icons.download, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: _loadMembers,
+                    icon: const Icon(Icons.refresh, size: 20),
                     visualDensity: VisualDensity.compact,
                   ),
                   const SizedBox(width: 8),
@@ -322,6 +347,9 @@ class _MembersContentState extends State<MembersContent> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                    ),
+                  ),
+                      ],
                     ),
                   ),
                 ],
@@ -338,48 +366,14 @@ class _MembersContentState extends State<MembersContent> {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: memberProvider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const ShimmerTable(rows: 8, columns: 5)
                     : memberProvider.members.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 80,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.4),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No members found',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Click "Add Member" to create a new member',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: _loadMembers,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
+                    ? EmptyStateWidget(
+                        icon: Icons.people_outline,
+                        title: 'No members found',
+                        subtitle: 'Click "Add Member" to create a new member',
+                        actionLabel: 'Retry',
+                        onAction: _loadMembers,
                       )
                     : DataTable2(
                         columnSpacing: 8,
@@ -398,8 +392,17 @@ class _MembersContentState extends State<MembersContent> {
                           DataColumn2(label: Text('Actions'), fixedWidth: 120),
                         ],
                         rows: getFilteredMembers(memberProvider.members)
+                            .asMap()
+                            .entries
                             .map(
-                              (member) => DataRow(
+                              (entry) {
+                                final idx = entry.key;
+                                final member = entry.value;
+                                return DataRow(
+                                color: idx.isEven
+                                    ? WidgetStateProperty.all(
+                                        Theme.of(context).colorScheme.zebraStripe)
+                                    : null,
                                 cells: [
                                   DataCell(_buildPhotoCell(member)),
                                   DataCell(
@@ -517,7 +520,8 @@ class _MembersContentState extends State<MembersContent> {
                                     ),
                                   ),
                                 ],
-                              ),
+                              );
+                              },
                             )
                             .toList(),
                       ),
@@ -591,13 +595,15 @@ class _MembersContentState extends State<MembersContent> {
   }
 
   void _showMemberDialog({Member? member}) async {
+    final memberProvider = context.read<MemberProvider>();
+    final issueProvider = context.read<IssueProvider>();
     final result = await showDialog(
       context: context,
-      builder: (context) => MemberDialog(member: member),
+      builder: (ctx) => MemberDialog(member: member),
     );
     if (mounted && result == true) {
-      await context.read<MemberProvider>().loadMembers();
-      await context.read<IssueProvider>().loadStats();
+      await memberProvider.loadMembers();
+      await issueProvider.loadStats();
     }
   }
 
@@ -794,6 +800,9 @@ class _MembersContentState extends State<MembersContent> {
   }
 
   void _deleteMember(int id) {
+    final memberProvider = context.read<MemberProvider>();
+    final issueProvider = context.read<IssueProvider>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -821,10 +830,10 @@ class _MembersContentState extends State<MembersContent> {
             onPressed: () async {
               Navigator.of(ctx).pop();
               try {
-                await context.read<MemberProvider>().deleteMember(id);
-                await context.read<IssueProvider>().loadStats();
+                await memberProvider.deleteMember(id);
+                await issueProvider.loadStats();
                 if (mounted) {
-                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                  messenger?.showSnackBar(
                     const SnackBar(
                       content: Text('Member deleted successfully'),
                       behavior: SnackBarBehavior.floating,
@@ -833,7 +842,7 @@ class _MembersContentState extends State<MembersContent> {
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                  messenger?.showSnackBar(
                     SnackBar(
                       content: Text(getOperationErrorMessage('Delete member', e)),
                       behavior: SnackBarBehavior.floating,
