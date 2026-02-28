@@ -759,13 +759,24 @@ class _LoginScreenState extends State<LoginScreen>
       );
     } catch (e) {
       if (mounted) {
+        // Parse error message - show user-friendly text
+        String errorMessage = 'Wrong username or password';
+        final errorStr = e.toString();
+        if (errorStr.contains('connect') || errorStr.contains('Connection')) {
+          errorMessage = 'Cannot connect to server';
+        } else if (errorStr.contains('timed out') || errorStr.contains('Timeout')) {
+          errorMessage = 'Connection timed out';
+        } else if (errorStr.contains('Too many')) {
+          errorMessage = 'Too many attempts. Please wait.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Login failed: $e')),
+                Expanded(child: Text(errorMessage)),
               ],
             ),
             backgroundColor: Colors.red.shade600,

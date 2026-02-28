@@ -6,6 +6,7 @@ import '../providers/issue_provider.dart';
 import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
+import '../utils/error_utils.dart';
 
 class DashboardContent extends StatefulWidget {
   const DashboardContent({super.key});
@@ -158,7 +159,7 @@ class _DashboardContentState extends State<DashboardContent>
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Clear failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Clear', e))));
     }
   }
 
@@ -239,23 +240,26 @@ class _DashboardContentState extends State<DashboardContent>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Stats Cards - Responsive layout
+                  // Stats Cards - Responsive layout with consistent desktop styling
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final availableWidth = constraints.maxWidth;
                       // Calculate how many cards can fit per row
-                      // Minimum card width of 140px with 12px spacing
-                      final minCardWidth = 140.0;
-                      final spacing = 12.0;
-                      final cardsPerRow =
-                          (availableWidth / (minCardWidth + spacing))
+                      // Consistent sizing for desktop monitors (1200px+)
+                      final isDesktop = availableWidth >= 1200;
+                      final isTablet = availableWidth >= 800 && availableWidth < 1200;
+                      final minCardWidth = isDesktop ? 180.0 : (isTablet ? 160.0 : 140.0);
+                      final spacing = isDesktop ? 16.0 : 12.0;
+                      final cardsPerRow = isDesktop
+                          ? stats.length  // All cards in one row on desktop
+                          : (availableWidth / (minCardWidth + spacing))
                               .floor()
                               .clamp(2, stats.length);
                       final cardWidth =
                           (availableWidth - (spacing * (cardsPerRow - 1))) /
                           cardsPerRow;
                       final isCompact = availableWidth < 600;
-                      final cardHeight = isCompact ? 100.0 : 120.0;
+                      final cardHeight = isDesktop ? 130.0 : (isCompact ? 100.0 : 120.0);
 
                       return Wrap(
                         spacing: spacing,
@@ -402,11 +406,12 @@ class _DashboardContentState extends State<DashboardContent>
                   ),
                   const SizedBox(height: 16),
 
-                  // Charts
+                  // Charts - Consistent layout for desktop monitors
                   LayoutBuilder(
                     builder: (context, constraints) {
+                      final isDesktop = constraints.maxWidth >= 1200;
                       final isNarrow = constraints.maxWidth < 900;
-                      final chartHeight = isNarrow ? 760.0 : 420.0;
+                      final chartHeight = isDesktop ? 450.0 : (isNarrow ? 760.0 : 420.0);
 
                       return SizedBox(
                         height: chartHeight,
@@ -451,7 +456,8 @@ class _DashboardContentState extends State<DashboardContent>
 
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 1100;
+                      final isDesktop = constraints.maxWidth >= 1200;
+                      final isNarrow = constraints.maxWidth < 900;
                       final alertsCard = _buildAlertsCard(context);
                       final activityCard = _buildActivityCard(context);
 
@@ -469,7 +475,7 @@ class _DashboardContentState extends State<DashboardContent>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(child: alertsCard),
-                          const SizedBox(width: 16),
+                          SizedBox(width: isDesktop ? 24 : 16),
                           Expanded(child: activityCard),
                         ],
                       );
@@ -794,8 +800,47 @@ class _DashboardContentState extends State<DashboardContent>
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: Icon(icon, color: color),
-      title: Text('$title ($count)'),
+      leading: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: title,
+          icon: icon,
+          color: color,
+          items: items,
+          type: 'issue',
+          actions: actions,
+        ) : null,
+        child: Icon(icon, color: color),
+      ),
+      title: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: title,
+          icon: icon,
+          color: color,
+          items: items,
+          type: 'issue',
+          actions: actions,
+        ) : null,
+        child: Row(
+          children: [
+            Expanded(child: Text('$title ($count)')),
+            if (count > 5)
+              TextButton(
+                onPressed: () => _showAlertDetailsPopup(
+                  context,
+                  title: title,
+                  icon: icon,
+                  color: color,
+                  items: items,
+                  type: 'issue',
+                  actions: actions,
+                ),
+                child: Text('View All $count'),
+              ),
+          ],
+        ),
+      ),
       children: items.take(5).map((raw) {
         final item = (raw as Map).cast<String, dynamic>();
         final issueId = item['id'] ?? 0;
@@ -805,31 +850,266 @@ class _DashboardContentState extends State<DashboardContent>
         final daysOverdue = item['days_overdue']?.toString() ?? '';
         final dueDateText = DateFormatter.formatDateIndian(dueDate);
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
+        return InkWell(
+          onTap: () => _showSingleAlertPopup(
+            context,
+            item: item,
+            type: 'issue',
+            color: color,
+            actions: actions,
           ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bookTitle,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text('Member: $memberName'),
+                Text(
+                  'Due: ${dueDateText.isEmpty ? '-' : dueDateText}${daysOverdue.isNotEmpty ? ' • Overdue: $daysOverdue d' : ''}',
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    if (actions.contains('remind'))
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          await _runAction(
+                            context,
+                            () => ApiService.remindIssue(issueId),
+                            successMessage: 'Reminder logged',
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.mark_email_unread_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Remind'),
+                      ),
+                    if (actions.contains('return'))
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await _runAction(context, () async {
+                            await context.read<IssueProvider>().returnBook(
+                              issueId,
+                            );
+                          }, successMessage: 'Marked returned');
+                          await _refreshAll(
+                            showLoading: false,
+                            includeStats: true,
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.assignment_return_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Returned'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showAlertDetailsPopup(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List items,
+    required String type,
+    List<String> actions = const [],
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 12),
+            Expanded(child: Text(title)),
+          ],
+        ),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.7,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: items.isEmpty
+              ? const Center(child: Text('No items'))
+              : ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final raw = items[index];
+                    final item = (raw as Map).cast<String, dynamic>();
+                    return _buildAlertPopupItem(dialogContext, item, type, color, actions);
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAllLowStockPopup(BuildContext context, int totalCount) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Loading all low stock books...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Fetch all low stock items with a high limit
+      final alerts = await ApiService.getDashboardAlerts(
+        limit: 10000, // Fetch all
+        lowStockThreshold: 1,
+      );
+      
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      final lowStock = alerts['lowStock'];
+      final items = (lowStock is Map ? lowStock['items'] : const []) as List? ?? const [];
+      
+      _showAlertDetailsPopup(
+        context,
+        title: 'Low Stock Books ($totalCount)',
+        icon: Icons.inventory_2_rounded,
+        color: Colors.blueGrey,
+        items: items,
+        type: 'lowstock',
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(getOperationErrorMessage('Load low stock', e))),
+      );
+    }
+  }
+
+  void _showSingleAlertPopup(
+    BuildContext context, {
+    required Map<String, dynamic> item,
+    required String type,
+    required Color color,
+    List<String> actions = const [],
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: color),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Alert Details')),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: _buildDetailedAlertContent(dialogContext, item, type, color, actions),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlertPopupItem(
+    BuildContext context,
+    Map<String, dynamic> item,
+    String type,
+    Color color,
+    List<String> actions,
+  ) {
+    if (type == 'issue') {
+      final issueId = item['id'] ?? 0;
+      final memberName = item['member_name']?.toString() ?? '';
+      final bookTitle = item['title']?.toString() ?? '';
+      final dueDate = item['due_date']?.toString() ?? '';
+      final daysOverdue = item['days_overdue']?.toString() ?? '';
+      final dueDateText = DateFormatter.formatDateIndian(dueDate);
+
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 bookTitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.person_outline, size: 16),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text('Member: $memberName')),
+                ],
               ),
               const SizedBox(height: 4),
-              Text('Member: $memberName'),
-              Text(
-                'Due: ${dueDateText.isEmpty ? '-' : dueDateText}${daysOverdue.isNotEmpty ? ' • Overdue: $daysOverdue d' : ''}',
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 16),
+                  const SizedBox(width: 4),
+                  Text('Due: ${dueDateText.isEmpty ? '-' : dueDateText}'),
+                  if (daysOverdue.isNotEmpty && daysOverdue != '0') ...[
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Overdue: $daysOverdue days',
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 8,
                 children: [
                   if (actions.contains('remind'))
                     OutlinedButton.icon(
@@ -840,38 +1120,134 @@ class _DashboardContentState extends State<DashboardContent>
                           successMessage: 'Reminder logged',
                         );
                       },
-                      icon: const Icon(
-                        Icons.mark_email_unread_rounded,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.mark_email_unread_rounded, size: 16),
                       label: const Text('Remind'),
                     ),
                   if (actions.contains('return'))
                     ElevatedButton.icon(
                       onPressed: () async {
                         await _runAction(context, () async {
-                          await context.read<IssueProvider>().returnBook(
-                            issueId,
-                          );
+                          await this.context.read<IssueProvider>().returnBook(issueId);
                         }, successMessage: 'Marked returned');
-                        await _refreshAll(
-                          showLoading: false,
-                          includeStats: true,
-                        );
+                        await _refreshAll(showLoading: false, includeStats: true);
+                        if (context.mounted) Navigator.of(context).pop();
                       },
-                      icon: const Icon(
-                        Icons.assignment_return_rounded,
-                        size: 18,
-                      ),
-                      label: const Text('Returned'),
+                      icon: const Icon(Icons.assignment_return_rounded, size: 16),
+                      label: const Text('Return'),
                     ),
                 ],
               ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+      );
+    }
+    
+    // Generic item display
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        title: Text(item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown'),
+        subtitle: Text(item.entries
+            .where((e) => e.key != 'id' && e.key != 'title' && e.key != 'name')
+            .map((e) => '${e.key}: ${e.value}')
+            .take(3)
+            .join(', ')),
+      ),
     );
+  }
+
+  Widget _buildDetailedAlertContent(
+    BuildContext context,
+    Map<String, dynamic> item,
+    String type,
+    Color color,
+    List<String> actions,
+  ) {
+    final entries = item.entries.where((e) => e.key != 'id').toList();
+    
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ...entries.map((e) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(
+                    _formatKey(e.key),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    _formatValue(e.key, e.value),
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          )),
+          if (type == 'issue' && actions.isNotEmpty) ...[
+            const Divider(height: 24),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (actions.contains('remind'))
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final issueId = item['id'] ?? 0;
+                      await _runAction(
+                        this.context,
+                        () => ApiService.remindIssue(issueId),
+                        successMessage: 'Reminder logged',
+                      );
+                    },
+                    icon: const Icon(Icons.mark_email_unread_rounded, size: 16),
+                    label: const Text('Send Reminder'),
+                  ),
+                if (actions.contains('return'))
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final issueId = item['id'] ?? 0;
+                      await _runAction(this.context, () async {
+                        await this.context.read<IssueProvider>().returnBook(issueId);
+                      }, successMessage: 'Marked returned');
+                      await _refreshAll(showLoading: false, includeStats: true);
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.assignment_return_rounded, size: 16),
+                    label: const Text('Mark Returned'),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatKey(String key) {
+    return key
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .join(' ');
+  }
+
+  String _formatValue(String key, dynamic value) {
+    if (value == null) return '-';
+    if (key.contains('date')) {
+      return DateFormatter.formatDateIndian(value.toString());
+    }
+    return value.toString();
   }
 
   Widget _buildLowStockSection(BuildContext context, dynamic section) {
@@ -881,18 +1257,70 @@ class _DashboardContentState extends State<DashboardContent>
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.inventory_2_rounded, color: Colors.blueGrey),
-      title: Text('Low stock ($count)'),
+      leading: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: 'Low Stock Books',
+          icon: Icons.inventory_2_rounded,
+          color: Colors.blueGrey,
+          items: items,
+          type: 'lowstock',
+        ) : null,
+        child: const Icon(Icons.inventory_2_rounded, color: Colors.blueGrey),
+      ),
+      title: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: 'Low Stock Books',
+          icon: Icons.inventory_2_rounded,
+          color: Colors.blueGrey,
+          items: items,
+          type: 'lowstock',
+        ) : null,
+        child: Row(
+          children: [
+            Expanded(child: Text('Low stock ($count)')),
+            if (count > 5)
+              TextButton(
+                onPressed: () => _showAllLowStockPopup(context, count),
+                child: Text('View All $count'),
+              ),
+          ],
+        ),
+      ),
       children: items.take(5).map((raw) {
         final item = (raw as Map).cast<String, dynamic>();
         final title = item['title']?.toString() ?? '';
         final available = item['available_copies']?.toString() ?? '0';
         final total = item['total_copies']?.toString() ?? '0';
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(title),
-          subtitle: Text('Available: $available / $total'),
+        return InkWell(
+          onTap: () => _showSingleAlertPopup(
+            context,
+            item: item,
+            type: 'lowstock',
+            color: Colors.blueGrey,
+          ),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(title),
+            subtitle: Text('Available: $available / $total'),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '$available left',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         );
       }).toList(),
     );
@@ -905,8 +1333,44 @@ class _DashboardContentState extends State<DashboardContent>
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.person_off_rounded, color: Colors.deepPurple),
-      title: Text('No recent activity ($count)'),
+      leading: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: 'Inactive Members',
+          icon: Icons.person_off_rounded,
+          color: Colors.deepPurple,
+          items: items,
+          type: 'inactive_member',
+        ) : null,
+        child: const Icon(Icons.person_off_rounded, color: Colors.deepPurple),
+      ),
+      title: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: 'Inactive Members',
+          icon: Icons.person_off_rounded,
+          color: Colors.deepPurple,
+          items: items,
+          type: 'inactive_member',
+        ) : null,
+        child: Row(
+          children: [
+            Expanded(child: Text('No recent activity ($count)')),
+            if (count > 5)
+              TextButton(
+                onPressed: () => _showAlertDetailsPopup(
+                  context,
+                  title: 'Inactive Members',
+                  icon: Icons.person_off_rounded,
+                  color: Colors.deepPurple,
+                  items: items,
+                  type: 'inactive_member',
+                ),
+                child: Text('View All $count'),
+              ),
+          ],
+        ),
+      ),
       children: items.take(5).map((raw) {
         final item = (raw as Map).cast<String, dynamic>();
         final memberId = item['id'] ?? 0;
@@ -915,22 +1379,30 @@ class _DashboardContentState extends State<DashboardContent>
         final last = item['last_issue_date']?.toString();
         final lastText = DateFormatter.formatDateTimeIndian(last);
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(name),
-          subtitle: Text(
-            '${email.isNotEmpty ? email : 'No email'}${last != null ? ' • Last activity: ${lastText.isEmpty ? last : lastText}' : ''}',
+        return InkWell(
+          onTap: () => _showSingleAlertPopup(
+            context,
+            item: item,
+            type: 'inactive_member',
+            color: Colors.deepPurple,
           ),
-          trailing: OutlinedButton(
-            onPressed: () async {
-              await _runAction(
-                context,
-                () => ApiService.deactivateMember(memberId),
-                successMessage: 'Member deactivated',
-              );
-              await _refreshAll(showLoading: false, includeStats: true);
-            },
-            child: const Text('Deactivate'),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(name),
+            subtitle: Text(
+              '${email.isNotEmpty ? email : 'No email'}${last != null ? ' • Last activity: ${lastText.isEmpty ? last : lastText}' : ''}',
+            ),
+            trailing: OutlinedButton(
+              onPressed: () async {
+                await _runAction(
+                  context,
+                  () => ApiService.deactivateMember(memberId),
+                  successMessage: 'Member deactivated',
+                );
+                await _refreshAll(showLoading: false, includeStats: true);
+              },
+              child: const Text('Deactivate'),
+            ),
           ),
         );
       }).toList(),
@@ -947,28 +1419,72 @@ class _DashboardContentState extends State<DashboardContent>
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.block_rounded, color: Colors.redAccent),
-      title: Text('Deactivated accounts ($count)'),
+      leading: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: 'Deactivated Accounts',
+          icon: Icons.block_rounded,
+          color: Colors.redAccent,
+          items: items,
+          type: 'deactivated_member',
+        ) : null,
+        child: const Icon(Icons.block_rounded, color: Colors.redAccent),
+      ),
+      title: InkWell(
+        onTap: count > 0 ? () => _showAlertDetailsPopup(
+          context,
+          title: 'Deactivated Accounts',
+          icon: Icons.block_rounded,
+          color: Colors.redAccent,
+          items: items,
+          type: 'deactivated_member',
+        ) : null,
+        child: Row(
+          children: [
+            Expanded(child: Text('Deactivated accounts ($count)')),
+            if (count > 5)
+              TextButton(
+                onPressed: () => _showAlertDetailsPopup(
+                  context,
+                  title: 'Deactivated Accounts',
+                  icon: Icons.block_rounded,
+                  color: Colors.redAccent,
+                  items: items,
+                  type: 'deactivated_member',
+                ),
+                child: Text('View All $count'),
+              ),
+          ],
+        ),
+      ),
       children: items.take(5).map((raw) {
         final item = (raw as Map).cast<String, dynamic>();
         final memberId = item['id'] ?? 0;
         final name = item['name']?.toString() ?? '';
         final email = item['email']?.toString() ?? '';
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(name),
-          subtitle: Text(email.isNotEmpty ? email : 'No email'),
-          trailing: ElevatedButton(
-            onPressed: () async {
-              await _runAction(
-                context,
-                () => ApiService.activateMember(memberId),
-                successMessage: 'Member activated',
-              );
-              await _refreshAll(showLoading: false, includeStats: true);
-            },
-            child: const Text('Activate'),
+        return InkWell(
+          onTap: () => _showSingleAlertPopup(
+            context,
+            item: item,
+            type: 'deactivated_member',
+            color: Colors.redAccent,
+          ),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(name),
+            subtitle: Text(email.isNotEmpty ? email : 'No email'),
+            trailing: ElevatedButton(
+              onPressed: () async {
+                await _runAction(
+                  context,
+                  () => ApiService.activateMember(memberId),
+                  successMessage: 'Member activated',
+                );
+                await _refreshAll(showLoading: false, includeStats: true);
+              },
+              child: const Text('Activate'),
+            ),
           ),
         );
       }).toList(),
@@ -990,7 +1506,7 @@ class _DashboardContentState extends State<DashboardContent>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Action failed: $e'),
+          content: Text(getOperationErrorMessage('Action', e)),
           backgroundColor: Colors.red,
         ),
       );
@@ -1258,28 +1774,46 @@ class _DashboardContentState extends State<DashboardContent>
         ? ((availableBooks / pieTotal) * 100)
         : 0.0;
 
+    // Format percentage - show more decimal places for very small values
+    String formatPercentage(double pct) {
+      if (pct == 0) return '0%';
+      if (pct < 0.1) return '${pct.toStringAsFixed(2)}%';
+      if (pct < 1) return '${pct.toStringAsFixed(1)}%';
+      return '${pct.toStringAsFixed(1)}%';
+    }
+
+    // For small segments, show label outside with theme-aware color
+    final isSmallIssued = issuedPercentage < 5;
+    final isSmallAvailable = availablePercentage < 5;
+    
     final sections = [
       PieChartSectionData(
         value: issuedBooks.toDouble(),
-        title: '${issuedPercentage.toStringAsFixed(1)}%',
+        title: formatPercentage(issuedPercentage),
         color: Theme.of(context).colorScheme.secondary,
-        radius: 80,
-        titleStyle: const TextStyle(
-          fontSize: 12,
+        radius: isSmallIssued ? 95 : 80,
+        titleStyle: TextStyle(
+          fontSize: isSmallIssued ? 11 : 12,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isSmallIssued 
+              ? Theme.of(context).colorScheme.onSurface
+              : Colors.white,
         ),
+        titlePositionPercentageOffset: isSmallIssued ? 1.6 : 0.6,
       ),
       PieChartSectionData(
         value: availableBooks.toDouble(),
-        title: '${availablePercentage.toStringAsFixed(1)}%',
+        title: formatPercentage(availablePercentage),
         color: Theme.of(context).colorScheme.primary,
-        radius: 80,
-        titleStyle: const TextStyle(
-          fontSize: 12,
+        radius: isSmallAvailable ? 95 : 80,
+        titleStyle: TextStyle(
+          fontSize: isSmallAvailable ? 11 : 12,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isSmallAvailable 
+              ? Theme.of(context).colorScheme.onSurface
+              : Colors.white,
         ),
+        titlePositionPercentageOffset: isSmallAvailable ? 1.6 : 0.6,
       ),
     ];
 

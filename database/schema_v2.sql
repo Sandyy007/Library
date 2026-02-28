@@ -202,10 +202,10 @@ ON DUPLICATE KEY UPDATE name=name;
 -- ALTER TABLE members ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 -- ALTER TABLE members MODIFY COLUMN member_type ENUM('student', 'faculty', 'staff') NOT NULL DEFAULT 'student';
 
--- Sample data
+-- Sample data (Password: Library#123)
 INSERT INTO users (username, password_hash, role) VALUES
-('admin', '$2b$10$5noxZoO0TwLU6R6JdSKkTe3Yj8mVUky2VMlOQNZsAvkA7KrRQrUsa', 'admin'),
-('librarian', '$2b$10$5noxZoO0TwLU6R6JdSKkTe3Yj8mVUky2VMlOQNZsAvkA7KrRQrUsa', 'admin')
+('admin', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin'),
+('librarian', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin')
 ON DUPLICATE KEY UPDATE username=username;
 
 -- Update existing books to have copies

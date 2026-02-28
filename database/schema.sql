@@ -68,10 +68,10 @@ CREATE TABLE issues (
     INDEX idx_due_date (due_date)
 );
 
--- Sample data (Admin only)
+-- Sample data (Admin only, Password: Library#123)
 INSERT INTO users (username, password_hash, role) VALUES
-('admin', '$2b$10$5noxZoO0TwLU6R6JdSKkTe3Yj8mVUky2VMlOQNZsAvkA7KrRQrUsa', 'admin'),
-('librarian', '$2b$10$5noxZoO0TwLU6R6JdSKkTe3Yj8mVUky2VMlOQNZsAvkA7KrRQrUsa', 'admin');
+('admin', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin'),
+('librarian', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin');
 
 INSERT INTO books (isbn, title, author, category, publisher, year_published) VALUES
 ('978-0-123456-78-9', 'Sample Book 1', 'Author 1', 'Fiction', 'Publisher 1', 2020),

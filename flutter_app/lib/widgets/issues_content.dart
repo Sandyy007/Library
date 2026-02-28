@@ -18,6 +18,7 @@ import '../models/member.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../services/api_service.dart';
+import '../utils/error_utils.dart';
 
 enum _IssueDialogActiveField { book, member }
 
@@ -256,86 +257,98 @@ class _IssuesContentState extends State<IssuesContent> {
     final isCompact = screenWidth < 600;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isCompact ? 'Issues' : 'Issues & Returns'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Export PDF',
-            icon: const Icon(Icons.picture_as_pdf_rounded),
-            onPressed: () => _exportIssuesPdf(context),
-          ),
-          IconButton(
-            tooltip: 'Export Excel (CSV)',
-            icon: const Icon(Icons.table_view_rounded),
-            onPressed: () => _exportIssuesCsv(context),
-          ),
-          if (isCompact)
-            IconButton(
-              tooltip: 'Issue Book',
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: () => _showIssueDialog(
-                context,
-                bookProvider.books,
-                memberProvider.members,
-              ),
-            )
-          else
-            ElevatedButton.icon(
-              onPressed: () => _showIssueDialog(
-                context,
-                bookProvider.books,
-                memberProvider.members,
-              ),
-              icon: const Icon(Icons.add),
-              label: const Text('Issue Book'),
-            ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Padding(
         padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
-            // Search Bar
+            // Search Bar and Action buttons - all in one bar
             Container(
-              padding: EdgeInsets.all(isCompact ? 12 : 16),
+              padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: 10),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Theme.of(
                       context,
-                    ).colorScheme.shadow.withValues(alpha: 0.1),
-                    blurRadius: 8,
+                    ).colorScheme.shadow.withValues(alpha: 0.06),
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  labelText: 'Search issues...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  // Search field
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search issues...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        isDense: true,
+                      ),
+                      onChanged: (value) => _filterIssues(),
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                  const SizedBox(width: 12),
+                  // Export PDF
+                  IconButton(
+                    tooltip: 'Export PDF',
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                    onPressed: () => _exportIssuesPdf(context),
+                    visualDensity: VisualDensity.compact,
                   ),
-                ),
-                onChanged: (value) => _filterIssues(),
+                  // Export CSV
+                  IconButton(
+                    tooltip: 'Export CSV',
+                    icon: const Icon(Icons.table_view_rounded, size: 20),
+                    onPressed: () => _exportIssuesCsv(context),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 8),
+                  // Issue Book button
+                  ElevatedButton.icon(
+                    onPressed: () => _showIssueDialog(
+                      context,
+                      bookProvider.books,
+                      memberProvider.members,
+                    ),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text(isCompact ? 'Issue' : 'Issue Book'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
             Expanded(
               child: Card(
-                elevation: 4,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: issueProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : issueProvider.error != null
@@ -447,8 +460,8 @@ class _IssuesContentState extends State<IssuesContent> {
                             label: Text('Return'),
                             size: ColumnSize.S,
                           ),
-                          DataColumn2(label: Text('Status'), fixedWidth: 85),
-                          DataColumn2(label: Text('Actions'), fixedWidth: 130),
+                          DataColumn2(label: Text('Status'), fixedWidth: 100),
+                          DataColumn2(label: Text('Actions'), fixedWidth: 140),
                         ],
                         rows:
                             getFilteredIssues(
@@ -549,32 +562,65 @@ class _IssuesContentState extends State<IssuesContent> {
                                     ),
                                   ),
                                   DataCell(
-                                    Chip(
-                                      label: Text(issue.status),
-                                      backgroundColor: statusColor,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: statusColor.withValues(alpha: 0.25),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: statusColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            issue.status[0].toUpperCase() + issue.status.substring(1),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: statusColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   DataCell(
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            size: 16,
+                                        SizedBox(
+                                          width: 32,
+                                          height: 32,
+                                          child: IconButton(
+                                            padding: EdgeInsets.zero,
+                                            icon: Icon(
+                                              Icons.edit_outlined,
+                                              size: 18,
+                                              color: Colors.amber.shade700,
+                                            ),
+                                            onPressed: () => _showEditIssueDialog(
+                                              context,
+                                              issue,
+                                            ),
+                                            tooltip: 'Edit Issue',
                                           ),
-                                          onPressed: () => _showEditIssueDialog(
-                                            context,
-                                            issue,
-                                          ),
-                                          tooltip: 'Edit Issue',
-                                          visualDensity: VisualDensity.compact,
                                         ),
-                                        const SizedBox(width: 8),
-                                        issue.status == 'issued'
+                                        const SizedBox(width: 6),
+                                        issue.status == 'issued' || issue.status == 'overdue'
                                             ? SizedBox(
-                                                width: 72,
-                                                child: ElevatedButton(
+                                                width: 78,
+                                                child: ElevatedButton.icon(
                                                   style: ElevatedButton.styleFrom(
                                                     padding:
                                                         const EdgeInsets.symmetric(
@@ -592,12 +638,13 @@ class _IssuesContentState extends State<IssuesContent> {
                                                     context,
                                                     issue.id,
                                                   ),
-                                                  child: const FittedBox(
+                                                  icon: const Icon(Icons.assignment_return, size: 14),
+                                                  label: const FittedBox(
                                                     child: Text('Return'),
                                                   ),
                                                 ),
                                               )
-                                            : const Text('-'),
+                                            : const SizedBox(width: 78),
                                       ],
                                     ),
                                   ),
@@ -970,7 +1017,7 @@ class _IssuesContentState extends State<IssuesContent> {
                                       )?.showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            'Failed to issue book: $e',
+                                            getOperationErrorMessage('Issue book', e),
                                           ),
                                         ),
                                       );
@@ -1063,7 +1110,7 @@ class _IssuesContentState extends State<IssuesContent> {
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
     }
   }
 
@@ -1168,7 +1215,7 @@ class _IssuesContentState extends State<IssuesContent> {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to return book: $e')));
+        ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Return book', e))));
       }
     }
   }

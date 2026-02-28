@@ -27,8 +27,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  // Empty title to avoid showing app name in the title bar.
-  if (!window.Create(L"", origin, size)) {
+  // Set the application title in the title bar
+  if (!window.Create(L"Library Management System", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

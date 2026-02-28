@@ -25,11 +25,13 @@ class ApiService {
     defaultValue: 'http://localhost:3000',
   );
   static const Duration timeout = Duration(
-    seconds: 15,
-  ); // Reduced for faster feedback
+    seconds: 30,
+  ); // Increased timeout for better reliability
   static const Duration longTimeout = Duration(
-    minutes: 10,
-  ); // For large file uploads
+    minutes: 15,
+  ); // For large file uploads/imports
+  static const int maxRetries = 3;  // Max retry attempts for failed requests
+  static const Duration retryDelay = Duration(seconds: 2);  // Delay between retries
 
   // Persistent HTTP client for connection reuse (keep-alive)
   static final http.Client _client = http.Client();
@@ -380,8 +382,9 @@ class ApiService {
       final List<Book> allBooks = [];
       int currentPage = 1;
       bool hasMore = true;
+      const maxPages = 100;
 
-      while (hasMore) {
+      while (hasMore && currentPage <= maxPages) {
         queryParams['page'] = currentPage.toString();
         final uri = Uri.parse(
           '$baseUrl/books',
@@ -792,20 +795,69 @@ class ApiService {
   }
 
   static Future<void> addCategory(String name, String? description) async {
-    final headers = await getHeaders();
-    final response = await _client
-        .post(
-          Uri.parse('$baseUrl/categories'),
-          headers: headers,
-          body: jsonEncode({'name': name, 'description': description}),
-        )
-        .timeout(timeout);
+    try {
+      final headers = await getHeaders();
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/categories'),
+            headers: headers,
+            body: jsonEncode({'name': name, 'description': description}),
+          )
+          .timeout(timeout);
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to add category');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to add category');
+      }
+      // Clear cache so new category is fetched
+      clearCategoriesCache();
+    } on SocketException {
+      throw Exception('Cannot connect to server. Make sure backend is running.');
+    } on TimeoutException {
+      throw Exception('Request timeout. Server is not responding.');
     }
-    // Clear cache so new category is fetched
-    clearCategoriesCache();
+  }
+
+  static Future<void> updateCategory(int id, String name, String? description) async {
+    try {
+      final headers = await getHeaders();
+      final response = await _client
+          .put(
+            Uri.parse('$baseUrl/categories/$id'),
+            headers: headers,
+            body: jsonEncode({'name': name, 'description': description}),
+          )
+          .timeout(timeout);
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update category');
+      }
+      clearCategoriesCache();
+    } on SocketException {
+      throw Exception('Cannot connect to server. Make sure backend is running.');
+    } on TimeoutException {
+      throw Exception('Request timeout. Server is not responding.');
+    }
+  }
+
+  static Future<void> deleteCategory(int id) async {
+    try {
+      final headers = await getHeaders();
+      final response = await _client
+          .delete(
+            Uri.parse('$baseUrl/categories/$id'),
+            headers: headers,
+          )
+          .timeout(timeout);
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete category');
+      }
+      clearCategoriesCache();
+    } on SocketException {
+      throw Exception('Cannot connect to server. Make sure backend is running.');
+    } on TimeoutException {
+      throw Exception('Request timeout. Server is not responding.');
+    }
   }
 
   // ==================== MEMBERS ====================
@@ -828,8 +880,9 @@ class ApiService {
       final List<Member> allMembers = [];
       int currentPage = 1;
       bool hasMore = true;
+      const maxPages = 100; // Safety limit to prevent infinite loops
 
-      while (hasMore) {
+      while (hasMore && currentPage <= maxPages) {
         queryParams['page'] = currentPage.toString();
         final uri = Uri.parse(
           '$baseUrl/members',
@@ -1057,6 +1110,30 @@ class ApiService {
     return getIssues(memberId: memberId);
   }
 
+  /// Get currently borrowed books for a member (issued/overdue only)
+  static Future<Map<String, dynamic>> getMemberBorrowedBooks(int memberId) async {
+    final headers = await getHeaders();
+    try {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/members/$memberId/borrowed-books'), headers: headers)
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return decoded as Map<String, dynamic>;
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading borrowed books');
+        throw Exception('Failed to load borrowed books');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timeout.');
+    }
+  }
+
   static Future<List<MemberCategory>> getMemberCategories() async {
     final headers = await getHeaders();
     try {
@@ -1106,8 +1183,9 @@ class ApiService {
       final List<Issue> allIssues = [];
       int currentPage = 1;
       bool hasMore = true;
+      const maxPages = 100;
 
-      while (hasMore) {
+      while (hasMore && currentPage <= maxPages) {
         queryParams['page'] = currentPage.toString();
         final uri = Uri.parse(
           '$baseUrl/issues',

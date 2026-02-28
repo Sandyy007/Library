@@ -11,8 +11,10 @@ import '../providers/issue_provider.dart';
 import '../models/member.dart';
 import '../widgets/member_dialog.dart';
 import '../widgets/member_history_dialog.dart';
+import '../widgets/borrowed_books_dialog.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
+import '../utils/error_utils.dart';
 
 enum MemberStatusFilter { all, active, inactive }
 
@@ -68,7 +70,7 @@ class _MembersContentState extends State<MembersContent> {
         if (kDebugMode) debugPrint('Error loading members: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error loading members: $error')),
+            SnackBar(content: Text(getOperationErrorMessage('Load members', error))),
           );
         }
       });
@@ -205,7 +207,7 @@ class _MembersContentState extends State<MembersContent> {
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
     }
   }
 
@@ -216,107 +218,125 @@ class _MembersContentState extends State<MembersContent> {
     final isCompact = screenWidth < 600;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isCompact ? 'Members' : 'Member Management'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Export Excel (CSV)',
-            onPressed: _exportMembersActivityCsv,
-            icon: const Icon(Icons.download),
-          ),
-          const SizedBox(width: 4),
-          if (isCompact)
-            IconButton(
-              tooltip: 'Add Member',
-              onPressed: () => _showMemberDialog(),
-              icon: const Icon(Icons.person_add),
-            )
-          else
-            ElevatedButton.icon(
-              onPressed: () => _showMemberDialog(),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Member'),
-            ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Padding(
         padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
-            // Search Bar
+            // Search Bar, Status Filters, and Action buttons - all in one bar
             Container(
-              padding: const EdgeInsets.all(20),
-              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Theme.of(
                       context,
-                    ).colorScheme.shadow.withValues(alpha: 0.1),
-                    blurRadius: 8,
+                    ).colorScheme.shadow.withValues(alpha: 0.06),
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: 'Search members...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // Search bar
+                  SizedBox(
+                    width: isCompact ? 160 : 240,
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        isDense: true,
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                      onChanged: (value) => _filterMembers(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Status filter chips
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All'),
+                            selected: _statusFilter == MemberStatusFilter.all,
+                            onSelected: (_) => setState(() {
+                              _statusFilter = MemberStatusFilter.all;
+                            }),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Active'),
+                            selected: _statusFilter == MemberStatusFilter.active,
+                            onSelected: (_) => setState(() {
+                              _statusFilter = MemberStatusFilter.active;
+                            }),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Inactive'),
+                            selected: _statusFilter == MemberStatusFilter.inactive,
+                            onSelected: (_) => setState(() {
+                              _statusFilter = MemberStatusFilter.inactive;
+                            }),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
                       ),
                     ),
-                    onChanged: (value) => _filterMembers(),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('All'),
-                        selected: _statusFilter == MemberStatusFilter.all,
-                        onSelected: (_) => setState(() {
-                          _statusFilter = MemberStatusFilter.all;
-                        }),
+                  const SizedBox(width: 8),
+                  // Export
+                  IconButton(
+                    tooltip: 'Export CSV',
+                    onPressed: _exportMembersActivityCsv,
+                    icon: const Icon(Icons.download, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 8),
+                  // Add Member button
+                  ElevatedButton.icon(
+                    onPressed: () => _showMemberDialog(),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text(isCompact ? 'Add' : 'Add Member'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      ChoiceChip(
-                        label: const Text('Active'),
-                        selected: _statusFilter == MemberStatusFilter.active,
-                        onSelected: (_) => setState(() {
-                          _statusFilter = MemberStatusFilter.active;
-                        }),
-                      ),
-                      ChoiceChip(
-                        label: const Text('Inactive'),
-                        selected: _statusFilter == MemberStatusFilter.inactive,
-                        onSelected: (_) => setState(() {
-                          _statusFilter = MemberStatusFilter.inactive;
-                        }),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
             Expanded(
               child: Card(
-                elevation: 4,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: memberProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : memberProvider.members.isEmpty
@@ -368,13 +388,14 @@ class _MembersContentState extends State<MembersContent> {
                         minWidth: 700,
                         scrollController: ScrollController(),
                         columns: const [
-                          DataColumn2(label: Text('Photo'), fixedWidth: 50),
+                          DataColumn2(label: Text('Photo'), fixedWidth: 54),
                           DataColumn2(label: Text('Name'), size: ColumnSize.L),
                           DataColumn2(label: Text('Email'), size: ColumnSize.M),
                           DataColumn2(label: Text('Phone'), size: ColumnSize.S),
-                          DataColumn2(label: Text('Type'), fixedWidth: 90),
-                          DataColumn2(label: Text('Status'), fixedWidth: 70),
-                          DataColumn2(label: Text('Actions'), fixedWidth: 100),
+                          DataColumn2(label: Text('Type'), fixedWidth: 105),
+                          DataColumn2(label: Text('Borrowed'), fixedWidth: 85),
+                          DataColumn2(label: Text('Status'), fixedWidth: 80),
+                          DataColumn2(label: Text('Actions'), fixedWidth: 120),
                         ],
                         rows: getFilteredMembers(memberProvider.members)
                             .map(
@@ -438,33 +459,37 @@ class _MembersContentState extends State<MembersContent> {
                                     ),
                                   ),
                                   DataCell(_buildTypeChip(member.memberType)),
+                                  DataCell(_buildBorrowCountBadge(member)),
                                   DataCell(_buildStatusChip(member.isActive)),
                                   DataCell(
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         SizedBox(
-                                          width: 28,
-                                          height: 28,
+                                          width: 32,
+                                          height: 32,
                                           child: IconButton(
                                             padding: EdgeInsets.zero,
-                                            icon: const Icon(
-                                              Icons.history,
-                                              size: 14,
+                                            icon: Icon(
+                                              Icons.history_rounded,
+                                              size: 18,
+                                              color: Theme.of(context).colorScheme.primary,
                                             ),
                                             tooltip: 'View History',
                                             onPressed: () =>
                                                 _showMemberHistory(member),
                                           ),
                                         ),
+                                        const SizedBox(width: 2),
                                         SizedBox(
-                                          width: 28,
-                                          height: 28,
+                                          width: 32,
+                                          height: 32,
                                           child: IconButton(
                                             padding: EdgeInsets.zero,
-                                            icon: const Icon(
-                                              Icons.edit,
-                                              size: 14,
+                                            icon: Icon(
+                                              Icons.edit_outlined,
+                                              size: 18,
+                                              color: Colors.amber.shade700,
                                             ),
                                             tooltip: 'Edit',
                                             onPressed: () => _showMemberDialog(
@@ -472,14 +497,16 @@ class _MembersContentState extends State<MembersContent> {
                                             ),
                                           ),
                                         ),
+                                        const SizedBox(width: 2),
                                         SizedBox(
-                                          width: 28,
-                                          height: 28,
+                                          width: 32,
+                                          height: 32,
                                           child: IconButton(
                                             padding: EdgeInsets.zero,
-                                            icon: const Icon(
-                                              Icons.delete,
-                                              size: 14,
+                                            icon: Icon(
+                                              Icons.delete_outline,
+                                              size: 18,
+                                              color: Colors.red.shade400,
                                             ),
                                             tooltip: 'Delete',
                                             onPressed: () =>
@@ -506,13 +533,15 @@ class _MembersContentState extends State<MembersContent> {
                 ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
                     ),
-                  ],
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -625,41 +654,41 @@ class _MembersContentState extends State<MembersContent> {
     switch (type.toLowerCase()) {
       case 'faculty':
         color = Colors.purple;
-        icon = Icons.person;
-        label = 'FACU';
+        icon = Icons.school;
+        label = 'Faculty';
         break;
       case 'staff':
-        color = Colors.green;
+        color = Colors.teal;
         icon = Icons.work;
-        label = 'STAFF';
+        label = 'Staff';
         break;
       case 'guest':
         color = Colors.orange;
         icon = Icons.person_outline;
-        label = 'GUEST';
+        label = 'Guest';
         break;
       default: // student
         color = Colors.blue;
-        icon = Icons.school;
-        label = 'STU';
+        icon = Icons.menu_book;
+        label = 'Student';
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 3),
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
@@ -668,22 +697,98 @@ class _MembersContentState extends State<MembersContent> {
     );
   }
 
+  Widget _buildBorrowCountBadge(Member member) {
+    final count = member.borrowCount;
+    final maxBooks = member.maxBooks;
+    final isAtLimit = count >= maxBooks;
+    final isNearLimit = count >= maxBooks - 1;
+
+    Color badgeColor;
+    if (isAtLimit) {
+      badgeColor = Colors.red;
+    } else if (isNearLimit) {
+      badgeColor = Colors.orange;
+    } else if (count > 0) {
+      badgeColor = Colors.blue;
+    } else {
+      badgeColor = Colors.grey;
+    }
+
+    return InkWell(
+      onTap: () => _showBorrowedBooks(member),
+      borderRadius: BorderRadius.circular(12),
+      child: Tooltip(
+        message: count > 0
+            ? 'Click to view borrowed books ($count/$maxBooks)'
+            : 'No books borrowed (0/$maxBooks)',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: badgeColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.menu_book, size: 12, color: badgeColor),
+              const SizedBox(width: 4),
+              Text(
+                '$count/$maxBooks',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: badgeColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBorrowedBooks(Member member) {
+    showDialog(
+      context: context,
+      builder: (context) => BorrowedBooksDialog(
+        memberId: member.id,
+        memberName: member.name,
+        borrowCount: member.borrowCount,
+      ),
+    );
+  }
+
   Widget _buildStatusChip(bool isActive) {
+    final color = isActive ? Colors.green : Colors.red;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isActive
-            ? Colors.green.withValues(alpha: 0.1)
-            : Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
-      child: Text(
-        isActive ? 'Active' : 'Inactive',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: isActive ? Colors.green : Colors.red,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isActive ? 'Active' : 'Inactive',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -691,34 +796,49 @@ class _MembersContentState extends State<MembersContent> {
   void _deleteMember(int id) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Member'),
-        content: const Text('Are you sure you want to delete this member?'),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red.shade400),
+            const SizedBox(width: 8),
+            const Text('Delete Member'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete this member? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
-              final navigator = Navigator.of(context);
-              navigator.pop();
+              Navigator.of(ctx).pop();
               try {
                 await context.read<MemberProvider>().deleteMember(id);
                 await context.read<IssueProvider>().loadStats();
                 if (mounted) {
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
                     const SnackBar(
                       content: Text('Member deleted successfully'),
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
                 }
               } catch (e) {
                 if (mounted) {
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                    SnackBar(content: Text('Failed to delete member: $e')),
+                    SnackBar(
+                      content: Text(getOperationErrorMessage('Delete member', e)),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: Colors.red.shade700,
+                    ),
                   );
                 }
               }

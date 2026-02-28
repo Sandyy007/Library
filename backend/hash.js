@@ -1,2 +1,3 @@
 const bcrypt = require('bcrypt');
-bcrypt.hash('admin', 10).then(hash => console.log(hash));
+// Hash for Library#123 password
+bcrypt.hash('Library#123', 10).then(hash => console.log(hash));

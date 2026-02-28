@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "library_management_app" "\0"
+            VALUE "CompanyName", "Library Management" "\0"
+            VALUE "FileDescription", "Library Management System" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "library_management_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Library Management. All rights reserved." "\0"
             VALUE "OriginalFilename", "library_management_app.exe" "\0"
-            VALUE "ProductName", "library_management_app" "\0"
+            VALUE "ProductName", "Library Management System" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

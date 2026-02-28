@@ -11,6 +11,7 @@ class Member {
   final String? address;
   final String? expiryDate;
   final bool isActive;
+  final int borrowCount;
 
   Member({
     required this.id,
@@ -23,6 +24,7 @@ class Member {
     this.address,
     this.expiryDate,
     this.isActive = true,
+    this.borrowCount = 0,
   });
 
   factory Member.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,7 @@ class Member {
           : normalizeLegacyHindiToUnicode(addressRaw.toString()),
       expiryDate: json['expiry_date'],
       isActive: json['is_active'] == true || json['is_active'] == 1,
+      borrowCount: json['borrow_count'] ?? 0,
     );
   }
 
@@ -69,6 +72,7 @@ class Member {
     String? address,
     String? expiryDate,
     bool? isActive,
+    int? borrowCount,
   }) {
     return Member(
       id: id ?? this.id,
@@ -81,22 +85,12 @@ class Member {
       address: address ?? this.address,
       expiryDate: expiryDate ?? this.expiryDate,
       isActive: isActive ?? this.isActive,
+      borrowCount: borrowCount ?? this.borrowCount,
     );
   }
 
-  // Get borrowing limit based on member type
-  int get maxBooks {
-    switch (memberType) {
-      case 'faculty':
-        return 10;
-      case 'staff':
-        return 5;
-      case 'student':
-      case 'guest':
-      default:
-        return 3;
-    }
-  }
+  // Universal borrowing limit: 5 books per member
+  int get maxBooks => 5;
 
   // Get loan period in days based on member type
   int get loanPeriodDays {

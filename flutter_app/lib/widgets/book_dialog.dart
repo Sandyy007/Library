@@ -6,6 +6,7 @@ import '../models/book.dart';
 import '../providers/book_provider.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
+import '../utils/error_utils.dart';
 
 class BookDialog extends StatefulWidget {
   final Book? book;
@@ -519,7 +520,6 @@ class _BookDialogState extends State<BookDialog> {
           'tif',
           'tiff',
           'ico',
-          'svg',
         ],
         allowMultiple: false,
         withData: true,
@@ -556,7 +556,7 @@ class _BookDialogState extends State<BookDialog> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to pick image')));
       }
     }
   }
@@ -593,7 +593,7 @@ class _BookDialogState extends State<BookDialog> {
         publisher: publisher.isEmpty ? null : publisher,
         yearPublished: _yearController.text.isEmpty
             ? null
-            : int.parse(_yearController.text),
+            : int.tryParse(_yearController.text),
         status: widget.book?.status ?? 'available',
         addedDate: widget.book?.addedDate ?? DateTime.now().toIso8601String(),
         coverImage: coverImagePath,
@@ -624,7 +624,7 @@ class _BookDialogState extends State<BookDialog> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save book: $e')));
+        ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Save book', e))));
       }
     } finally {
       if (mounted) {

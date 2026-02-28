@@ -12,6 +12,7 @@ import '../models/book.dart';
 import '../widgets/book_dialog.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
+import '../utils/error_utils.dart';
 
 class BooksContent extends StatefulWidget {
   const BooksContent({super.key});
@@ -189,153 +190,53 @@ class _BooksContentState extends State<BooksContent> {
     final isCompact = screenWidth < 800;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Book Management'),
-        elevation: 0,
-        actions: [
-          if (selectedCount > 0) ...[
-            if (isCompact)
-              IconButton(
-                tooltip: 'Delete ($selectedCount)',
-                onPressed: _deleteSelectedBooks,
-                icon: Icon(
-                  Icons.delete_forever,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: _deleteSelectedBooks,
-                icon: const Icon(Icons.delete_forever),
-                label: Text('Delete ($selectedCount)'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
-                ),
-              ),
-            const SizedBox(width: 8),
-            IconButton(
-              tooltip: 'Clear selection',
-              onPressed: () {
-                setState(_selectedBookIds.clear);
-              },
-              icon: const Icon(Icons.clear),
-            ),
-            const SizedBox(width: 8),
-          ],
-          if (isCompact)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: 'More actions',
-              onSelected: (value) {
-                switch (value) {
-                  case 'import':
-                    _importBooks();
-                    break;
-                  case 'export':
-                    _exportBooksCsv();
-                    break;
-                  case 'add':
-                    _showBookDialog();
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'import',
-                  child: Row(
-                    children: [
-                      Icon(Icons.upload_file),
-                      SizedBox(width: 8),
-                      Text('Import CSV/Excel'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'export',
-                  child: Row(
-                    children: [
-                      Icon(Icons.download),
-                      SizedBox(width: 8),
-                      Text('Export CSV'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'add',
-                  child: Row(
-                    children: [
-                      Icon(Icons.add),
-                      SizedBox(width: 8),
-                      Text('Add Book'),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            ElevatedButton.icon(
-              onPressed: _importBooks,
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Import'),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              tooltip: 'Export Excel (CSV)',
-              onPressed: _exportBooksCsv,
-              icon: const Icon(Icons.download),
-            ),
-            const SizedBox(width: 4),
-            ElevatedButton.icon(
-              onPressed: () => _showBookDialog(),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Book'),
-            ),
-          ],
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Padding(
         padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
-            // Search and Filter
+            // Search, Filter, and Action buttons - all in one bar
             Container(
-              padding: const EdgeInsets.all(20),
-              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 8,
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: Row(
                 children: [
+                  // Search field
                   Expanded(
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        labelText: 'Search books...',
-                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search books...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
+                          horizontal: 12,
+                          vertical: 10,
                         ),
+                        isDense: true,
                       ),
                       onChanged: (value) => _filterBooks(),
                     ),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 12),
+                  // Category filter
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
@@ -394,32 +295,94 @@ class _BooksContentState extends State<BooksContent> {
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                          horizontal: 12,
+                          vertical: 10,
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.filter_list,
                               color: Theme.of(context).colorScheme.primary,
+                              size: 20,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Text(
                               _selectedCategory ?? 'All Categories',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onSurface,
                                 fontWeight: FontWeight.w500,
+                                fontSize: 13,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             Icon(
                               Icons.arrow_drop_down,
                               color: Theme.of(
                                 context,
                               ).colorScheme.onSurfaceVariant,
+                              size: 20,
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Selection actions
+                  if (selectedCount > 0) ...[
+                    IconButton(
+                      tooltip: 'Delete ($selectedCount)',
+                      onPressed: _deleteSelectedBooks,
+                      icon: Icon(
+                        Icons.delete_forever,
+                        color: Theme.of(context).colorScheme.error,
+                        size: 20,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    IconButton(
+                      tooltip: 'Clear selection',
+                      onPressed: () => setState(_selectedBookIds.clear),
+                      icon: const Icon(Icons.clear, size: 20),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  // Category management
+                  IconButton(
+                    tooltip: 'Manage Categories',
+                    onPressed: _showCategoryManagement,
+                    icon: Icon(
+                      Icons.category,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  // Import
+                  IconButton(
+                    tooltip: 'Import CSV/Excel',
+                    onPressed: _importBooks,
+                    icon: const Icon(Icons.upload_file, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  // Export
+                  IconButton(
+                    tooltip: 'Export CSV',
+                    onPressed: _exportBooksCsv,
+                    icon: const Icon(Icons.download, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 8),
+                  // Add Book button
+                  ElevatedButton.icon(
+                    onPressed: () => _showBookDialog(),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text(isCompact ? 'Add' : 'Add Book'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
@@ -427,11 +390,16 @@ class _BooksContentState extends State<BooksContent> {
               ),
             ),
 
-            const SizedBox(height: 8),
-
             Expanded(
               child: Card(
-                elevation: 4,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: bookProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : bookProvider.books.isEmpty
@@ -563,11 +531,11 @@ class _BooksContentState extends State<BooksContent> {
                             ),
                             const DataColumn2(
                               label: Text('Status'),
-                              size: ColumnSize.S,
+                              fixedWidth: 100,
                             ),
                             const DataColumn2(
                               label: Text('Actions'),
-                              fixedWidth: 90,
+                              fixedWidth: 100,
                             ),
                           ],
                           rows: filteredBooks
@@ -707,39 +675,82 @@ class _BooksContentState extends State<BooksContent> {
                                       ),
                                     ),
                                     DataCell(
-                                      Chip(
-                                        label: Text(
-                                          book.availableCopies > 0
-                                              ? 'Available'
-                                              : 'Borrowed',
-                                          style: const TextStyle(fontSize: 11),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: book.availableCopies > 0
+                                              ? Colors.green.withValues(alpha: 0.08)
+                                              : Colors.orange.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: book.availableCopies > 0
+                                                ? Colors.green.withValues(alpha: 0.25)
+                                                : Colors.orange.withValues(alpha: 0.25),
+                                          ),
                                         ),
-                                        backgroundColor:
-                                            book.availableCopies > 0
-                                            ? Colors.green.withValues(
-                                                alpha: 0.2,
-                                              )
-                                            : Colors.orange.withValues(
-                                                alpha: 0.2,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: book.availableCopies > 0
+                                                    ? Colors.green
+                                                    : Colors.orange,
                                               ),
-                                        side: BorderSide.none,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              book.availableCopies > 0
+                                                  ? 'Available'
+                                                  : 'Borrowed',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: book.availableCopies > 0
+                                                    ? Colors.green
+                                                    : Colors.orange,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
                                     DataCell(
                                       Row(
                                         children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit),
-                                            onPressed: () =>
-                                                _showBookDialog(book: book),
+                                          SizedBox(
+                                            width: 32,
+                                            height: 32,
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              icon: Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: Colors.amber.shade700,
+                                              ),
+                                              tooltip: 'Edit',
+                                              onPressed: () =>
+                                                  _showBookDialog(book: book),
+                                            ),
                                           ),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete),
-                                            onPressed: () =>
-                                                _deleteBook(book.id),
+                                          const SizedBox(width: 2),
+                                          SizedBox(
+                                            width: 32,
+                                            height: 32,
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              icon: Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Colors.red.shade400,
+                                              ),
+                                              tooltip: 'Delete',
+                                              onPressed: () =>
+                                                  _deleteBook(book.id),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -838,6 +849,18 @@ class _BooksContentState extends State<BooksContent> {
         category: _selectedCategory,
       );
     }
+  }
+
+  void _showCategoryManagement() {
+    showDialog(
+      context: context,
+      builder: (context) => _CategoryManagementDialog(
+        onChanged: () {
+          // Refresh books to reflect category changes
+          _loadBooks();
+        },
+      ),
+    );
   }
 
   void _showBookDialog({Book? book}) async {
@@ -947,7 +970,7 @@ class _BooksContentState extends State<BooksContent> {
       Navigator.of(context).maybePop();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+      ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Import', e))));
     }
   }
 
@@ -1000,7 +1023,7 @@ class _BooksContentState extends State<BooksContent> {
       if (Navigator.of(pageContext).canPop()) Navigator.of(pageContext).pop();
       ScaffoldMessenger.of(
         pageContext,
-      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
     }
   }
 
@@ -1034,7 +1057,7 @@ class _BooksContentState extends State<BooksContent> {
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(pageContext).showSnackBar(
-                  SnackBar(content: Text('Failed to delete book: $e')),
+                  SnackBar(content: Text(getOperationErrorMessage('Delete book', e))),
                 );
               }
             },
@@ -1118,7 +1141,7 @@ class _BooksContentState extends State<BooksContent> {
       Navigator.of(pageContext).maybePop();
       ScaffoldMessenger.of(
         pageContext,
-      ).showSnackBar(SnackBar(content: Text('Bulk delete failed: $e')));
+      ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Bulk delete', e))));
     }
   }
 
@@ -1255,5 +1278,348 @@ class _BooksContentState extends State<BooksContent> {
     _dataChangedSub?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+}
+
+// ==================== Category Management Dialog ====================
+
+class _CategoryManagementDialog extends StatefulWidget {
+  final VoidCallback onChanged;
+
+  const _CategoryManagementDialog({required this.onChanged});
+
+  @override
+  State<_CategoryManagementDialog> createState() =>
+      _CategoryManagementDialogState();
+}
+
+class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
+  List<dynamic> _categories = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final categories = await ApiService.getCategories(forceRefresh: true);
+      setState(() {
+        _categories = categories;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _addCategory() async {
+    final result = await _showCategoryEditDialog(name: '', description: '');
+    if (result != null) {
+      try {
+        await ApiService.addCategory(result['name']!, result['description']);
+        _loadCategories();
+        widget.onChanged();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error adding category: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _editCategory(dynamic cat) async {
+    final result = await _showCategoryEditDialog(
+      name: cat.name,
+      description: '',
+    );
+    if (result != null) {
+      try {
+        await ApiService.updateCategory(cat.id, result['name']!, result['description']);
+        _loadCategories();
+        widget.onChanged();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating category: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteCategory(dynamic cat) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text('Are you sure you want to delete "${cat.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await ApiService.deleteCategory(cat.id);
+        _loadCategories();
+        widget.onChanged();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting category: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<Map<String, String?>?> _showCategoryEditDialog({
+    required String name,
+    String? description,
+  }) async {
+    final nameController = TextEditingController(text: name);
+    final descController = TextEditingController(text: description ?? '');
+    final isNew = name.isEmpty;
+
+    return showDialog<Map<String, String?>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isNew ? 'Add Category' : 'Edit Category'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Category Name',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descController,
+                decoration: InputDecoration(
+                  labelText: 'Description (optional)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final n = nameController.text.trim();
+              if (n.isEmpty) return;
+              Navigator.of(context).pop({
+                'name': n,
+                'description':
+                    descController.text.trim().isEmpty
+                        ? null
+                        : descController.text.trim(),
+              });
+            },
+            child: Text(isNew ? 'Add' : 'Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        child: Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.category, color: Colors.white, size: 24),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Manage Categories',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle, color: Colors.white),
+                      tooltip: 'Add Category',
+                      onPressed: _addCategory,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Flexible(
+                child: _isLoading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : _error != null
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text('Error: $_error'),
+                            ),
+                          )
+                        : _categories.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(40),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.category_outlined,
+                                        size: 48,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.3),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text('No categories yet'),
+                                      const SizedBox(height: 12),
+                                      ElevatedButton.icon(
+                                        onPressed: _addCategory,
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('Add Category'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                itemCount: _categories.length,
+                                separatorBuilder: (_, i) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final cat = _categories[index];
+                                  return ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer,
+                                      child: Text(
+                                        cat.name.isNotEmpty
+                                            ? cat.name[0].toUpperCase()
+                                            : '?',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimaryContainer,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      cat.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 18,
+                                          ),
+                                          tooltip: 'Edit',
+                                          onPressed: () =>
+                                              _editCategory(cat),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.delete,
+                                            size: 18,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .error,
+                                          ),
+                                          tooltip: 'Delete',
+                                          onPressed: () =>
+                                              _deleteCategory(cat),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

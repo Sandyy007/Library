@@ -313,10 +313,12 @@ const db = mysql.createPool({
   database: process.env.DB_NAME || 'library_management',
   charset: 'utf8mb4',
   waitForConnections: true,
-  connectionLimit: 20,
-  queueLimit: 0,
+  connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 30,  // Increased for heavy load
+  queueLimit: 100,  // Queue up to 100 requests when pool is full
   connectTimeout: 60000,
   multipleStatements: true,
+  enableKeepAlive: true,  // Keep connections alive
+  keepAliveInitialDelay: 10000,  // Initial delay before keepalive probes
 });
 
 // Test pool connection on startup
@@ -435,14 +437,19 @@ const runMigrations = () => {
     "CREATE INDEX IF NOT EXISTS idx_issues_issue_date ON issues(issue_date)"
   ];
 
+  let completed = 0;
+  const total = migrations.length;
   migrations.forEach(sql => {
     db.query(sql, (err) => {
-      if (err && !err.message.includes('Duplicate')) {
-        // Silently ignore expected errors (column already exists, etc.)
+      if (err && !err.message.includes('Duplicate') && !err.message.includes('already exists')) {
+        console.warn('Migration warning:', err.message.substring(0, 120));
+      }
+      completed++;
+      if (completed >= total) {
+        console.log('Database migrations completed');
       }
     });
   });
-  console.log('Database migrations completed');
 };
 
 // Middleware for authentication
@@ -740,9 +747,7 @@ app.put('/api/books/:id', (req, res) => {
     
     // Determine new status
     let newStatus = 'available';
-    if (newAvailableCopies === 0) {
-      newStatus = 'issued';
-    } else if (newAvailableCopies < newTotalCopies) {
+    if (newAvailableCopies <= 0) {
       newStatus = 'issued';
     }
     
@@ -1181,6 +1186,23 @@ app.post('/api/categories', (req, res) => {
   });
 });
 
+app.put('/api/categories/:id', (req, res) => {
+  const { name, description } = req.body;
+  db.query('UPDATE book_categories SET name = ?, description = ? WHERE id = ?', [name, description || null, req.params.id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Category not found' });
+    res.json({ message: 'Category updated' });
+  });
+});
+
+app.delete('/api/categories/:id', (req, res) => {
+  db.query('DELETE FROM book_categories WHERE id = ?', [req.params.id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Category not found' });
+    res.json({ message: 'Category deleted' });
+  });
+});
+
 // ==================== MEMBERS ROUTES ====================
 
 // GET /api/members - Supports pagination for large datasets
@@ -1210,7 +1232,10 @@ app.get('/api/members', (req, res) => {
   }
   
   // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
-  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS * FROM members ${whereClause} ORDER BY name ASC LIMIT ? OFFSET ?`;
+  // Include borrow_count (currently issued/overdue books) for each member
+  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS m.*,
+    COALESCE((SELECT COUNT(*) FROM issues i WHERE i.member_id = m.id AND i.status IN ('issued', 'overdue')), 0) AS borrow_count
+    FROM members m ${whereClause} ORDER BY m.name ASC LIMIT ? OFFSET ?`;
   const dataParams = [...params, limit, offset];
   
   db.query(dataQuery, dataParams, (err, results) => {
@@ -1372,10 +1397,24 @@ app.put('/api/members/:id/activate', (req, res) => {
 });
 
 app.delete('/api/members/:id', (req, res) => {
-  db.query('DELETE FROM members WHERE id = ?', [req.params.id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Member deleted' });
-  });
+  // Check for active issues before deleting
+  db.query(
+    "SELECT COUNT(*) as count FROM issues WHERE member_id = ? AND status IN ('issued', 'overdue')",
+    [req.params.id],
+    (err, countResults) => {
+      if (err) return res.status(500).json({ error: 'Database error' });
+      if (countResults[0].count > 0) {
+        return res.status(400).json({ 
+          error: `Cannot delete member with ${countResults[0].count} active issue(s). Return all books first.` 
+        });
+      }
+      db.query('DELETE FROM members WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Member not found' });
+        res.json({ message: 'Member deleted' });
+      });
+    }
+  );
 });
 
 // Bulk delete members - optimized for large deletions
@@ -1426,6 +1465,21 @@ app.post('/api/members/:id/photo', upload.single('photo'), (req, res) => {
       }
       res.json({ imageUrl, storedInDb: true });
     });
+  });
+});
+
+// Get currently borrowed books for a member (issued/overdue only)
+app.get('/api/members/:id/borrowed-books', (req, res) => {
+  db.query(`
+    SELECT i.id, i.book_id, i.issue_date, i.due_date, i.status,
+           b.title, b.author, b.isbn, b.category, b.cover_image
+    FROM issues i
+    JOIN books b ON i.book_id = b.id
+    WHERE i.member_id = ? AND i.status IN ('issued', 'overdue')
+    ORDER BY i.issue_date DESC
+  `, [req.params.id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ borrowed_books: results, count: results.length, max_allowed: 5 });
   });
 });
 
@@ -1555,7 +1609,7 @@ app.post('/api/issues', (req, res) => {
       if (memberResults.length === 0) return res.status(404).json({ error: 'Member not found' });
 
       const member = memberResults[0];
-      const maxBooks = member.max_books || 3;
+      const maxBooks = 5; // Universal borrowing limit: 5 books per member
 
       // Check current borrowed books count
       db.query(
@@ -1566,7 +1620,9 @@ app.post('/api/issues', (req, res) => {
           
           if (countResults[0].count >= maxBooks) {
             return res.status(400).json({ 
-              error: `Member has reached maximum borrowing limit of ${maxBooks} books` 
+              error: `Member has reached maximum borrowing limit of ${maxBooks} books. Please return some books before borrowing new ones.`,
+              current_borrowed: countResults[0].count,
+              max_allowed: maxBooks
             });
           }
 
@@ -1581,11 +1637,15 @@ app.post('/api/issues', (req, res) => {
           const afterInsert = (result) => {
             // Update book availability
             const newAvailable = availableCopies - 1;
-            const newStatus = newAvailable <= 0 ? 'issued' : 'issued';
+            const totalCopies = book.total_copies || 1;
+            const newStatus = newAvailable <= 0 ? 'issued' : 'available';
 
             db.query(
               'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
-              [newAvailable, newStatus, book_id]
+              [newAvailable, newStatus, book_id],
+              (updateErr) => {
+                if (updateErr) console.error('Failed to update book availability:', updateErr.message);
+              }
             );
 
             // Dashboard activity
@@ -1597,7 +1657,14 @@ app.post('/api/issues', (req, res) => {
               description: `${member?.name ?? 'Someone'} borrowed "${book?.title ?? ''}"`,
             });
 
-            res.json({ id: result.insertId });
+            res.json({
+              id: result.insertId,
+              book_id: book_id,
+              member_id: member_id,
+              issue_date: issue_date,
+              due_date: due_date,
+              status: 'issued'
+            });
           };
 
           db.query(insertWithIssuedAt, insertValues, (err, result) => {
@@ -1635,22 +1702,24 @@ app.post('/api/issues/bulk-delete', async (req, res) => {
     const issuesQuery = `SELECT id, book_id, status FROM issues WHERE id IN (${placeholders})`;
     const issues = await dbQuery(issuesQuery, validIds);
     
-    // Collect book IDs that need availability restored (only for 'issued' status)
-    const issuedBookIds = issues
-      .filter(i => i.status === 'issued')
-      .map(i => i.book_id);
+    // Count how many issued copies per book need availability restored
+    const bookCountMap = {};
+    issues.filter(i => i.status === 'issued' || i.status === 'overdue').forEach(i => {
+      bookCountMap[i.book_id] = (bookCountMap[i.book_id] || 0) + 1;
+    });
     
     // Delete the issues
     const deleteQuery = `DELETE FROM issues WHERE id IN (${placeholders})`;
     const result = await dbQuery(deleteQuery, validIds);
     const deletedCount = result.affectedRows || 0;
     
-    // Restore book availability for issued books
-    if (issuedBookIds.length > 0) {
-      const bookPlaceholders = issuedBookIds.map(() => '?').join(',');
+    // Restore book availability for issued books (per-book count)
+    const bookIds = Object.keys(bookCountMap);
+    for (const bookId of bookIds) {
+      const count = bookCountMap[bookId];
       await dbQuery(
-        `UPDATE books SET available_copies = available_copies + 1 WHERE id IN (${bookPlaceholders})`,
-        issuedBookIds
+        'UPDATE books SET available_copies = LEAST(available_copies + ?, total_copies), status = CASE WHEN available_copies + ? >= total_copies THEN "available" ELSE status END WHERE id = ?',
+        [count, count, bookId]
       );
     }
     
@@ -2911,10 +2980,14 @@ app.use((err, req, res, next) => {
 
 // Start server after all routes are defined.
 // IMPORTANT: Export app for tests/tools and only listen when run directly.
+let activeServer = null;
+
 const startServer = (port = PORT, host = 'localhost') => {
   const server = app.listen(port, host, () => {
     console.log(`Server running on port ${port}`);
   });
+
+  activeServer = server;
 
   server.on('error', (err) => {
     if (err && err.code === 'EADDRINUSE') {
@@ -2929,6 +3002,56 @@ const startServer = (port = PORT, host = 'localhost') => {
 
   return server;
 };
+
+// Graceful shutdown handling
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+  
+  // Stop accepting new connections
+  if (activeServer) {
+    activeServer.close((err) => {
+      if (err) {
+        console.error('Error closing server:', err);
+        process.exit(1);
+      }
+      console.log('HTTP server closed.');
+      
+      // Close database pool
+      db.end((dbErr) => {
+        if (dbErr) {
+          console.error('Error closing database pool:', dbErr);
+          process.exit(1);
+        }
+        console.log('Database connections closed.');
+        console.log('Graceful shutdown complete.');
+        process.exit(0);
+      });
+    });
+    
+    // Force close after 10 seconds if graceful shutdown takes too long
+    setTimeout(() => {
+      console.error('Graceful shutdown timed out, forcing exit...');
+      process.exit(1);
+    }, 10000);
+  } else {
+    process.exit(0);
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  gracefulShutdown('Uncaught Exception');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit on unhandled rejections, just log them
+});
 
 if (require.main === module) {
   startServer();

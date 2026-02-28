@@ -15,6 +15,7 @@ import '../widgets/issues_content.dart';
 import '../widgets/reports_content.dart';
 import '../widgets/search_results_dialog.dart';
 import '../widgets/notification_bell.dart';
+import '../utils/error_utils.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -344,17 +345,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Search failed: $e'),
+            content: Text(getOperationErrorMessage('Search', e)),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
-  }
-
-  // Keep for backward compatibility but no longer used with debouncing
-  void _onSearchChanged(String query) async {
-    _performSearch(query);
   }
 
   @override

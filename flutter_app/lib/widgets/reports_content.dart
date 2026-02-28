@@ -13,6 +13,7 @@ import '../providers/issue_provider.dart';
 import '../models/report_models.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
+import '../utils/error_utils.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -55,78 +56,134 @@ class _ReportsContentState extends State<ReportsContent>
     final isCompact = screenWidth < 600;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isCompact ? 'Reports' : 'Reports & Analytics'),
-        elevation: 0,
-        actions: [
-          if (_isExporting)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      body: Column(
+        children: [
+          // Tabs and action icons in a single toolbar row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
-            )
-          else
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.download),
-              tooltip: 'Export Reports',
-              onSelected: _exportReport,
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'pdf',
-                  child: Row(
-                    children: [
-                      Icon(Icons.picture_as_pdf, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Export to PDF'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'excel',
-                  child: Row(
-                    children: [
-                      Icon(Icons.table_chart, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text('Export to Excel (CSV)'),
-                    ],
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAllReports,
-            tooltip: 'Refresh Reports',
+            margin: EdgeInsets.fromLTRB(
+              isCompact ? 12 : 20,
+              isCompact ? 12 : 20,
+              isCompact ? 12 : 20,
+              8,
+            ),
+            child: Row(
+              children: [
+                // Tab bar
+                Expanded(
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicatorWeight: 3,
+                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal),
+                    dividerHeight: 0,
+                    tabs: const [
+                      Tab(icon: Icon(Icons.star_rounded, size: 18), text: 'Popular'),
+                      Tab(icon: Icon(Icons.people_rounded, size: 18), text: 'Members'),
+                      Tab(icon: Icon(Icons.bar_chart_rounded, size: 18), text: 'Monthly'),
+                      Tab(icon: Icon(Icons.pie_chart_rounded, size: 18), text: 'Category'),
+                      Tab(icon: Icon(Icons.warning_rounded, size: 18), text: 'Overdue'),
+                    ],
+                  ),
+                ),
+                // Vertical divider
+                Container(
+                  height: 28,
+                  width: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                ),
+                // Export
+                if (_isExporting)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.download_rounded, size: 20),
+                    tooltip: 'Export Reports',
+                    onSelected: _exportReport,
+                    padding: EdgeInsets.zero,
+                    splashRadius: 20,
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'pdf',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
+                            SizedBox(width: 8),
+                            Text('Export to PDF'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'excel',
+                        child: Row(
+                          children: [
+                            Icon(Icons.table_chart, color: Colors.green, size: 18),
+                            SizedBox(width: 8),
+                            Text('Export to CSV'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                // Refresh
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  onPressed: _loadAllReports,
+                  tooltip: 'Refresh Reports',
+                  visualDensity: VisualDensity.compact,
+                  splashRadius: 20,
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
           ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-            tabs: const [
-              Tab(icon: Icon(Icons.star), text: 'Popular'),
-              Tab(icon: Icon(Icons.people), text: 'Members'),
-              Tab(icon: Icon(Icons.bar_chart), text: 'Monthly'),
-              Tab(icon: Icon(Icons.pie_chart), text: 'Category'),
-              Tab(icon: Icon(Icons.warning), text: 'Overdue'),
-            ],
+          // Tab content
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isCompact ? 12 : 20,
+                0,
+                isCompact ? 12 : 20,
+                isCompact ? 12 : 20,
+              ),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildPopularBooksTab(),
+                  _buildActiveMembersTab(),
+                  _buildMonthlyStatsTab(),
+                  _buildCategoryStatsTab(),
+                  _buildOverdueTab(),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildPopularBooksTab(),
-          _buildActiveMembersTab(),
-          _buildMonthlyStatsTab(),
-          _buildCategoryStatsTab(),
-          _buildOverdueTab(),
         ],
       ),
     );
@@ -166,7 +223,13 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 24),
               Expanded(
                 child: Card(
-                  elevation: 2,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: provider.popularBooks.length,
@@ -308,7 +371,13 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 24),
               Expanded(
                 child: Card(
-                  elevation: 2,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: provider.activeMembers.length,
@@ -548,7 +617,13 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 24),
               Expanded(
                 child: Card(
-                  elevation: 2,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: _buildBarChart(provider.monthlyStats),
@@ -569,7 +644,13 @@ class _ReportsContentState extends State<ReportsContent>
     Color color,
   ) {
     return Card(
-      elevation: 2,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: color.withValues(alpha: 0.2),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -730,6 +811,8 @@ class _ReportsContentState extends State<ReportsContent>
     );
   }
 
+  int _touchedCategoryIndex = -1;
+
   Widget _buildCategoryStatsTab() {
     return Consumer<ReportProvider>(
       builder: (context, provider, _) {
@@ -746,117 +829,303 @@ class _ReportsContentState extends State<ReportsContent>
           (sum, s) => sum + s.bookCount,
         );
 
+        // Sort categories by book count for better visibility
+        final sortedStats = List<CategoryStats>.from(provider.categoryStats)
+          ..sort((a, b) => b.bookCount.compareTo(a.bookCount));
+
         return Padding(
           padding: const EdgeInsets.all(24),
-          child: Row(
-            children: [
-              // Pie Chart
-              Expanded(
-                flex: 2,
-                child: Card(
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Books by Category',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 24),
-                        Expanded(
-                          child: PieChart(
-                            PieChartData(
-                              sections: provider.categoryStats.asMap().entries.map((
-                                entry,
-                              ) {
-                                final index = entry.key;
-                                final stat = entry.value;
-                                return PieChartSectionData(
-                                  value: stat.bookCount.toDouble(),
-                                  title:
-                                      '${((stat.bookCount / total) * 100).toStringAsFixed(1)}%',
-                                  color: _getCategoryColor(index),
-                                  radius: 100,
-                                  titleStyle: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 700;
+              
+              final pieChart = Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.donut_large_rounded,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Books by Category',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${sortedStats.length} categories \u2022 $total total books',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                                   ),
-                                );
-                              }).toList(),
-                              sectionsSpace: 2,
-                              centerSpaceRadius: 60,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Tooltip for hovered/touched segment
+                      if (_touchedCategoryIndex >= 0 && _touchedCategoryIndex < sortedStats.length)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _getCategoryColor(_touchedCategoryIndex).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 10, height: 10,
+                                decoration: BoxDecoration(
+                                  color: _getCategoryColor(_touchedCategoryIndex),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${sortedStats[_touchedCategoryIndex].category}: '
+                                '${sortedStats[_touchedCategoryIndex].bookCount} books '
+                                '(${total > 0 ? ((sortedStats[_touchedCategoryIndex].bookCount / total) * 100).toStringAsFixed(1) : "0"}%)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: _getCategoryColor(_touchedCategoryIndex),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          child: Text(
+                            'Hover over a segment for details',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: PieChart(
+                          PieChartData(
+                            sections: sortedStats.asMap().entries.map((
+                              entry,
+                            ) {
+                              final index = entry.key;
+                              final stat = entry.value;
+                              final percentage = total > 0 
+                                  ? (stat.bookCount / total) * 100 
+                                  : 0.0;
+                              final isTouched = index == _touchedCategoryIndex;
+                              
+                              // Determine label based on segment size
+                              String title;
+                              if (percentage >= 15) {
+                                // Large segment: show name + count
+                                final name = stat.category.length > 10
+                                    ? '${stat.category.substring(0, 9)}\u2026'
+                                    : stat.category;
+                                title = '$name\n${stat.bookCount}';
+                              } else if (percentage >= 7) {
+                                // Medium segment: show abbreviated name
+                                final name = stat.category.length > 7
+                                    ? '${stat.category.substring(0, 6)}\u2026'
+                                    : stat.category;
+                                title = name;
+                              } else if (percentage >= 4) {
+                                // Small segment: show count only
+                                title = '${stat.bookCount}';
+                              } else {
+                                // Tiny segment: no label
+                                title = '';
+                              }
+                              
+                              return PieChartSectionData(
+                                value: stat.bookCount.toDouble(),
+                                title: title,
+                                color: _getCategoryColor(index),
+                                radius: isTouched ? 115 : 100,
+                                titleStyle: TextStyle(
+                                  fontSize: isTouched ? 13 : 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  shadows: const [
+                                    Shadow(color: Colors.black54, blurRadius: 4),
+                                  ],
+                                ),
+                                titlePositionPercentageOffset: 0.55,
+                                borderSide: isTouched
+                                    ? const BorderSide(color: Colors.white, width: 2)
+                                    : BorderSide.none,
+                              );
+                            }).toList(),
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 45,
+                            pieTouchData: PieTouchData(
+                              touchCallback: (event, response) {
+                                setState(() {
+                                  if (!event.isInterestedForInteractions ||
+                                      response == null ||
+                                      response.touchedSection == null) {
+                                    _touchedCategoryIndex = -1;
+                                    return;
+                                  }
+                                  _touchedCategoryIndex = response
+                                      .touchedSection!.touchedSectionIndex;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 24),
-              // Legend
-              Expanded(
-                child: Card(
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Categories',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: provider.categoryStats.length,
-                            itemBuilder: (context, index) {
-                              final stat = provider.categoryStats[index];
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
+              );
+              
+              final legend = Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.list_alt_rounded,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Categories',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: sortedStats.length,
+                          itemBuilder: (context, index) {
+                            final stat = sortedStats[index];
+                            final percentage = total > 0 
+                                ? (stat.bookCount / total) * 100 
+                                : 0.0;
+                            final isHighlighted = index == _touchedCategoryIndex;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6, horizontal: 8,
+                              ),
+                              margin: const EdgeInsets.symmetric(vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isHighlighted
+                                    ? _getCategoryColor(index).withValues(alpha: 0.1)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () {
+                                  setState(() {
+                                    _touchedCategoryIndex = _touchedCategoryIndex == index ? -1 : index;
+                                  });
+                                },
                                 child: Row(
                                   children: [
                                     Container(
-                                      width: 16,
-                                      height: 16,
+                                      width: 14,
+                                      height: 14,
                                       decoration: BoxDecoration(
                                         color: _getCategoryColor(index),
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius: BorderRadius.circular(3),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
                                         stat.category,
                                         overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
-                                    Text(
-                                      '${stat.bookCount}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _getCategoryColor(index).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${stat.bookCount} (${percentage.toStringAsFixed(1)}%)',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          color: _getCategoryColor(index),
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              );
+              
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    Expanded(flex: 2, child: pieChart),
+                    const SizedBox(height: 16),
+                    Expanded(flex: 1, child: legend),
+                  ],
+                );
+              }
+              
+              return Row(
+                children: [
+                  Expanded(flex: 2, child: pieChart),
+                  const SizedBox(width: 20),
+                  Expanded(flex: 1, child: legend),
+                ],
+              );
+            },
           ),
         );
       },
@@ -864,17 +1133,28 @@ class _ReportsContentState extends State<ReportsContent>
   }
 
   Color _getCategoryColor(int index) {
-    final colors = [
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.indigo,
-      Colors.amber,
-      Colors.cyan,
+    // Curated color palette with good contrast and distinction between adjacent colors
+    const colors = [
+      Color(0xFF4285F4), // Google Blue
+      Color(0xFFEA4335), // Google Red
+      Color(0xFF34A853), // Google Green
+      Color(0xFFFBBC04), // Google Yellow
+      Color(0xFF9C27B0), // Purple
+      Color(0xFF00ACC1), // Cyan
+      Color(0xFFFF7043), // Deep Orange
+      Color(0xFF5C6BC0), // Indigo
+      Color(0xFF66BB6A), // Light Green
+      Color(0xFFEC407A), // Pink
+      Color(0xFF26A69A), // Teal
+      Color(0xFFAB47BC), // Light Purple
+      Color(0xFF42A5F5), // Light Blue
+      Color(0xFFFFA726), // Orange
+      Color(0xFF78909C), // Blue Grey
+      Color(0xFF8D6E63), // Brown
+      Color(0xFFD4E157), // Lime
+      Color(0xFFEF5350), // Red shade
+      Color(0xFF29B6F6), // Sky Blue
+      Color(0xFFFF8A65), // Peach
     ];
     return colors[index % colors.length];
   }
@@ -940,7 +1220,13 @@ class _ReportsContentState extends State<ReportsContent>
               const SizedBox(height: 24),
               Expanded(
                 child: Card(
-                  elevation: 2,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: overdueList.length,
@@ -1130,7 +1416,7 @@ class _ReportsContentState extends State<ReportsContent>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to export report: $e'),
+            content: Text(getOperationErrorMessage('Export report', e)),
             backgroundColor: Colors.red,
           ),
         );

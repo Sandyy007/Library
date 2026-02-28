@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/member.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
+import '../utils/error_utils.dart';
 
 class MemberDialog extends StatefulWidget {
   final Member? member;
@@ -261,7 +262,7 @@ class _MemberDialogState extends State<MemberDialog> {
           keyboardType: TextInputType.emailAddress,
           validator: (value) {
             if (value == null || value.isEmpty) return null;
-            final emailRegex = RegExp(r"^[\w\-.]+@([\w\-]+\.)+[\w\-]{2,4}");
+            final emailRegex = RegExp(r"^[\w\-.]+@([\w\-]+\.)+[\w\-]{2,}");
             if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
             return null;
           },
@@ -276,16 +277,16 @@ class _MemberDialogState extends State<MemberDialog> {
           keyboardType: TextInputType.phone,
           validator: (value) {
             if (value == null || value.isEmpty) return 'Phone is required';
-            final phoneRegex = RegExp(r'^\d{10}$');
-            if (!phoneRegex.hasMatch(value)) {
-              return 'Enter a valid 10-digit phone number';
+            final phoneRegex = RegExp(r'^\+?[\d\s\-()]{7,15}$');
+            if (!phoneRegex.hasMatch(value.trim())) {
+              return 'Enter a valid phone number (7-15 digits)';
             }
             return null;
           },
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          initialValue: _selectedType,
+          value: _selectedType,
           decoration: const InputDecoration(
             labelText: 'Member Type',
             prefixIcon: Icon(Icons.badge),
@@ -521,7 +522,7 @@ class _MemberDialogState extends State<MemberDialog> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to pick photo: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to pick photo')));
       }
     }
   }
@@ -577,7 +578,7 @@ class _MemberDialogState extends State<MemberDialog> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save member: $e')));
+        ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Save member', e))));
       }
     } finally {
       if (mounted) {
