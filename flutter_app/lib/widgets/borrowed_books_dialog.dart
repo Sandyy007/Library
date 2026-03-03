@@ -81,9 +81,9 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.menu_book_rounded,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       size: 28,
                     ),
                     const SizedBox(width: 12),
@@ -91,10 +91,10 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Currently Borrowed Books',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -102,8 +102,11 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                           const SizedBox(height: 4),
                           Text(
                             widget.memberName,
-                            style: const TextStyle(
-                              color: Colors.white70,
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimary
+                                  .withValues(alpha: 0.7),
                               fontSize: 14,
                             ),
                           ),
@@ -117,13 +120,16 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimary
+                            .withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '${widget.borrowCount} / $_maxAllowed',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -131,7 +137,8 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Icon(Icons.close,
+                          color: Theme.of(context).colorScheme.onPrimary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -182,7 +189,9 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: widget.borrowCount / _maxAllowed,
+                              value: _maxAllowed > 0
+                                  ? widget.borrowCount / _maxAllowed
+                                  : 0,
                               minHeight: 6,
                               backgroundColor: Theme.of(context)
                                   .colorScheme

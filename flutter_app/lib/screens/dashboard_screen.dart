@@ -23,6 +23,10 @@ import 'dart:async';
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
+  /// Broadcasts shortcut events to child widgets.
+  /// Values: 'new-book', 'new-member', 'new-issue'
+  static final ValueNotifier<String?> shortcutEvent = ValueNotifier(null);
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -178,7 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       color: Theme.of(context).colorScheme.surface,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -285,15 +289,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      color: Colors.orange.shade700,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       child: Row(
                         children: [
-                          const Icon(Icons.cloud_off, color: Colors.white, size: 18),
+                          Icon(Icons.cloud_off,
+                              color: Theme.of(context).colorScheme.onErrorContainer,
+                              size: 18),
                           const SizedBox(width: 8),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'Backend unreachable — retrying...',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                  fontWeight: FontWeight.w500),
                             ),
                           ),
                           SizedBox(
@@ -301,7 +309,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer
+                                  .withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -365,13 +376,84 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
       // Ctrl+F to focus search
       if (event.logicalKey == LogicalKeyboardKey.keyF) {
-        // Show search dialog on small screens, focus search bar on large
         final screenWidth = MediaQuery.of(context).size.width;
         if (screenWidth < 600) {
           _showSearchDialog(context);
         }
         return;
       }
+      // Ctrl+R to refresh current tab data
+      if (event.logicalKey == LogicalKeyboardKey.keyR) {
+        _refreshCurrentTab();
+        return;
+      }
+      // Ctrl+N to create new item (context-aware)
+      if (event.logicalKey == LogicalKeyboardKey.keyN) {
+        _createNewForCurrentTab();
+        return;
+      }
+    }
+  }
+
+  /// Refresh data for the currently active tab.
+  void _refreshCurrentTab() {
+    switch (_selectedIndex) {
+      case 0:
+        // Dashboard — trigger full reload via IssueProvider stats
+        context.read<IssueProvider>().loadStats().catchError((_) {});
+        break;
+      case 1:
+        context.read<BookProvider>().loadBooks().catchError((_) {});
+        break;
+      case 2:
+        context.read<MemberProvider>().loadMembers().catchError((_) {});
+        break;
+      case 3:
+        context.read<IssueProvider>().loadIssues().catchError((_) {});
+        break;
+      case 4:
+        // Reports — no single refresh, just notify
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the refresh button on each report tab'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        break;
+    }
+    if (_selectedIndex != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Refreshing ${_titles[_selectedIndex]}...'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  /// Open the "Add New" dialog for the current tab via shortcut event.
+  void _createNewForCurrentTab() {
+    switch (_selectedIndex) {
+      case 1:
+        DashboardScreen.shortcutEvent.value = null; // reset first
+        DashboardScreen.shortcutEvent.value = 'new-book';
+        break;
+      case 2:
+        DashboardScreen.shortcutEvent.value = null;
+        DashboardScreen.shortcutEvent.value = 'new-member';
+        break;
+      case 3:
+        DashboardScreen.shortcutEvent.value = null;
+        DashboardScreen.shortcutEvent.value = 'new-issue';
+        break;
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ctrl+N: Switch to Books, Members, or Issues tab to add new items'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        break;
     }
   }
 
@@ -448,7 +530,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(getOperationErrorMessage('Search', e)),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }

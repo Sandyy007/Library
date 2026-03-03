@@ -29,16 +29,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
   @override
   void initState() {
     super.initState();
-    // Defaults so the dropdown is usable instantly.
-    _categoryNames = [
-      'Fiction',
-      'Non-Fiction',
-      'Science',
-      'Technology',
-      'History',
-      'Biography',
-      'Literature',
-    ];
+    // Start empty – will be populated from the API
+    _categoryNames = [];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCategories();
     });
@@ -56,9 +48,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
     }
 
     try {
-      final fromApi = await ApiService.getCategories();
+      final fromApi = await ApiService.getCategories(forceRefresh: true);
       final names = <String>{
-        ..._categoryNames,
         ...fromApi.map((c) => c.name).where((n) => n.trim().isNotEmpty),
       };
 
@@ -117,17 +108,17 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.search_rounded,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       size: 28,
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Advanced Search',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -135,7 +126,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Icon(Icons.close,
+                          color: Theme.of(context).colorScheme.onPrimary),
                     ),
                   ],
                 ),

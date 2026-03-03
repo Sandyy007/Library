@@ -15,6 +15,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/color_extensions.dart';
 import '../widgets/common_widgets.dart';
+import '../screens/dashboard_screen.dart';
 
 class BooksContent extends StatefulWidget {
   const BooksContent({super.key});
@@ -29,6 +30,7 @@ class _BooksContentState extends State<BooksContent> {
   final Set<int> _selectedBookIds = <int>{};
   StreamSubscription<void>? _dataChangedSub;
   Timer? _searchDebounce;
+  List<String> _apiCategories = [];
 
   bool _containsDevanagari(String text) {
     return RegExp(r'[\u0900-\u097F]').hasMatch(text);
@@ -88,11 +90,37 @@ class _BooksContentState extends State<BooksContent> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadBooks();
+      _loadApiCategories();
     });
     // Listen for data changes from other components
     _dataChangedSub = ApiService.dataChangedStream.listen((_) {
       _loadBooks();
     });
+    // Listen for keyboard shortcut events
+    DashboardScreen.shortcutEvent.addListener(_onShortcutEvent);
+  }
+
+  /// Load categories from the API, merge with book data
+  Future<void> _loadApiCategories() async {
+    try {
+      final apiCats = await ApiService.getCategories(forceRefresh: true);
+      if (mounted) {
+        setState(() {
+          _apiCategories = apiCats
+              .map((c) => c.name)
+              .where((n) => n.trim().isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (_) {
+      // Keep existing on error
+    }
+  }
+
+  void _onShortcutEvent() {
+    if (DashboardScreen.shortcutEvent.value == 'new-book') {
+      _showBookDialog();
+    }
   }
 
   void _loadBooks() {
@@ -122,65 +150,18 @@ class _BooksContentState extends State<BooksContent> {
   }
 
   List<String> getUniqueCategories(List<Book> books) {
-    final predefinedCategories = [
-      'Fiction',
-      'Non-Fiction',
-      'Science',
-      'History',
-      'Biography',
-      'Literature',
-      'Philosophy',
-      'Psychology',
-      'Art',
-      'Music',
-      'Technology',
-      'Mathematics',
-      'Physics',
-      'Chemistry',
-      'Biology',
-      'Medicine',
-      'Engineering',
-      'Computer Science',
-      'Business',
-      'Economics',
-      'Politics',
-      'Law',
-      'Religion',
-      'Education',
-      'Sports',
-      'Travel',
-      'Cooking',
-      'Health',
-      'Self-Help',
-      'Poetry',
-      'Drama',
-      'Romance',
-      'Mystery',
-      'Thriller',
-      'Fantasy',
-      'Science Fiction',
-      'Horror',
-      'Adventure',
-      'Children',
-      'Young Adult',
-      'Reference',
-      'Dictionary',
-      'Encyclopedia',
-      'Atlas',
-      'Periodicals',
-      'Comics',
-      'Graphic Novels',
-      'GST',
-    ];
-
+    // Merge API categories with any extra categories found on books
     final bookCategories = books
         .map((book) => book.category)
         .where((category) => category != null && category.isNotEmpty)
         .cast<String>()
         .toSet();
 
-    final allCategories = {...predefinedCategories, ...bookCategories}.toList()
-      ..sort();
+    final allCategories = <String>{
+      ..._apiCategories,
+      ...bookCategories,
+    }.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return ['All Categories', ...allCategories];
   }
 
@@ -210,128 +191,174 @@ class _BooksContentState extends State<BooksContent> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.04),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+              child: isVeryCompact
+                // ── Compact layout (<600px): search on top, actions below ──
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                  // Search field
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: isVeryCompact ? 'Search...' : 'Search books...',
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          isDense: true,
                         ),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        isDense: true,
+                        onChanged: (value) {
+                          _searchDebounce?.cancel();
+                          _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
+                        },
                       ),
-                      onChanged: (value) {
-                        _searchDebounce?.cancel();
-                        _searchDebounce = Timer(
-                          const Duration(milliseconds: 350),
-                          _filterBooks,
-                        );
-                      },
-                    ),
-                  ),
-                  if (!isVeryCompact) const SizedBox(width: 12),
-                  if (!isVeryCompact)
-                    _buildCategoryFilterPopup(bookProvider),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildCategoryFilterPopup(bookProvider),
+                            const SizedBox(width: 4),
+                            if (selectedCount > 0) ...[
+                              IconButton(
+                                tooltip: 'Delete ($selectedCount)',
+                                onPressed: _deleteSelectedBooks,
+                                icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              IconButton(
+                                tooltip: 'Clear selection',
+                                onPressed: () => setState(_selectedBookIds.clear),
+                                icon: const Icon(Icons.clear, size: 20),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                            _buildToolbarDivider(context),
+                            IconButton(
+                              tooltip: 'Manage Categories',
+                              onPressed: _showCategoryManagement,
+                              icon: Icon(Icons.category, size: 20, color: Theme.of(context).colorScheme.primary),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            IconButton(
+                              tooltip: 'Import CSV/Excel',
+                              onPressed: _importBooks,
+                              icon: const Icon(Icons.upload_file, size: 20),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            IconButton(
+                              tooltip: 'Export CSV',
+                              onPressed: _exportBooksCsv,
+                              icon: const Icon(Icons.download, size: 20),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            IconButton(
+                              tooltip: 'Refresh',
+                              onPressed: _loadBooks,
+                              icon: const Icon(Icons.refresh, size: 20),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: () => _showBookDialog(),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Add'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                // ── Wide layout (>=600px): everything in a single row ──
+                : Row(
+                    children: [
+                      // Search field – takes remaining space
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: isCompact ? 'Search...' : 'Search books...',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            isDense: true,
+                          ),
+                          onChanged: (value) {
+                            _searchDebounce?.cancel();
+                            _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _buildCategoryFilterPopup(bookProvider),
+                      if (selectedCount > 0) ...[
+                        _buildToolbarDivider(context),
+                        IconButton(
+                          tooltip: 'Delete ($selectedCount)',
+                          onPressed: _deleteSelectedBooks,
+                          icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        IconButton(
+                          tooltip: 'Clear selection',
+                          onPressed: () => setState(_selectedBookIds.clear),
+                          icon: const Icon(Icons.clear, size: 20),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                      _buildToolbarDivider(context),
+                      IconButton(
+                        tooltip: 'Manage Categories',
+                        onPressed: _showCategoryManagement,
+                        icon: Icon(Icons.category, size: 20, color: Theme.of(context).colorScheme.primary),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        tooltip: 'Import CSV/Excel',
+                        onPressed: _importBooks,
+                        icon: const Icon(Icons.upload_file, size: 20),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        tooltip: 'Export CSV',
+                        onPressed: _exportBooksCsv,
+                        icon: const Icon(Icons.download, size: 20),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: _loadBooks,
+                        icon: const Icon(Icons.refresh, size: 20),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _showBookDialog(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(isCompact ? 'Add' : 'Add Book'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
                     ],
                   ),
-                  // Action buttons row - scrollable
-                  if (isVeryCompact) const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                  if (isVeryCompact)
-                    _buildCategoryFilterPopup(bookProvider),
-                  if (isVeryCompact) const SizedBox(width: 8),
-                  // Selection actions
-                  if (selectedCount > 0) ...[  
-                    IconButton(
-                      tooltip: 'Delete ($selectedCount)',
-                      onPressed: _deleteSelectedBooks,
-                      icon: Icon(
-                        Icons.delete_forever,
-                        color: Theme.of(context).colorScheme.error,
-                        size: 20,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    IconButton(
-                      tooltip: 'Clear selection',
-                      onPressed: () => setState(_selectedBookIds.clear),
-                      icon: const Icon(Icons.clear, size: 20),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  // Category management
-                  IconButton(
-                    tooltip: 'Manage Categories',
-                    onPressed: _showCategoryManagement,
-                    icon: Icon(
-                      Icons.category,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  // Import
-                  IconButton(
-                    tooltip: 'Import CSV/Excel',
-                    onPressed: _importBooks,
-                    icon: const Icon(Icons.upload_file, size: 20),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  // Export
-                  IconButton(
-                    tooltip: 'Export CSV',
-                    onPressed: _exportBooksCsv,
-                    icon: const Icon(Icons.download, size: 20),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    onPressed: _loadBooks,
-                    icon: const Icon(Icons.refresh, size: 20),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
-                  // Add Book button
-                  ElevatedButton.icon(
-                    onPressed: () => _showBookDialog(),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(isCompact ? 'Add' : 'Add Book'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ),
 
             Expanded(
@@ -577,8 +604,8 @@ class _BooksContentState extends State<BooksContent> {
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: book.availableCopies > 0
-                                                  ? Colors.green
-                                                  : Colors.red,
+                                                  ? Theme.of(context).colorScheme.primary
+                                                  : Theme.of(context).colorScheme.error,
                                             ),
                                           ),
                                           Text(
@@ -695,7 +722,7 @@ class _BooksContentState extends State<BooksContent> {
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.08),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
                     ),
@@ -745,6 +772,16 @@ class _BooksContentState extends State<BooksContent> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Thin vertical divider for the toolbar.
+  Widget _buildToolbarDivider(BuildContext context) {
+    return Container(
+      height: 24,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
     );
   }
 
@@ -851,7 +888,9 @@ class _BooksContentState extends State<BooksContent> {
       context: context,
       builder: (context) => _CategoryManagementDialog(
         onChanged: () {
-          // Refresh books to reflect category changes
+          // Refresh categories and books to reflect changes
+          _loadApiCategories();
+          ApiService.clearCategoriesCache();
           _loadBooks();
         },
       ),
@@ -1025,10 +1064,17 @@ class _BooksContentState extends State<BooksContent> {
     final bookProvider = context.read<BookProvider>();
     final issueProvider = context.read<IssueProvider>();
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Book'),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: cs.error),
+            const SizedBox(width: 8),
+            const Text('Delete Book'),
+          ],
+        ),
         content: const Text('Are you sure you want to delete this book?'),
         actions: [
           TextButton(
@@ -1036,6 +1082,10 @@ class _BooksContentState extends State<BooksContent> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
+            ),
             onPressed: () async {
               Navigator.of(dialogContext).pop();
               try {
@@ -1047,8 +1097,20 @@ class _BooksContentState extends State<BooksContent> {
                 await issueProvider.loadStats();
                 if (!mounted) return;
 
+                messenger.clearSnackBars();
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('Book deleted successfully')),
+                  SnackBar(
+                    content: const Text('Book deleted successfully'),
+                    action: SnackBarAction(
+                      label: 'Undo',
+                      onPressed: () {
+                        // Reload to restore (server still has it briefly)
+                        bookProvider.loadBooks();
+                        issueProvider.loadStats();
+                      },
+                    ),
+                    duration: const Duration(seconds: 5),
+                  ),
                 );
               } catch (e) {
                 if (!mounted) return;
@@ -1273,6 +1335,7 @@ class _BooksContentState extends State<BooksContent> {
     _searchDebounce?.cancel();
     _dataChangedSub?.cancel();
     _searchController.dispose();
+    DashboardScreen.shortcutEvent.removeListener(_onShortcutEvent);
     super.dispose();
   }
 }
@@ -1359,24 +1422,33 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
   Future<void> _deleteCategory(dynamic cat) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Category'),
-        content: Text('Are you sure you want to delete "${cat.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (dialogContext) {
+        final cs = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: cs.error),
+              const SizedBox(width: 8),
+              const Text('Delete Category'),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+          content: Text('Are you sure you want to delete "${cat.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
             ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.error,
+                foregroundColor: cs.onError,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
     if (confirm == true) {
       try {
@@ -1482,25 +1554,29 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.category, color: Colors.white, size: 24),
+                    Icon(Icons.category,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 24),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Manage Categories',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.add_circle, color: Colors.white),
+                      icon: Icon(Icons.add_circle,
+                          color: Theme.of(context).colorScheme.onPrimary),
                       tooltip: 'Add Category',
                       onPressed: _addCategory,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Icon(Icons.close,
+                          color: Theme.of(context).colorScheme.onPrimary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],

@@ -17,6 +17,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/color_extensions.dart';
 import '../widgets/common_widgets.dart';
+import '../screens/dashboard_screen.dart';
 
 enum MemberStatusFilter { all, active, inactive }
 
@@ -30,6 +31,7 @@ class MembersContent extends StatefulWidget {
 class _MembersContentState extends State<MembersContent> {
   final TextEditingController _searchController = TextEditingController();
   MemberStatusFilter _statusFilter = MemberStatusFilter.all;
+  final Set<int> _selectedMemberIds = <int>{};
   StreamSubscription<void>? _dataChangedSub;
   Timer? _searchDebounce;
 
@@ -58,6 +60,14 @@ class _MembersContentState extends State<MembersContent> {
     _dataChangedSub = ApiService.dataChangedStream.listen((_) {
       _loadMembers();
     });
+    // Listen for keyboard shortcut events
+    DashboardScreen.shortcutEvent.addListener(_onShortcutEvent);
+  }
+
+  void _onShortcutEvent() {
+    if (DashboardScreen.shortcutEvent.value == 'new-member') {
+      _showMemberDialog();
+    }
   }
 
   @override
@@ -65,6 +75,7 @@ class _MembersContentState extends State<MembersContent> {
     _searchDebounce?.cancel();
     _dataChangedSub?.cancel();
     _searchController.dispose();
+    DashboardScreen.shortcutEvent.removeListener(_onShortcutEvent);
     super.dispose();
   }
 
@@ -215,9 +226,50 @@ class _MembersContentState extends State<MembersContent> {
     }
   }
 
+  /// Status filter chips widget (extracted for reuse in both layouts).
+  Widget _buildStatusChips() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ChoiceChip(
+          label: const Text('All'),
+          selected: _statusFilter == MemberStatusFilter.all,
+          onSelected: (_) => setState(() => _statusFilter = MemberStatusFilter.all),
+          visualDensity: VisualDensity.compact,
+        ),
+        const SizedBox(width: 6),
+        ChoiceChip(
+          label: const Text('Active'),
+          selected: _statusFilter == MemberStatusFilter.active,
+          onSelected: (_) => setState(() => _statusFilter = MemberStatusFilter.active),
+          visualDensity: VisualDensity.compact,
+        ),
+        const SizedBox(width: 6),
+        ChoiceChip(
+          label: const Text('Inactive'),
+          selected: _statusFilter == MemberStatusFilter.inactive,
+          onSelected: (_) => setState(() => _statusFilter = MemberStatusFilter.inactive),
+          visualDensity: VisualDensity.compact,
+        ),
+      ],
+    );
+  }
+
+  /// Thin vertical divider for the toolbar.
+  Widget _buildToolbarDivider(BuildContext context) {
+    return Container(
+      height: 24,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final memberProvider = Provider.of<MemberProvider>(context);
+    final selectedCount = _selectedMemberIds.length;
+    final filteredMembers = getFilteredMembers(memberProvider.members);
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 600;
 
@@ -249,109 +301,136 @@ class _MembersContentState extends State<MembersContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                  // Search bar
-                  Expanded(
-                    child: TextField(
+                  if (isCompact) ...[
+                    // ── Compact layout (<600px): search on top, chips + actions below ──
+                    TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: 'Search...',
                         prefixIcon: const Icon(Icons.search, size: 20),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
                         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         isDense: true,
                       ),
                       onChanged: (value) {
                         _searchDebounce?.cancel();
-                        _searchDebounce = Timer(
-                          const Duration(milliseconds: 350),
-                          _filterMembers,
-                        );
+                        _searchDebounce = Timer(const Duration(milliseconds: 350), _filterMembers);
                       },
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Status filter chips
-                  Expanded(
-                    child: SingleChildScrollView(
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          ChoiceChip(
-                            label: const Text('All'),
-                            selected: _statusFilter == MemberStatusFilter.all,
-                            onSelected: (_) => setState(() {
-                              _statusFilter = MemberStatusFilter.all;
-                            }),
+                          _buildStatusChips(),
+                          if (selectedCount > 0) ...[
+                            _buildToolbarDivider(context),
+                            IconButton(
+                              tooltip: 'Delete ($selectedCount)',
+                              onPressed: _deleteSelectedMembers,
+                              icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            IconButton(
+                              tooltip: 'Clear selection',
+                              onPressed: () => setState(_selectedMemberIds.clear),
+                              icon: const Icon(Icons.clear, size: 20),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                          _buildToolbarDivider(context),
+                          IconButton(
+                            tooltip: 'Export CSV',
+                            onPressed: _exportMembersActivityCsv,
+                            icon: const Icon(Icons.download, size: 20),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          IconButton(
+                            tooltip: 'Refresh',
+                            onPressed: _loadMembers,
+                            icon: const Icon(Icons.refresh, size: 20),
                             visualDensity: VisualDensity.compact,
                           ),
                           const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('Active'),
-                            selected: _statusFilter == MemberStatusFilter.active,
-                            onSelected: (_) => setState(() {
-                              _statusFilter = MemberStatusFilter.active;
-                            }),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('Inactive'),
-                            selected: _statusFilter == MemberStatusFilter.inactive,
-                            onSelected: (_) => setState(() {
-                              _statusFilter = MemberStatusFilter.inactive;
-                            }),
-                            visualDensity: VisualDensity.compact,
+                          ElevatedButton.icon(
+                            onPressed: () => _showMemberDialog(),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Add'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                    ],
-                  ),
-                  if (isCompact) const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
+                  ] else ...[
+                    // ── Wide layout (>=600px): everything in a single row ──
+                    Row(
                       children: [
-                  // Export
-                  IconButton(
-                    tooltip: 'Export CSV',
-                    onPressed: _exportMembersActivityCsv,
-                    icon: const Icon(Icons.download, size: 20),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    onPressed: _loadMembers,
-                    icon: const Icon(Icons.refresh, size: 20),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
-                  // Add Member button
-                  ElevatedButton.icon(
-                    onPressed: () => _showMemberDialog(),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(isCompact ? 'Add' : 'Add Member'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search members...',
+                              prefixIcon: const Icon(Icons.search, size: 20),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              filled: true,
+                              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              isDense: true,
+                            ),
+                            onChanged: (value) {
+                              _searchDebounce?.cancel();
+                              _searchDebounce = Timer(const Duration(milliseconds: 350), _filterMembers);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _buildStatusChips(),
+                        if (selectedCount > 0) ...[
+                          _buildToolbarDivider(context),
+                          IconButton(
+                            tooltip: 'Delete ($selectedCount)',
+                            onPressed: _deleteSelectedMembers,
+                            icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          IconButton(
+                            tooltip: 'Clear selection',
+                            onPressed: () => setState(_selectedMemberIds.clear),
+                            icon: const Icon(Icons.clear, size: 20),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                        _buildToolbarDivider(context),
+                        IconButton(
+                          tooltip: 'Export CSV',
+                          onPressed: _exportMembersActivityCsv,
+                          icon: const Icon(Icons.download, size: 20),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        IconButton(
+                          tooltip: 'Refresh',
+                          onPressed: _loadMembers,
+                          icon: const Icon(Icons.refresh, size: 20),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _showMemberDialog(),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Add Member'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -375,35 +454,107 @@ class _MembersContentState extends State<MembersContent> {
                         actionLabel: 'Retry',
                         onAction: _loadMembers,
                       )
-                    : DataTable2(
+                    : Theme(
+                        data: Theme.of(context).copyWith(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          checkboxTheme: Theme.of(context).checkboxTheme.copyWith(
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        child: DataTable2(
                         columnSpacing: 8,
                         horizontalMargin: 12,
                         dataRowHeight: 65,
-                        minWidth: 700,
+                        headingRowHeight: 48,
+                        showCheckboxColumn: false,
+                        minWidth: 740,
                         scrollController: ScrollController(),
-                        columns: const [
-                          DataColumn2(label: Text('Photo'), fixedWidth: 54),
-                          DataColumn2(label: Text('Name'), size: ColumnSize.L),
-                          DataColumn2(label: Text('Email'), size: ColumnSize.M),
-                          DataColumn2(label: Text('Phone'), size: ColumnSize.S),
-                          DataColumn2(label: Text('Type'), fixedWidth: 105),
-                          DataColumn2(label: Text('Borrowed'), fixedWidth: 85),
-                          DataColumn2(label: Text('Status'), fixedWidth: 80),
-                          DataColumn2(label: Text('Actions'), fixedWidth: 120),
+                        columns: [
+                          DataColumn2(
+                            fixedWidth: 40,
+                            label: Center(
+                              child: Transform.scale(
+                                scale: 0.8,
+                                child: Checkbox(
+                                  tristate: true,
+                                  value: filteredMembers.isEmpty
+                                      ? false
+                                      : filteredMembers.every((m) => _selectedMemberIds.contains((m as Member).id))
+                                          ? true
+                                          : filteredMembers.any((m) => _selectedMemberIds.contains((m as Member).id))
+                                              ? null
+                                              : false,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      if (value == true) {
+                                        for (final m in filteredMembers) {
+                                          _selectedMemberIds.add((m as Member).id);
+                                        }
+                                      } else {
+                                        for (final m in filteredMembers) {
+                                          _selectedMemberIds.remove((m as Member).id);
+                                        }
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          const DataColumn2(label: Text('Photo'), fixedWidth: 54),
+                          const DataColumn2(label: Text('Name'), size: ColumnSize.L),
+                          const DataColumn2(label: Text('Email'), size: ColumnSize.M),
+                          const DataColumn2(label: Text('Phone'), size: ColumnSize.S),
+                          const DataColumn2(label: Text('Type'), fixedWidth: 105),
+                          const DataColumn2(label: Text('Borrowed'), fixedWidth: 85),
+                          const DataColumn2(label: Text('Status'), fixedWidth: 80),
+                          const DataColumn2(label: Text('Actions'), fixedWidth: 120),
                         ],
-                        rows: getFilteredMembers(memberProvider.members)
+                        rows: filteredMembers
                             .asMap()
                             .entries
                             .map(
                               (entry) {
                                 final idx = entry.key;
-                                final member = entry.value;
+                                final member = entry.value as Member;
                                 return DataRow(
                                 color: idx.isEven
                                     ? WidgetStateProperty.all(
                                         Theme.of(context).colorScheme.zebraStripe)
                                     : null,
+                                selected: _selectedMemberIds.contains(member.id),
+                                onSelectChanged: (selected) {
+                                  if (selected == null) return;
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedMemberIds.add(member.id);
+                                    } else {
+                                      _selectedMemberIds.remove(member.id);
+                                    }
+                                  });
+                                },
                                 cells: [
+                                  DataCell(
+                                    Center(
+                                      child: Transform.scale(
+                                        scale: 0.82,
+                                        child: Checkbox(
+                                          value: _selectedMemberIds.contains(member.id),
+                                          onChanged: (checked) {
+                                            setState(() {
+                                              if (checked == true) {
+                                                _selectedMemberIds.add(member.id);
+                                              } else {
+                                                _selectedMemberIds.remove(member.id);
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                   DataCell(_buildPhotoCell(member)),
                                   DataCell(
                                     Column(
@@ -525,6 +676,7 @@ class _MembersContentState extends State<MembersContent> {
                             )
                             .toList(),
                       ),
+                    ),
               ),
             ),
 
@@ -799,17 +951,94 @@ class _MembersContentState extends State<MembersContent> {
     );
   }
 
+  Future<void> _deleteSelectedMembers() async {
+    final ids = _selectedMemberIds.toList()..sort();
+    if (ids.isEmpty) return;
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final memberProvider = context.read<MemberProvider>();
+    final issueProvider = context.read<IssueProvider>();
+    final cs = Theme.of(context).colorScheme;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete selected members'),
+        content: Text('Delete ${ids.length} selected member(s)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Deleting ${ids.length} members...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await ApiService.bulkDeleteMembers(ids);
+      final deletedCount = result['deleted'] ?? 0;
+
+      if (!mounted) return;
+      navigator.pop();
+
+      await memberProvider.loadMembers();
+      await issueProvider.loadStats();
+
+      if (!mounted) return;
+      setState(() => _selectedMemberIds.clear());
+
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Deleted $deletedCount member(s) successfully.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      navigator.maybePop();
+      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Bulk delete', e))));
+    }
+  }
+
   void _deleteMember(int id) {
     final memberProvider = context.read<MemberProvider>();
     final issueProvider = context.read<IssueProvider>();
     final messenger = ScaffoldMessenger.maybeOf(context);
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red.shade400),
+            Icon(Icons.warning_amber_rounded, color: cs.error),
             const SizedBox(width: 8),
             const Text('Delete Member'),
           ],
@@ -824,8 +1053,8 @@ class _MembersContentState extends State<MembersContent> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
             ),
             onPressed: () async {
               Navigator.of(ctx).pop();
@@ -833,10 +1062,18 @@ class _MembersContentState extends State<MembersContent> {
                 await memberProvider.deleteMember(id);
                 await issueProvider.loadStats();
                 if (mounted) {
+                  messenger?.clearSnackBars();
                   messenger?.showSnackBar(
-                    const SnackBar(
-                      content: Text('Member deleted successfully'),
-                      behavior: SnackBarBehavior.floating,
+                    SnackBar(
+                      content: const Text('Member deleted successfully'),
+                      action: SnackBarAction(
+                        label: 'Undo',
+                        onPressed: () {
+                          memberProvider.loadMembers();
+                          issueProvider.loadStats();
+                        },
+                      ),
+                      duration: const Duration(seconds: 5),
                     ),
                   );
                 }
@@ -845,8 +1082,7 @@ class _MembersContentState extends State<MembersContent> {
                   messenger?.showSnackBar(
                     SnackBar(
                       content: Text(getOperationErrorMessage('Delete member', e)),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: Colors.red.shade700,
+                      backgroundColor: cs.error,
                     ),
                   );
                 }

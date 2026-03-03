@@ -21,6 +21,7 @@ import '../services/api_service.dart';
 import '../utils/error_utils.dart';
 import '../utils/color_extensions.dart';
 import '../widgets/common_widgets.dart';
+import '../screens/dashboard_screen.dart';
 
 enum _IssueDialogActiveField { book, member }
 
@@ -138,6 +139,16 @@ class _IssuesContentState extends State<IssuesContent> {
     _dataChangedSub = ApiService.dataChangedStream.listen((_) {
       _loadAllData();
     });
+    // Listen for keyboard shortcut events
+    DashboardScreen.shortcutEvent.addListener(_onShortcutEvent);
+  }
+
+  void _onShortcutEvent() {
+    if (DashboardScreen.shortcutEvent.value == 'new-issue') {
+      final bookProvider = context.read<BookProvider>();
+      final memberProvider = context.read<MemberProvider>();
+      _showIssueDialog(context, bookProvider.books, memberProvider.members);
+    }
   }
 
   void _loadAllData() {
@@ -249,6 +260,7 @@ class _IssuesContentState extends State<IssuesContent> {
     _dataChangedSub?.cancel();
     _searchDebounceTimer?.cancel();
     _searchController.dispose();
+    DashboardScreen.shortcutEvent.removeListener(_onShortcutEvent);
     super.dispose();
   }
 
@@ -649,7 +661,7 @@ class _IssuesContentState extends State<IssuesContent> {
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
                     ),

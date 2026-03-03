@@ -32,6 +32,8 @@ class _BookDialogState extends State<BookDialog> {
   Uint8List? _selectedImageBytes;
   String? _selectedImageName;
   bool _isUploading = false;
+  List<String> _dynamicCategories = [];
+  bool _categoriesLoading = true;
 
   void _onTextChanged() {
     if (mounted) setState(() {});
@@ -61,6 +63,27 @@ class _BookDialogState extends State<BookDialog> {
       _coverImageUrl = widget.book!.coverImage;
     } else {
       _totalCopiesController.text = '1';
+    }
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final apiCategories = await ApiService.getCategories(forceRefresh: true);
+      if (mounted) {
+        setState(() {
+          _dynamicCategories = apiCategories
+              .map((c) => c.name)
+              .where((n) => n.trim().isNotEmpty)
+              .toList();
+          _categoriesLoading = false;
+        });
+      }
+    } catch (_) {
+      // On error, fall back to the static defaults
+      if (mounted) {
+        setState(() => _categoriesLoading = false);
+      }
     }
   }
 
@@ -229,21 +252,28 @@ class _BookDialogState extends State<BookDialog> {
           ),
         ),
         const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          initialValue: _getAllCategories().contains(_selectedCategory) ? _selectedCategory : null,
-          decoration: const InputDecoration(
-            labelText: 'Category',
-            prefixIcon: Icon(Icons.category),
-          ),
-          items: _getAllCategories()
-              .toSet() // Remove duplicates
-              .map(
-                (category) =>
-                    DropdownMenuItem(value: category, child: Text(category)),
+        _categoriesLoading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
               )
-              .toList(),
-          onChanged: (value) => setState(() => _selectedCategory = value),
-        ),
+            : DropdownButtonFormField<String>(
+                initialValue: _getAllCategories().contains(_selectedCategory)
+                    ? _selectedCategory
+                    : null,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  prefixIcon: Icon(Icons.category),
+                ),
+                items: _getAllCategories()
+                    .map(
+                      (category) => DropdownMenuItem(
+                          value: category, child: Text(category)),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedCategory = value),
+              ),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -326,7 +356,7 @@ class _BookDialogState extends State<BookDialog> {
                     _coverImageUrl != null || _selectedImageBytes != null
                         ? Icons.edit
                         : Icons.add_photo_alternate,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 20,
                   ),
                 ),
@@ -338,7 +368,7 @@ class _BookDialogState extends State<BookDialog> {
               top: 8,
               right: 8,
               child: Material(
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
@@ -349,9 +379,9 @@ class _BookDialogState extends State<BookDialog> {
                       _selectedImageName = null;
                     });
                   },
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, color: Colors.white, size: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, color: Theme.of(context).colorScheme.onError, size: 16),
                   ),
                 ),
               ),
@@ -635,66 +665,32 @@ class _BookDialogState extends State<BookDialog> {
     }
   }
 
-  static const List<String> _categories = [
-    'Fiction',
-    'Non-Fiction',
-    'Science',
-    'History',
-    'Biography',
-    'Literature',
-    'Philosophy',
-    'Psychology',
-    'Art',
-    'Music',
-    'Technology',
-    'Mathematics',
-    'Physics',
-    'Chemistry',
-    'Biology',
-    'Medicine',
-    'Engineering',
-    'Computer Science',
-    'Business',
-    'Economics',
-    'Politics',
-    'Law',
-    'Religion',
-    'Education',
-    'Sports',
-    'Travel',
-    'Cooking',
-    'Health',
-    'Self-Help',
-    'Poetry',
-    'Drama',
-    'Romance',
-    'Mystery',
-    'Thriller',
-    'Fantasy',
-    'Science Fiction',
-    'Horror',
-    'Adventure',
-    'Children',
-    'Young Adult',
-    'Reference',
-    'Dictionary',
-    'Encyclopedia',
-    'Atlas',
-    'Periodicals',
-    'Comics',
-    'Graphic Novels',
-    'GST',
+  /// Fallback categories when API is unavailable
+  static const List<String> _fallbackCategories = [
+    'Fiction', 'Non-Fiction', 'Science', 'History', 'Biography',
+    'Literature', 'Philosophy', 'Psychology', 'Art', 'Music',
+    'Technology', 'Mathematics', 'Physics', 'Chemistry', 'Biology',
+    'Medicine', 'Engineering', 'Computer Science', 'Business', 'Economics',
+    'Politics', 'Law', 'Religion', 'Education', 'Sports',
+    'Travel', 'Cooking', 'Health', 'Self-Help', 'Poetry',
+    'Drama', 'Romance', 'Mystery', 'Thriller', 'Fantasy',
+    'Science Fiction', 'Horror', 'Adventure', 'Children', 'Young Adult',
+    'Reference', 'Dictionary', 'Encyclopedia', 'Atlas', 'Periodicals',
+    'Comics', 'Graphic Novels', 'GST',
   ];
 
-  /// Get all categories including the current book's category if it's not in the list
+  /// Get all categories: dynamic (API) first, then merged with fallback + current book's category
   List<String> _getAllCategories() {
-    final categories = List<String>.from(_categories);
-    if (_selectedCategory != null && 
-        _selectedCategory!.isNotEmpty && 
-        !categories.contains(_selectedCategory)) {
-      categories.insert(0, _selectedCategory!);
+    final base = _dynamicCategories.isNotEmpty
+        ? _dynamicCategories
+        : _fallbackCategories;
+    final categories = <String>{...base};
+    // Include current book's category even if not in the list
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+      categories.add(_selectedCategory!);
     }
-    return categories;
+    final sorted = categories.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return sorted;
   }
 
   @override

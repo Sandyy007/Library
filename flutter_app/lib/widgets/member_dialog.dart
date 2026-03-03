@@ -143,7 +143,9 @@ class _MemberDialogState extends State<MemberDialog> {
                       Text(
                         _isActive ? 'Active' : 'Inactive',
                         style: TextStyle(
-                          color: _isActive ? Colors.green : Colors.red,
+                          color: _isActive
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.error,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -392,7 +394,7 @@ class _MemberDialogState extends State<MemberDialog> {
                     _profilePhotoUrl != null || _selectedPhotoBytes != null
                         ? Icons.edit
                         : Icons.add_photo_alternate,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 18,
                   ),
                 ),
@@ -404,7 +406,7 @@ class _MemberDialogState extends State<MemberDialog> {
               top: 0,
               right: 0,
               child: Material(
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
@@ -415,9 +417,9 @@ class _MemberDialogState extends State<MemberDialog> {
                       _selectedPhotoName = null;
                     });
                   },
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, color: Colors.white, size: 14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, color: Theme.of(context).colorScheme.onError, size: 14),
                   ),
                 ),
               ),
