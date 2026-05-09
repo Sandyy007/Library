@@ -166,6 +166,102 @@ const dbQuery = (sql, params = []) =>
     });
   });
 
+const dbQueryWithConnection = (connection, sql, params = []) =>
+  new Promise((resolve, reject) => {
+    connection.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+
+const getDbConnection = () =>
+  new Promise((resolve, reject) => {
+    db.getConnection((err, connection) => {
+      if (err) return reject(err);
+      resolve(connection);
+    });
+  });
+
+const beginTransaction = (connection) =>
+  new Promise((resolve, reject) => {
+    connection.beginTransaction((err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+
+const commitTransaction = (connection) =>
+  new Promise((resolve, reject) => {
+    connection.commit((err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+
+const rollbackTransaction = (connection) =>
+  new Promise((resolve) => {
+    connection.rollback(() => {
+      resolve();
+    });
+  });
+
+const withTransaction = async (operation) => {
+  const connection = await getDbConnection();
+  try {
+    await beginTransaction(connection);
+    const result = await operation(connection);
+    await commitTransaction(connection);
+    return result;
+  } catch (err) {
+    await rollbackTransaction(connection);
+    throw err;
+  } finally {
+    connection.release();
+  }
+};
+
+const normalizeApiErrorPayload = (
+  payload,
+  fallbackCode = 'REQUEST_FAILED',
+  fallbackMessage = 'Request failed'
+) => {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const message = String(source.error || source.message || fallbackMessage);
+  const code = String(source.error_code || source.code || fallbackCode);
+  const details = Object.prototype.hasOwnProperty.call(source, 'details')
+    ? source.details
+    : (Object.prototype.hasOwnProperty.call(source, 'error_details') ? source.error_details : null);
+
+  return {
+    success: false,
+    error: message,
+    error_code: code,
+    error_details: details,
+    message,
+  };
+};
+
+const sendApiError = (
+  res,
+  status,
+  payload,
+  fallbackCode = 'REQUEST_FAILED',
+  fallbackMessage = 'Request failed'
+) => {
+  return res
+    .status(status)
+    .json(normalizeApiErrorPayload(payload, fallbackCode, fallbackMessage));
+};
+
+const createHttpError = (status, payload) => {
+  const defaultPayload = normalizeApiErrorPayload(payload, 'REQUEST_FAILED', 'Request failed');
+  const message = defaultPayload.error || 'Request failed';
+  const err = new Error(message);
+  err.status = status;
+  err.payload = defaultPayload;
+  return err;
+};
+
 // Best-effort activity logger (used by the dashboard Recent Activity feed).
 // If the table doesn't exist (older DB), we silently ignore insert errors.
 const logActivityEvent = ({
@@ -193,6 +289,28 @@ const logActivityEvent = ({
         // ignore
       }
     );
+
+    const notificationType = type || 'activity';
+    if (notificationType !== 'book_added') {
+      const notificationTitle = title || 'Activity update';
+      const notificationMessage = description || notificationTitle;
+      db.query(
+        `
+          INSERT INTO notifications (user_id, title, message, type, related_id, related_type)
+          SELECT id, ?, ?, ?, ?, ? FROM users WHERE role = 'admin' LIMIT 1
+        `,
+        [
+          notificationTitle,
+          notificationMessage,
+          notificationType,
+          related_id ?? null,
+          related_type ?? null,
+        ],
+        () => {
+          // ignore
+        }
+      );
+    }
   } catch (_) {
     // ignore
   }
@@ -393,8 +511,8 @@ const runMigrations = async () => {
     "ALTER TABLE books ADD COLUMN rack_number VARCHAR(50)",
 
     // ── Schema additions (members) ──────────────────────────────────────
-    // Support 'guest' (new name) while remaining backward compatible with existing 'student' values.
-    "ALTER TABLE members MODIFY COLUMN member_type ENUM('student', 'guest', 'faculty', 'staff') NOT NULL DEFAULT 'guest'",
+    // Support the expanded member type set while remaining backward compatible with existing 'student' values.
+    "ALTER TABLE members MODIFY COLUMN member_type ENUM('student', 'guest', 'faculty', 'staff', 'additional_director', 'joint_director', 'deputy_director', 'assistant_commissioner', 'state_tax_officer', 'assistant') NOT NULL DEFAULT 'guest'",
     "UPDATE members SET member_type = 'guest' WHERE member_type = 'student'",
     "ALTER TABLE members ADD COLUMN profile_photo TEXT",
     "ALTER TABLE members ADD COLUMN address TEXT",
@@ -812,6 +930,13 @@ app.put('/api/books/:id', (req, res) => {
       ],
       (err) => {
         if (err) return res.status(500).json({ error: err.message });
+        logActivityEvent({
+          type: 'book_updated',
+          related_id: Number(req.params.id),
+          related_type: 'book',
+          title: `Book updated: ${title}`,
+          description: `Updated details for "${title}" by ${author}.`,
+        });
         res.json({ message: 'Book updated' });
       }
     );
@@ -1422,6 +1547,21 @@ app.put('/api/members/:id', (req, res) => {
         ]
       );
 
+      const wasActive = existing.is_active === 1 || existing.is_active === true;
+      const statusChanged = Boolean(isActive) !== wasActive;
+      const safeName = name || existing.name || `Member #${id}`;
+      const description = statusChanged
+        ? `Status changed to ${isActive ? 'active' : 'inactive'}`
+        : 'Member profile updated';
+
+      logActivityEvent({
+        type: 'member_updated',
+        related_id: id,
+        related_type: 'member',
+        title: `Member updated: ${safeName}`,
+        description,
+      });
+
       res.json({ message: 'Member updated' });
     } catch (err) {
       res.status(500).json({ error: err?.message || String(err) });
@@ -1430,15 +1570,43 @@ app.put('/api/members/:id', (req, res) => {
 });
 
 app.put('/api/members/:id/deactivate', (req, res) => {
+  const memberId = Number(req.params.id);
+  const safeMemberId = Number.isFinite(memberId) ? memberId : null;
   db.query('UPDATE members SET is_active = FALSE WHERE id = ?', [req.params.id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    db.query('SELECT name FROM members WHERE id = ? LIMIT 1', [req.params.id], (err2, rows) => {
+      const name = (!err2 && rows && rows.length > 0 && rows[0].name)
+        ? rows[0].name
+        : `Member #${req.params.id}`;
+      logActivityEvent({
+        type: 'member_deactivated',
+        related_id: safeMemberId,
+        related_type: 'member',
+        title: `Member deactivated: ${name}`,
+        description: `${name} set to inactive`,
+      });
+    });
     res.json({ message: 'Member deactivated' });
   });
 });
 
 app.put('/api/members/:id/activate', (req, res) => {
+  const memberId = Number(req.params.id);
+  const safeMemberId = Number.isFinite(memberId) ? memberId : null;
   db.query('UPDATE members SET is_active = TRUE WHERE id = ?', [req.params.id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    db.query('SELECT name FROM members WHERE id = ? LIMIT 1', [req.params.id], (err2, rows) => {
+      const name = (!err2 && rows && rows.length > 0 && rows[0].name)
+        ? rows[0].name
+        : `Member #${req.params.id}`;
+      logActivityEvent({
+        type: 'member_activated',
+        related_id: safeMemberId,
+        related_type: 'member',
+        title: `Member activated: ${name}`,
+        description: `${name} set to active`,
+      });
+    });
     res.json({ message: 'Member activated' });
   });
 });
@@ -1628,106 +1796,121 @@ app.get('/api/issues', async (req, res) => {
   });
 });
 
-app.post('/api/issues', (req, res) => {
+app.post('/api/issues', async (req, res) => {
   const { book_id, member_id, due_date } = req.body;
   const now = new Date();
   const issue_date = now.toISOString().split('T')[0];
 
-  // Check if book has available copies
-  db.query('SELECT * FROM books WHERE id = ?', [book_id], (err, bookResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (bookResults.length === 0) return res.status(404).json({ error: 'Book not found' });
-    
-    const book = bookResults[0];
-    const availableCopies = book.available_copies !== undefined ? book.available_copies : (book.status === 'available' ? 1 : 0);
-    
-    if (availableCopies <= 0) {
-      return res.status(400).json({ error: 'No copies available for this book' });
-    }
+  try {
+    const txResult = await withTransaction(async (connection) => {
+      // Lock the book row first to serialize competing issue requests.
+      const bookResults = await dbQueryWithConnection(
+        connection,
+        'SELECT id, title, status, total_copies, available_copies FROM books WHERE id = ? FOR UPDATE',
+        [book_id]
+      );
 
-    // Check member exists and their borrowing limit
-    db.query(`
-      SELECT m.*, mc.max_books 
-      FROM members m
-      LEFT JOIN member_categories mc ON m.member_type = mc.name
-      WHERE m.id = ?
-    `, [member_id], (err, memberResults) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (memberResults.length === 0) return res.status(404).json({ error: 'Member not found' });
+      if (!bookResults || bookResults.length === 0) {
+        throw createHttpError(404, { error: 'Book not found' });
+      }
+
+      const book = bookResults[0];
+      const rawAvailable = book.available_copies;
+      const availableCopies = rawAvailable !== undefined && rawAvailable !== null
+        ? Number(rawAvailable)
+        : (book.status === 'available' ? 1 : 0);
+
+      if (!Number.isFinite(availableCopies) || availableCopies <= 0) {
+        throw createHttpError(400, { error: 'No copies available for this book' });
+      }
+
+      // Lock the member row so parallel issue requests for the same member don't bypass limits.
+      const memberResults = await dbQueryWithConnection(
+        connection,
+        'SELECT id, name FROM members WHERE id = ? FOR UPDATE',
+        [member_id]
+      );
+
+      if (!memberResults || memberResults.length === 0) {
+        throw createHttpError(404, { error: 'Member not found' });
+      }
 
       const member = memberResults[0];
       const maxBooks = 5; // Universal borrowing limit: 5 books per member
 
-      // Check current borrowed books count
-      db.query(
-        "SELECT COUNT(*) as count FROM issues WHERE member_id = ? AND status IN ('issued', 'overdue')",
-        [member_id],
-        (err, countResults) => {
-          if (err) return res.status(500).json({ error: err.message });
-          
-          if (countResults[0].count >= maxBooks) {
-            return res.status(400).json({ 
-              error: `Member has reached maximum borrowing limit of ${maxBooks} books. Please return some books before borrowing new ones.`,
-              current_borrowed: countResults[0].count,
-              max_allowed: maxBooks
-            });
-          }
-
-          // Issue the book
-          const insertWithIssuedAt =
-            'INSERT INTO issues (book_id, member_id, issue_date, due_date, issued_at) VALUES (?, ?, ?, ?, NOW())';
-          const insertLegacy =
-            'INSERT INTO issues (book_id, member_id, issue_date, due_date) VALUES (?, ?, ?, ?)';
-
-          const insertValues = [book_id, member_id, issue_date, due_date];
-
-          const afterInsert = (result) => {
-            // Update book availability
-            const newAvailable = availableCopies - 1;
-            const totalCopies = book.total_copies || 1;
-            const newStatus = newAvailable <= 0 ? 'issued' : 'available';
-
-            db.query(
-              'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
-              [newAvailable, newStatus, book_id],
-              (updateErr) => {
-                if (updateErr) console.error('Failed to update book availability:', updateErr.message);
-              }
-            );
-
-            // Dashboard activity
-            logActivityEvent({
-              type: 'issue',
-              related_id: result.insertId,
-              related_type: 'issue',
-              title: `Issued: ${book?.title ?? ''}`,
-              description: `${member?.name ?? 'Someone'} borrowed "${book?.title ?? ''}"`,
-            });
-
-            res.json({
-              id: result.insertId,
-              book_id: book_id,
-              member_id: member_id,
-              issue_date: issue_date,
-              due_date: due_date,
-              status: 'issued'
-            });
-          };
-
-          db.query(insertWithIssuedAt, insertValues, (err, result) => {
-            if (err && /Unknown column/i.test(err.message || '')) {
-              return db.query(insertLegacy, insertValues, (err2, result2) => {
-                if (err2) return res.status(500).json({ error: err2.message });
-                afterInsert(result2);
-              });
-            }
-            if (err) return res.status(500).json({ error: err.message });
-            afterInsert(result);
-          });
-        }
+      const countResults = await dbQueryWithConnection(
+        connection,
+        "SELECT COUNT(*) AS count FROM issues WHERE member_id = ? AND status IN ('issued', 'overdue')",
+        [member_id]
       );
+
+      const currentBorrowed = Number(countResults?.[0]?.count || 0);
+      if (currentBorrowed >= maxBooks) {
+        throw createHttpError(400, {
+          error: `Member has reached maximum borrowing limit of ${maxBooks} books. Please return some books before borrowing new ones.`,
+          current_borrowed: currentBorrowed,
+          max_allowed: maxBooks,
+        });
+      }
+
+      const insertWithIssuedAt =
+        'INSERT INTO issues (book_id, member_id, issue_date, due_date, issued_at) VALUES (?, ?, ?, ?, NOW())';
+      const insertLegacy =
+        'INSERT INTO issues (book_id, member_id, issue_date, due_date) VALUES (?, ?, ?, ?)';
+      const insertValues = [book_id, member_id, issue_date, due_date];
+
+      let insertResult;
+      try {
+        insertResult = await dbQueryWithConnection(connection, insertWithIssuedAt, insertValues);
+      } catch (err) {
+        if (!/Unknown column/i.test(err.message || '')) {
+          throw err;
+        }
+        insertResult = await dbQueryWithConnection(connection, insertLegacy, insertValues);
+      }
+
+      const totalCopiesRaw = Number(book.total_copies);
+      const totalCopies = Number.isFinite(totalCopiesRaw) && totalCopiesRaw > 0 ? totalCopiesRaw : 1;
+      const newAvailable = Math.max(availableCopies - 1, 0);
+      const newStatus = newAvailable <= 0 ? 'issued' : 'available';
+
+      await dbQueryWithConnection(
+        connection,
+        'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
+        [newAvailable, newStatus, book_id]
+      );
+
+      return {
+        issueId: insertResult.insertId,
+        bookTitle: book?.title ?? '',
+        memberName: member?.name ?? 'Someone',
+      };
     });
-  });
+
+    // Activity logging is best-effort and should not block successful issuance.
+    logActivityEvent({
+      type: 'issue',
+      related_id: txResult.issueId,
+      related_type: 'issue',
+      title: `Issued: ${txResult.bookTitle}`,
+      description: `${txResult.memberName} borrowed "${txResult.bookTitle}"`,
+    });
+
+    res.json({
+      id: txResult.issueId,
+      book_id: book_id,
+      member_id: member_id,
+      issue_date: issue_date,
+      due_date: due_date,
+      status: 'issued',
+    });
+  } catch (err) {
+    if (err?.status) {
+      return res.status(err.status).json(err.payload || { error: err.message });
+    }
+    console.error('Issue create error:', err);
+    res.status(500).json({ error: err.message || 'Failed to issue book' });
+  }
 });
 
 // Bulk delete issues - optimized for large deletions
@@ -1774,7 +1957,7 @@ app.post('/api/issues/bulk-delete', async (req, res) => {
       message: `Deleted ${deletedCount} issue(s)`,
       deleted: deletedCount,
       requested: validIds.length,
-      booksRestored: issuedBookIds.length
+      booksRestored: bookIds.length
     });
   } catch (err) {
     console.error('Bulk delete issues error:', err);
@@ -1782,80 +1965,96 @@ app.post('/api/issues/bulk-delete', async (req, res) => {
   }
 });
 
-app.put('/api/issues/:id/return', (req, res) => {
+app.put('/api/issues/:id/return', async (req, res) => {
   const now = new Date();
   const return_date = now.toISOString().split('T')[0];
 
-  db.query('SELECT * FROM issues WHERE id = ?', [req.params.id], (err, issueResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (issueResults.length === 0) return res.status(404).json({ error: 'Issue not found' });
-    if (issueResults[0].status === 'returned') return res.status(400).json({ error: 'Book is already returned' });
-
-    const issue = issueResults[0];
-    
-    const updateWithReturnedAt =
-      'UPDATE issues SET return_date = ?, status = "returned", returned_at = NOW() WHERE id = ?';
-    const updateLegacy =
-      'UPDATE issues SET return_date = ?, status = "returned" WHERE id = ?';
-
-    const updateValues = [return_date, req.params.id];
-
-    const afterReturnUpdate = () => {
-      // Update book availability
-      db.query('SELECT * FROM books WHERE id = ?', [issue.book_id], (err, bookResults) => {
-        if (!err && bookResults.length > 0) {
-          const book = bookResults[0];
-          const currentAvailable = book.available_copies !== undefined ? book.available_copies : 0;
-          const newAvailable = currentAvailable + 1;
-          const totalCopies = book.total_copies || 1;
-          const newStatus = newAvailable >= totalCopies ? 'available' : 'issued';
-
-          db.query(
-            'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
-            [newAvailable, newStatus, issue.book_id]
-          );
-        }
-      });
-
-      // Dashboard activity
-      db.query(
-        `
-          SELECT b.title AS book_title, m.name AS member_name
-          FROM issues i
-          JOIN books b ON i.book_id = b.id
-          JOIN members m ON i.member_id = m.id
-          WHERE i.id = ?
-          LIMIT 1
-        `,
-        [req.params.id],
-        (err, rows) => {
-          if (!err && rows && rows.length > 0) {
-            const row = rows[0];
-            logActivityEvent({
-              type: 'return',
-              related_id: Number(req.params.id),
-              related_type: 'issue',
-              title: `Returned: ${row.book_title ?? ''}`,
-              description: `${row.member_name ?? 'Someone'} returned "${row.book_title ?? ''}"`,
-            });
-          }
-        }
+  try {
+    const txResult = await withTransaction(async (connection) => {
+      const issueResults = await dbQueryWithConnection(
+        connection,
+        'SELECT id, book_id, member_id, status FROM issues WHERE id = ? FOR UPDATE',
+        [req.params.id]
       );
 
-      res.json({ message: 'Book returned successfully' });
-    };
-
-    db.query(updateWithReturnedAt, updateValues, (err) => {
-      if (err && /Unknown column/i.test(err.message || '')) {
-        return db.query(updateLegacy, updateValues, (err2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
-          afterReturnUpdate();
-        });
+      if (!issueResults || issueResults.length === 0) {
+        throw createHttpError(404, { error: 'Issue not found' });
       }
-      if (err) return res.status(500).json({ error: err.message });
-      afterReturnUpdate();
+
+      const issue = issueResults[0];
+      if (issue.status === 'returned') {
+        throw createHttpError(400, { error: 'Book is already returned' });
+      }
+
+      const bookResults = await dbQueryWithConnection(
+        connection,
+        'SELECT id, title, total_copies, available_copies FROM books WHERE id = ? FOR UPDATE',
+        [issue.book_id]
+      );
+
+      if (!bookResults || bookResults.length === 0) {
+        throw createHttpError(404, { error: 'Book not found for this issue' });
+      }
+
+      const book = bookResults[0];
+      const updateWithReturnedAt =
+        'UPDATE issues SET return_date = ?, status = "returned", returned_at = NOW() WHERE id = ?';
+      const updateLegacy =
+        'UPDATE issues SET return_date = ?, status = "returned" WHERE id = ?';
+      const updateValues = [return_date, req.params.id];
+
+      try {
+        await dbQueryWithConnection(connection, updateWithReturnedAt, updateValues);
+      } catch (err) {
+        if (!/Unknown column/i.test(err.message || '')) {
+          throw err;
+        }
+        await dbQueryWithConnection(connection, updateLegacy, updateValues);
+      }
+
+      const rawAvailable = Number(book.available_copies);
+      const currentAvailable = Number.isFinite(rawAvailable) && rawAvailable >= 0 ? rawAvailable : 0;
+      const totalCopiesRaw = Number(book.total_copies);
+      const totalCopies = Number.isFinite(totalCopiesRaw) && totalCopiesRaw > 0 ? totalCopiesRaw : 1;
+      const newAvailable = Math.min(currentAvailable + 1, totalCopies);
+      const newStatus = newAvailable >= totalCopies ? 'available' : 'issued';
+
+      await dbQueryWithConnection(
+        connection,
+        'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
+        [newAvailable, newStatus, issue.book_id]
+      );
+
+      const memberRows = await dbQueryWithConnection(
+        connection,
+        'SELECT name FROM members WHERE id = ? LIMIT 1',
+        [issue.member_id]
+      );
+
+      return {
+        issueId: Number(req.params.id),
+        bookTitle: book?.title ?? '',
+        memberName: memberRows?.[0]?.name ?? 'Someone',
+      };
     });
-  });
+
+    // Activity logging is best-effort and should not block successful return.
+    logActivityEvent({
+      type: 'return',
+      related_id: txResult.issueId,
+      related_type: 'issue',
+      title: `Returned: ${txResult.bookTitle}`,
+      description: `${txResult.memberName} returned "${txResult.bookTitle}"`,
+    });
+
+    res.json({ message: 'Book returned successfully' });
+  } catch (err) {
+    if (err?.status) {
+      return res.status(err.status).json(err.payload || { error: err.message });
+    }
+    console.error('Issue return error:', err);
+    res.status(500).json({ error: err.message || 'Failed to return book' });
+  }
 });
 
 // Log a reminder action for an issue (creates a notification entry)
@@ -1897,11 +2096,30 @@ app.post('/api/issues/:id/remind', (req, res) => {
 app.put('/api/issues/:id', (req, res) => {
   const { due_date, return_date, status } = req.body;
 
-  db.query('SELECT * FROM issues WHERE id = ?', [req.params.id], (err, issueResults) => {
+  db.query(
+    `
+      SELECT i.*, b.title AS book_title, m.name AS member_name
+      FROM issues i
+      LEFT JOIN books b ON i.book_id = b.id
+      LEFT JOIN members m ON i.member_id = m.id
+      WHERE i.id = ?
+    `,
+    [req.params.id],
+    (err, issueResults) => {
     if (err) return res.status(500).json({ error: err.message });
     if (issueResults.length === 0) return res.status(404).json({ error: 'Issue not found' });
 
     const issue = issueResults[0];
+    const changeNotes = [];
+    if (due_date !== undefined && String(due_date) !== String(issue.due_date ?? '')) {
+      changeNotes.push(`Due date set to ${due_date}`);
+    }
+    if (return_date !== undefined && String(return_date) !== String(issue.return_date ?? '')) {
+      changeNotes.push(`Return date set to ${return_date}`);
+    }
+    if (status !== undefined && String(status) !== String(issue.status ?? '')) {
+      changeNotes.push(`Status changed to ${status}`);
+    }
     let updateFields = [];
     let updateValues = [];
     let wantsReturnedAt = false;
@@ -1921,7 +2139,7 @@ app.put('/api/issues/:id', (req, res) => {
       updateFields.push('status = ?');
       updateValues.push(status);
 
-      if (status === 'returned') {
+      if (status === 'returned' && issue.status !== 'returned') {
         wantsReturnedAt = true;
         // Update book availability
         db.query('SELECT * FROM books WHERE id = ?', [issue.book_id], (err, bookResults) => {
@@ -1958,20 +2176,40 @@ app.put('/api/issues/:id', (req, res) => {
     updateValues.push(req.params.id);
     const query = `UPDATE issues SET ${updateFields.join(', ')} WHERE id = ?`;
 
+    const logIssueUpdate = () => {
+      const bookTitle = issue.book_title || `Issue #${issue.id}`;
+      const memberName = issue.member_name || '';
+      const summary = changeNotes.length > 0
+        ? changeNotes.join('; ')
+        : 'Issue updated';
+      const description = memberName ? `${memberName}: ${summary}` : summary;
+
+      logActivityEvent({
+        type: 'issue_updated',
+        related_id: issue.id,
+        related_type: 'issue',
+        title: `Issue updated: ${bookTitle}`,
+        description,
+      });
+    };
+
     db.query(query, updateValues, async (err) => {
       if (err && wantsReturnedAt && /Unknown column 'returned_at'/i.test(err.message || '')) {
         const legacyFields = updateFields.filter((f) => !/returned_at/i.test(f));
         const legacyQuery = `UPDATE issues SET ${legacyFields.join(', ')} WHERE id = ?`;
         return db.query(legacyQuery, updateValues, (err2) => {
           if (err2) return res.status(500).json({ error: err2.message });
+          logIssueUpdate();
           res.json({ message: 'Issue updated successfully' });
         });
       }
       if (err) return res.status(500).json({ error: err.message });
 
+      logIssueUpdate();
       res.json({ message: 'Issue updated successfully' });
     });
-  });
+  }
+  );
 });
 
 // ==================== DASHBOARD & STATS ROUTES ====================
@@ -2028,12 +2266,25 @@ app.get('/api/dashboard/alerts', async (req, res) => {
   const lowStockThreshold = parseNonNegativeInt(req.query.low_stock_threshold, 1);
   const inactiveDays = parsePositiveInt(req.query.inactive_days, 60);
   const limit = parsePositiveInt(req.query.limit, 10);
+  const lowStockLimit = Math.min(parsePositiveInt(req.query.low_stock_limit, limit), 500);
+  const lowStockPage = parsePositiveInt(req.query.low_stock_page, 1);
+  const lowStockOffset = (lowStockPage - 1) * lowStockLimit;
 
   const response = {
     overdue: { count: 0, items: [] },
     dueToday: { count: 0, items: [] },
     dueTomorrow: { count: 0, items: [] },
-    lowStock: { count: 0, items: [] },
+    lowStock: {
+      count: 0,
+      items: [],
+      pagination: {
+        page: lowStockPage,
+        limit: lowStockLimit,
+        total: 0,
+        totalPages: 1,
+        hasMore: false,
+      },
+    },
     inactiveMembers: { count: 0, items: [] },
     deactivatedMembers: { count: 0, items: [] },
     kpis: {
@@ -2150,11 +2401,22 @@ app.get('/api/dashboard/alerts', async (req, res) => {
         FROM books b
         WHERE COALESCE(b.available_copies, CASE WHEN b.status = 'available' THEN 1 ELSE 0 END) <= ?
         ORDER BY COALESCE(b.available_copies, 0) ASC, b.title ASC
-        LIMIT ?
+        LIMIT ? OFFSET ?
       `,
-      [lowStockThreshold, limit],
+      [lowStockThreshold, lowStockLimit, lowStockOffset],
       (count, items) => {
-        response.lowStock = { count, items };
+        const totalPages = count > 0 ? Math.ceil(count / lowStockLimit) : 1;
+        response.lowStock = {
+          count,
+          items,
+          pagination: {
+            page: lowStockPage,
+            limit: lowStockLimit,
+            total: count,
+            totalPages,
+            hasMore: lowStockPage < totalPages,
+          },
+        };
       }
     );
 

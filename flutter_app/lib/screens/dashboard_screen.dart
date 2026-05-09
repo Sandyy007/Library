@@ -14,6 +14,7 @@ import '../widgets/books_content.dart';
 import '../widgets/members_content.dart';
 import '../widgets/issues_content.dart';
 import '../widgets/reports_content.dart';
+import '../widgets/about_content.dart';
 import '../widgets/search_results_dialog.dart';
 import '../widgets/notification_bell.dart';
 import '../services/api_service.dart';
@@ -33,6 +34,12 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
+  static const List<String> _hindiFontFallback = [
+    'NotoSansDevanagari',
+    'Nirmala UI',
+    'Mangal',
+    'Noto Sans Devanagari',
+  ];
   int _selectedIndex = 0;
   int _previousIndex = 0;
   bool _booksLoaded = false;
@@ -43,6 +50,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _animationController;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _keyboardFocusNode = FocusNode();
+  final FocusNode _searchFocusNode = FocusNode(
+    debugLabel: 'Dashboard global search',
+  );
 
   final List<Widget> _screens = [
     const DashboardContent(),
@@ -50,6 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     const MembersContent(),
     const IssuesContent(),
     const ReportsContent(),
+    const AboutContent(),
   ];
 
   final List<String> _titles = [
@@ -58,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     'Members Management',
     'Issues & Returns',
     'Reports & Analytics',
+    'About Us',
   ];
 
   @override
@@ -136,6 +148,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 900;
     final isVeryCompact = screenWidth < 600;
+    final showSearchField = screenWidth >= 760;
+    final searchBarWidth = screenWidth >= 1200
+      ? 440.0
+      : (screenWidth >= 1000 ? 380.0 : 320.0);
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
@@ -177,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: [
                   // Modern App Bar
                   Container(
-                    height: isVeryCompact ? 60 : 70,
+                    height: isVeryCompact ? 86 : 72,
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
                       boxShadow: [
@@ -195,91 +211,173 @@ class _DashboardScreenState extends State<DashboardScreen>
                       child: Row(
                         children: [
                           if (isCompact)
-                            Builder(
-                              builder: (context) => IconButton(
-                                icon: const Icon(Icons.menu),
-                                onPressed: () =>
-                                    Scaffold.of(context).openDrawer(),
+                            FocusTraversalOrder(
+                              order: const NumericFocusOrder(1),
+                              child: Semantics(
+                                button: true,
+                                label: 'Open navigation menu',
+                                child: Builder(
+                                  builder: (context) => Tooltip(
+                                    message: 'Open menu',
+                                    child: TextButton.icon(
+                                      onPressed: () =>
+                                          Scaffold.of(context).openDrawer(),
+                                      icon: const Icon(Icons.menu_rounded),
+                                      label: const Text('Menu'),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        shape: const StadiumBorder(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           // Title
-                          Flexible(
-                            flex: 0,
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Text(
-                                _titles[_selectedIndex],
-                                key: ValueKey<int>(_selectedIndex),
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  child: Text(
+                                    _titles[_selectedIndex],
+                                    key: ValueKey<int>(_selectedIndex),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Wrap(
+                                  spacing: 8,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    _buildConnectivityPill(context),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          // Push everything else to the right
-                          const Spacer(),
                           // Search Bar - Responsive width
-                          if (!isVeryCompact)
-                            Flexible(
-                              flex: 0,
-                              child: Container(
-                                width: screenWidth < 1000 ? 220 : 280,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.outline.withValues(alpha: 0.3),
-                                  ),
-                                ),
-                                child: TextField(
-                                  controller: _searchController,
-                                  onSubmitted: (value) => _performSearch(value),
-                                  decoration: InputDecoration(
-                                    hintText: 'Search...',
-                                    prefixIcon: Icon(
-                                      Icons.search_rounded,
+                          if (showSearchField)
+                            FocusTraversalOrder(
+                              order: const NumericFocusOrder(2),
+                              child: Semantics(
+                                textField: true,
+                                label:
+                                    'Global search. Press Control and F to focus this field.',
+                                child: Container(
+                                  width: searchBarWidth,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.primary,
-                                      size: 22,
+                                      ).colorScheme.outline.withValues(alpha: 0.3),
                                     ),
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        Icons.arrow_forward_rounded,
-                                        color: Theme.of(context).colorScheme.primary,
-                                        size: 20,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .shadow
+                                            .withValues(alpha: 0.04),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
                                       ),
-                                      onPressed: () => _performSearch(_searchController.text),
-                                      tooltip: 'Search',
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
+                                    ],
+                                  ),
+                                  child: TextField(
+                                    focusNode: _searchFocusNode,
+                                    controller: _searchController,
+                                    textInputAction: TextInputAction.search,
+                                    onSubmitted: (value) => _performSearch(value),
+                                    style: _searchTextStyle(context),
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Search books, members, issues, reports',
+                                      hintStyle: _searchHintStyle(context),
+                                      prefixIcon: Icon(
+                                        Icons.search_rounded,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        size: 22,
+                                      ),
+                                      suffixIcon: Padding(
+                                        padding: const EdgeInsets.only(right: 6),
+                                        child: TextButton.icon(
+                                          onPressed: () =>
+                                              _performSearch(_searchController.text),
+                                          icon: const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 18,
+                                          ),
+                                          label: const Text('Go'),
+                                          style: TextButton.styleFrom(
+                                            minimumSize: const Size(0, 36),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            shape: const StadiumBorder(),
+                                          ),
+                                        ),
+                                      ),
+                                      suffixIconConstraints:
+                                          const BoxConstraints(minHeight: 36),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          if (isVeryCompact)
-                            IconButton(
-                              icon: Icon(
-                                Icons.search_rounded,
-                                color: Theme.of(context).colorScheme.primary,
+                          if (!showSearchField)
+                            FocusTraversalOrder(
+                              order: const NumericFocusOrder(2),
+                              child: Semantics(
+                                button: true,
+                                label: 'Open search dialog',
+                                child: TextButton.icon(
+                                  onPressed: () => _showSearchDialog(context),
+                                  icon: Icon(
+                                    Icons.search_rounded,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  label: const Text('Search'),
+                                  style: TextButton.styleFrom(
+                                    shape: const StadiumBorder(),
+                                  ),
+                                ),
                               ),
-                              onPressed: () => _showSearchDialog(context),
                             ),
                           const SizedBox(width: 8),
                           // Notification Bell with Badge
-                          const NotificationBell(),
+                          FocusTraversalOrder(
+                            order: const NumericFocusOrder(3),
+                            child: Semantics(
+                              container: true,
+                              label: 'Notifications',
+                              child: const NotificationBell(),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -355,11 +453,75 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  Widget _buildConnectivityPill(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isOffline = _isOffline;
+    final accent = isOffline ? cs.error : cs.primary;
+    final label = isOffline ? 'Offline' : 'Online';
+    final icon =
+        isOffline ? Icons.cloud_off_rounded : Icons.cloud_done_rounded;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TextStyle _searchTextStyle(BuildContext context) {
+    final base = Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    return base.copyWith(fontFamilyFallback: _hindiFontFallback);
+  }
+
+  TextStyle _searchHintStyle(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final base = Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    return base.copyWith(
+      color: cs.onSurface.withValues(alpha: 0.6),
+      fontFamilyFallback: _hindiFontFallback,
+    );
+  }
+
+  void _focusSearchField() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth < 600) {
+      _showSearchDialog(context);
+    } else {
+      _searchFocusNode.requestFocus();
+      _searchController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _searchController.text.length,
+      );
+    }
+  }
+
   void _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return;
     final isCtrl = HardwareKeyboard.instance.isControlPressed;
 
-    // Ctrl+1..5 to switch tabs
+    if (event.logicalKey == LogicalKeyboardKey.f1) {
+      _showShortcutHelpDialog();
+      return;
+    }
+
+    // Ctrl+1..6 to switch tabs
     if (isCtrl) {
       const tabKeys = [
         LogicalKeyboardKey.digit1,
@@ -367,6 +529,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         LogicalKeyboardKey.digit3,
         LogicalKeyboardKey.digit4,
         LogicalKeyboardKey.digit5,
+        LogicalKeyboardKey.digit6,
       ];
       for (var i = 0; i < tabKeys.length; i++) {
         if (event.logicalKey == tabKeys[i]) {
@@ -376,10 +539,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
       // Ctrl+F to focus search
       if (event.logicalKey == LogicalKeyboardKey.keyF) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        if (screenWidth < 600) {
-          _showSearchDialog(context);
-        }
+        _focusSearchField();
+        return;
+      }
+      // Ctrl+K to focus search
+      if (event.logicalKey == LogicalKeyboardKey.keyK) {
+        _focusSearchField();
+        return;
+      }
+      // Ctrl+/ to show keyboard shortcut help
+      if (event.logicalKey == LogicalKeyboardKey.slash) {
+        _showShortcutHelpDialog();
         return;
       }
       // Ctrl+R to refresh current tab data
@@ -420,8 +590,16 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         );
         break;
+      case 5:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('About Us is always up to date'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        break;
     }
-    if (_selectedIndex != 4) {
+    if (_selectedIndex <= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Refreshing ${_titles[_selectedIndex]}...'),
@@ -482,12 +660,14 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search books, members...',
+              hintText: 'Search books, members, issues, reports',
               prefixIcon: const Icon(Icons.search),
+              hintStyle: _searchHintStyle(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
+            style: _searchTextStyle(context),
             onSubmitted: (value) {
               Navigator.of(dialogContext).pop();
               _performSearch(value);
@@ -505,6 +685,40 @@ class _DashboardScreenState extends State<DashboardScreen>
               _performSearch(_searchController.text);
             },
             child: const Text('Search'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShortcutHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Keyboard Shortcuts'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ctrl+1..6  Switch tabs'),
+            SizedBox(height: 8),
+            Text('Ctrl+F     Focus search'),
+            SizedBox(height: 8),
+            Text('Ctrl+K     Focus search'),
+            SizedBox(height: 8),
+            Text('Ctrl+R     Refresh current tab'),
+            SizedBox(height: 8),
+            Text('Ctrl+N     Create new item (context-aware)'),
+            SizedBox(height: 8),
+            Text('Ctrl+/     Open this shortcut help'),
+            SizedBox(height: 8),
+            Text('F1        Open this shortcut help'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -534,6 +748,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        _searchController.clear();
+      }
     }
   }
 
@@ -541,6 +759,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     _connectivityTimer?.cancel();
     _keyboardFocusNode.dispose();
+    _searchFocusNode.dispose();
     _animationController.dispose();
     _searchController.dispose();
     super.dispose();

@@ -289,7 +289,7 @@ volumes:
    ```iss
    [Setup]
    AppName=Library Management System
-   AppVersion=1.0.0
+  AppVersion=1.1.2
    DefaultDirName={autopf}\Library Management System
    DefaultGroupName=Library Management System
    OutputBaseFilename=LibraryMS_Setup

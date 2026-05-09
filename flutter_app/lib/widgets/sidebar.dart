@@ -251,6 +251,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                       title: 'Reports',
                       index: 4,
                     ),
+                    _buildMenuItem(
+                      icon: Icons.info_outline_rounded,
+                      title: 'About Us',
+                      index: 5,
+                    ),
                     const Divider(indent: 20, endIndent: 20, height: 20),
                     // Quick Actions
                     Padding(

@@ -29,6 +29,20 @@ describe('Reports & Dashboard API', () => {
     expect(res.body).toHaveProperty('kpis');
   });
 
+  test('GET /api/dashboard/alerts low stock supports pagination', async () => {
+    if (auth.skip) return;
+    const res = await request(app)
+      .get('/api/dashboard/alerts?low_stock_threshold=999999&low_stock_page=2&low_stock_limit=2')
+      .set('Authorization', `Bearer ${auth.token}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('lowStock');
+    expect(res.body.lowStock).toHaveProperty('pagination');
+    expect(res.body.lowStock.pagination).toMatchObject({ page: 2, limit: 2 });
+    expect(Array.isArray(res.body.lowStock.items)).toBe(true);
+    expect(res.body.lowStock.items.length).toBeLessThanOrEqual(2);
+  });
+
   test('GET /api/reports/issued returns report', async () => {
     if (auth.skip) return;
     const res = await request(app)

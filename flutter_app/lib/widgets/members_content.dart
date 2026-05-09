@@ -810,6 +810,36 @@ class _MembersContentState extends State<MembersContent> {
     IconData icon;
     String label;
     switch (type.toLowerCase()) {
+      case 'additional_director':
+        color = Colors.purple;
+        icon = Icons.apartment;
+        label = 'Additional Director';
+        break;
+      case 'joint_director':
+        color = Colors.deepPurple;
+        icon = Icons.apartment_outlined;
+        label = 'Joint Director';
+        break;
+      case 'deputy_director':
+        color = Colors.indigo;
+        icon = Icons.badge;
+        label = 'Deputy Director';
+        break;
+      case 'assistant_commissioner':
+        color = Colors.teal;
+        icon = Icons.account_balance;
+        label = 'Assistant Commissioner';
+        break;
+      case 'state_tax_officer':
+        color = Colors.green;
+        icon = Icons.account_balance_wallet;
+        label = 'State Tax Officer';
+        break;
+      case 'assistant':
+        color = Colors.blueGrey;
+        icon = Icons.person;
+        label = 'Assistant';
+        break;
       case 'faculty':
         color = Colors.purple;
         icon = Icons.school;

@@ -4,7 +4,7 @@
 ; Updated: February 19, 2026
 
 #define MyAppName "Library Management System"
-#define MyAppVersion "1.4.3"
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "Library Management"
 #define MyAppURL "https://library-management.local"
 #define MyAppExeName "library_management_app.exe"
@@ -38,7 +38,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
-VersionInfoVersion=1.4.3.0
+VersionInfoVersion=1.1.2.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} Installer
 VersionInfoProductName={#MyAppName}

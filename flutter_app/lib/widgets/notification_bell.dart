@@ -13,30 +13,37 @@ class NotificationBell extends StatelessWidget {
     return Consumer<NotificationProvider>(
       builder: (context, notificationProvider, _) {
         final unreadCount = notificationProvider.unreadCount;
+        final cs = Theme.of(context).colorScheme;
+        final buttonLabel = unreadCount > 0
+            ? 'Notifications ($unreadCount)'
+            : 'Notifications';
+        final baseButton = TextButton.icon(
+          onPressed: () => _showNotificationsPanel(context),
+          icon: Icon(
+            unreadCount > 0
+                ? Icons.notifications_active_rounded
+                : Icons.notifications_none_rounded,
+            color: cs.primary,
+          ),
+          label: Text(buttonLabel),
+          style: TextButton.styleFrom(
+            backgroundColor: cs.primary.withValues(alpha: 0.1),
+            foregroundColor: cs.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
 
         return Stack(
+          clipBehavior: Clip.none,
           children: [
-            IconButton(
-              onPressed: () => _showNotificationsPanel(context),
-              icon: Icon(
-                unreadCount > 0
-                    ? Icons.notifications_active_rounded
-                    : Icons.notifications_none_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
+            baseButton,
             if (unreadCount > 0)
               Positioned(
-                right: 4,
-                top: 4,
+                right: 6,
+                top: 2,
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(

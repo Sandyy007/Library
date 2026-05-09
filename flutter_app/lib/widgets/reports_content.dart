@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:file_picker/file_picker.dart';
@@ -26,6 +26,20 @@ class _ReportsContentState extends State<ReportsContent>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isExporting = false;
+
+  bool get _enableChartTouch {
+    if (kIsWeb) return false;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        return true;
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+        return false;
+    }
+  }
 
   @override
   void initState() {
@@ -475,15 +489,47 @@ class _ReportsContentState extends State<ReportsContent>
 
   Widget _buildMemberTypeChip(String type) {
     Color color;
+    String label;
     switch (type.toLowerCase()) {
+      case 'additional_director':
+        color = Colors.purple;
+        label = 'Additional Director';
+        break;
+      case 'joint_director':
+        color = Colors.deepPurple;
+        label = 'Joint Director';
+        break;
+      case 'deputy_director':
+        color = Colors.indigo;
+        label = 'Deputy Director';
+        break;
+      case 'assistant_commissioner':
+        color = Colors.teal;
+        label = 'Assistant Commissioner';
+        break;
+      case 'state_tax_officer':
+        color = Colors.green;
+        label = 'State Tax Officer';
+        break;
+      case 'assistant':
+        color = Colors.blueGrey;
+        label = 'Assistant';
+        break;
       case 'faculty':
         color = Colors.purple;
+        label = 'Faculty';
         break;
       case 'staff':
         color = Colors.green;
+        label = 'Staff';
+        break;
+      case 'guest':
+        color = Colors.orange;
+        label = 'Guest';
         break;
       default:
         color = Colors.blue;
+        label = 'Student';
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -492,7 +538,7 @@ class _ReportsContentState extends State<ReportsContent>
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        type.toUpperCase(),
+        label,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,
@@ -708,6 +754,7 @@ class _ReportsContentState extends State<ReportsContent>
                 .toDouble() *
             1.2,
         barTouchData: BarTouchData(
+          enabled: _enableChartTouch,
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final stat = stats[group.x.toInt()];
@@ -982,7 +1029,9 @@ class _ReportsContentState extends State<ReportsContent>
                             sectionsSpace: 2,
                             centerSpaceRadius: 45,
                             pieTouchData: PieTouchData(
+                              enabled: _enableChartTouch,
                               touchCallback: (event, response) {
+                                if (!_enableChartTouch) return;
                                 setState(() {
                                   if (!event.isInterestedForInteractions ||
                                       response == null ||

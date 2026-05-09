@@ -4,6 +4,7 @@ describe('Issues API', () => {
   let testIssueId = null;
   let testBookId = null;
   let testMemberId = null;
+  let initialAvailableCopies = null;
 
   beforeAll(async () => {
     const login = await loginAdminOrSkip();
@@ -21,6 +22,21 @@ describe('Issues API', () => {
         total_copies: 3,
       });
     testBookId = bookRes.body?.id;
+
+    if (testBookId) {
+      const bookDetailRes = await request(app)
+        .get(`/api/books/${testBookId}`)
+        .set('Authorization', `Bearer ${login.token}`);
+      if (bookDetailRes.statusCode === 200) {
+        const rawAvailable = bookDetailRes.body?.available_copies;
+        const rawTotal = bookDetailRes.body?.total_copies;
+        initialAvailableCopies = Number(
+          rawAvailable !== undefined && rawAvailable !== null
+            ? rawAvailable
+            : (rawTotal !== undefined && rawTotal !== null ? rawTotal : 1)
+        );
+      }
+    }
 
     // Create a test member
     const memberRes = await request(app)
@@ -91,9 +107,22 @@ describe('Issues API', () => {
     testIssueId = res.body.id;
   });
 
+  test('issue creation decrements available copies by one', async () => {
+    const login = await loginAdminOrSkip();
+    if (login.skip || !testBookId || initialAvailableCopies === null) return;
+
+    const bookRes = await request(app)
+      .get(`/api/books/${testBookId}`)
+      .set('Authorization', `Bearer ${login.token}`);
+
+    expect(bookRes.statusCode).toBe(200);
+    const currentAvailable = Number(bookRes.body?.available_copies ?? 0);
+    expect(currentAvailable).toBe(Math.max(initialAvailableCopies - 1, 0));
+  });
+
   test('can return an issued book', async () => {
     const login = await loginAdminOrSkip();
-    if (login.skip || !testIssueId) return;
+    if (login.skip || !testIssueId || !testBookId || initialAvailableCopies === null) return;
 
     const res = await request(app)
       .put(`/api/issues/${testIssueId}/return`)
@@ -101,6 +130,18 @@ describe('Issues API', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('message');
+
+    const duplicateReturn = await request(app)
+      .put(`/api/issues/${testIssueId}/return`)
+      .set('Authorization', `Bearer ${login.token}`);
+    expect(duplicateReturn.statusCode).toBe(400);
+
+    const bookRes = await request(app)
+      .get(`/api/books/${testBookId}`)
+      .set('Authorization', `Bearer ${login.token}`);
+    expect(bookRes.statusCode).toBe(200);
+    const currentAvailable = Number(bookRes.body?.available_copies ?? 0);
+    expect(currentAvailable).toBe(initialAvailableCopies);
   });
 
   test('can filter issues by status', async () => {

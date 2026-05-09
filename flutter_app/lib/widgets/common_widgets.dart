@@ -96,6 +96,36 @@ class TypeBadge extends StatelessWidget {
     IconData icon;
     String label;
     switch (memberType.toLowerCase()) {
+      case 'additional_director':
+        color = cs.faculty;
+        icon = Icons.apartment;
+        label = 'Additional Director';
+        break;
+      case 'joint_director':
+        color = cs.faculty;
+        icon = Icons.apartment_outlined;
+        label = 'Joint Director';
+        break;
+      case 'deputy_director':
+        color = cs.faculty;
+        icon = Icons.badge;
+        label = 'Deputy Director';
+        break;
+      case 'assistant_commissioner':
+        color = cs.staff;
+        icon = Icons.account_balance;
+        label = 'Assistant Commissioner';
+        break;
+      case 'state_tax_officer':
+        color = cs.staff;
+        icon = Icons.account_balance_wallet;
+        label = 'State Tax Officer';
+        break;
+      case 'assistant':
+        color = cs.staff;
+        icon = Icons.person;
+        label = 'Assistant';
+        break;
       case 'faculty':
         color = cs.faculty;
         icon = Icons.school;

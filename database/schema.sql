@@ -40,7 +40,7 @@ CREATE TABLE members (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
     phone VARCHAR(20),
-    member_type ENUM('guest', 'staff') NOT NULL,
+    member_type ENUM('student', 'guest', 'staff', 'faculty', 'additional_director', 'joint_director', 'deputy_director', 'assistant_commissioner', 'state_tax_officer', 'assistant') NOT NULL,
     membership_date DATE NOT NULL,
     profile_photo TEXT,
     address TEXT,

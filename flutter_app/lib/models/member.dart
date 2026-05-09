@@ -98,6 +98,12 @@ class Member {
       case 'faculty':
         return 30;
       case 'staff':
+      case 'additional_director':
+      case 'joint_director':
+      case 'deputy_director':
+      case 'assistant_commissioner':
+      case 'state_tax_officer':
+      case 'assistant':
         return 21;
       case 'student':
       case 'guest':
@@ -111,6 +117,18 @@ class Member {
       case 'student':
       case 'guest':
         return 'Guest';
+      case 'additional_director':
+        return 'Additional Director';
+      case 'joint_director':
+        return 'Joint Director';
+      case 'deputy_director':
+        return 'Deputy Director';
+      case 'assistant_commissioner':
+        return 'Assistant Commissioner';
+      case 'state_tax_officer':
+        return 'State Tax Officer';
+      case 'assistant':
+        return 'Assistant';
       case 'faculty':
         return 'Faculty';
       case 'staff':

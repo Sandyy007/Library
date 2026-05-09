@@ -13,6 +13,25 @@ import '../models/issue.dart';
 import '../models/notification.dart';
 import '../models/report_models.dart';
 
+class ApiException implements Exception {
+  final String message;
+  final String code;
+  final int? statusCode;
+  final Object? details;
+  final bool isRetryable;
+
+  ApiException({
+    required this.message,
+    required this.code,
+    this.statusCode,
+    this.details,
+    this.isRetryable = false,
+  });
+
+  @override
+  String toString() => message;
+}
+
 class ApiService {
   // Configure at build time:
   // flutter run --dart-define=API_BASE_URL=https://example.com/api --dart-define=API_SERVER_ORIGIN=https://example.com
@@ -50,6 +69,16 @@ class ApiService {
       StreamController<void>.broadcast();
   static Stream<void> get dataChangedStream => _dataChangedController.stream;
 
+  static const Set<int> _retryableStatusCodes = {
+    408,
+    425,
+    429,
+    500,
+    502,
+    503,
+    504,
+  };
+
   static void _notifyDataChanged() {
     if (!_dataChangedController.isClosed) {
       _dataChangedController.add(null);
@@ -60,30 +89,72 @@ class ApiService {
     if (response.statusCode == 401 || response.statusCode == 403) {
       await clearToken();
       _unauthorizedController.add(null);
-      throw Exception('Session expired. Please login again.');
+      throw ApiException(
+        message: 'Session expired. Please login again.',
+        code: 'AUTH_EXPIRED',
+        statusCode: response.statusCode,
+        isRetryable: false,
+      );
     }
   }
 
   /// Throws appropriate exception for rate limit (429) responses
   static void _throwIfRateLimited(http.Response response, [String? context]) {
     if (response.statusCode == 429) {
-      throw Exception(
-        context ?? 'Too many requests. Please wait a moment and try again.',
+      throw ApiException(
+        message:
+            context ?? 'Too many requests. Please wait a moment and try again.',
+        code: 'RATE_LIMITED',
+        statusCode: 429,
+        isRetryable: true,
       );
     }
   }
 
-  /// Safely parses JSON error response, returns null if parsing fails
-  static String? _parseErrorMessage(http.Response response) {
+  /// Safely parses API error response into a normalized payload.
+  static Map<String, dynamic> _parseApiErrorPayload(
+    http.Response response, {
+    String fallbackCode = 'REQUEST_FAILED',
+    String fallbackMessage = 'Request failed',
+  }) {
+    String message = fallbackMessage;
+    String code = fallbackCode;
+    Object? details;
+
     try {
       final data = jsonDecode(response.body);
-      if (data is Map && data['error'] != null) {
-        return data['error'].toString();
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        if (map['error'] is String && (map['error'] as String).trim().isNotEmpty) {
+          message = (map['error'] as String).trim();
+        } else if (map['message'] is String &&
+            (map['message'] as String).trim().isNotEmpty) {
+          message = (map['message'] as String).trim();
+        }
+
+        if (map['error_code'] is String &&
+            (map['error_code'] as String).trim().isNotEmpty) {
+          code = (map['error_code'] as String).trim();
+        } else if (map['code'] is String &&
+            (map['code'] as String).trim().isNotEmpty) {
+          code = (map['code'] as String).trim();
+        }
+
+        if (map.containsKey('error_details')) {
+          details = map['error_details'];
+        } else if (map.containsKey('details')) {
+          details = map['details'];
+        }
       }
     } catch (_) {
       // Response is not valid JSON
     }
-    return null;
+
+    return {
+      'message': message,
+      'code': code,
+      'details': details,
+    };
   }
 
   /// Standard error handler for API responses - handles 429, auth, and JSON parsing
@@ -92,10 +163,53 @@ class ApiService {
       response,
       'Too many requests during $operation. Please wait.',
     );
-    final errorMsg = _parseErrorMessage(response);
-    throw Exception(
-      errorMsg ??
-          '$operation failed: ${response.reasonPhrase ?? 'Unknown error'}',
+    final fallbackMessage =
+        '$operation failed: ${response.reasonPhrase ?? 'Unknown error'}';
+    final payload = _parseApiErrorPayload(
+      response,
+      fallbackCode: 'REQUEST_FAILED',
+      fallbackMessage: fallbackMessage,
+    );
+    throw ApiException(
+      message: payload['message'] as String,
+      code: payload['code'] as String,
+      statusCode: response.statusCode,
+      details: payload['details'],
+      isRetryable: _retryableStatusCodes.contains(response.statusCode),
+    );
+  }
+
+  static bool _isRetryableError(Object error) {
+    if (error is TimeoutException || error is SocketException) return true;
+    if (error is ApiException) return error.isRetryable;
+    return false;
+  }
+
+  static Future<T> _withRetry<T>(
+    Future<T> Function() operation, {
+    required String operationName,
+  }) async {
+    Object? lastError;
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        final shouldRetry = attempt < maxRetries && _isRetryableError(error);
+        if (!shouldRetry) rethrow;
+
+        _log(
+          'DEBUG: $operationName failed on attempt $attempt/$maxRetries, retrying... ($error)',
+        );
+        await Future<void>.delayed(retryDelay * attempt);
+      }
+    }
+
+    throw ApiException(
+      message: '$operationName failed after retries',
+      code: 'RETRY_LIMIT_EXCEEDED',
+      details: lastError,
     );
   }
 
@@ -1166,11 +1280,47 @@ class ApiService {
         MemberCategory(id: 1, name: 'guest', maxBooks: 3, loanPeriodDays: 14),
         MemberCategory(
           id: 2,
+          name: 'additional_director',
+          maxBooks: 5,
+          loanPeriodDays: 21,
+        ),
+        MemberCategory(
+          id: 3,
+          name: 'joint_director',
+          maxBooks: 5,
+          loanPeriodDays: 21,
+        ),
+        MemberCategory(
+          id: 4,
+          name: 'deputy_director',
+          maxBooks: 5,
+          loanPeriodDays: 21,
+        ),
+        MemberCategory(
+          id: 5,
+          name: 'assistant_commissioner',
+          maxBooks: 5,
+          loanPeriodDays: 21,
+        ),
+        MemberCategory(
+          id: 6,
+          name: 'state_tax_officer',
+          maxBooks: 5,
+          loanPeriodDays: 21,
+        ),
+        MemberCategory(
+          id: 7,
+          name: 'assistant',
+          maxBooks: 5,
+          loanPeriodDays: 21,
+        ),
+        MemberCategory(
+          id: 8,
           name: 'faculty',
           maxBooks: 10,
           loanPeriodDays: 30,
         ),
-        MemberCategory(id: 3, name: 'staff', maxBooks: 5, loanPeriodDays: 21),
+        MemberCategory(id: 9, name: 'staff', maxBooks: 5, loanPeriodDays: 21),
       ];
     }
   }
@@ -1515,21 +1665,32 @@ class ApiService {
     int overdueDays = 7,
     int lowStockThreshold = 1,
     int inactiveDays = 60,
+    int? lowStockPage,
+    int? lowStockLimit,
   }) async {
     final headers = await getHeaders();
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'overdue_days': overdueDays.toString(),
+      'low_stock_threshold': lowStockThreshold.toString(),
+      'inactive_days': inactiveDays.toString(),
+    };
+    if (lowStockPage != null) {
+      queryParams['low_stock_page'] = lowStockPage.toString();
+    }
+    if (lowStockLimit != null) {
+      queryParams['low_stock_limit'] = lowStockLimit.toString();
+    }
+
     final uri = Uri.parse('$baseUrl/dashboard/alerts').replace(
-      queryParameters: {
-        'limit': limit.toString(),
-        'overdue_days': overdueDays.toString(),
-        'low_stock_threshold': lowStockThreshold.toString(),
-        'inactive_days': inactiveDays.toString(),
-      },
+      queryParameters: queryParams,
     );
 
     try {
-      final response = await _client
-          .get(uri, headers: headers)
-          .timeout(timeout);
+      final response = await _withRetry(
+        () => _client.get(uri, headers: headers).timeout(timeout),
+        operationName: 'Loading dashboard alerts',
+      );
       if (response.statusCode == 200) {
         return Map<String, dynamic>.from(jsonDecode(response.body));
       }
@@ -1537,10 +1698,20 @@ class ApiService {
       await _throwIfUnauthorized(response);
       _handleErrorResponse(response, 'Loading dashboard alerts');
       throw Exception('Failed to load dashboard alerts');
+    } on ApiException {
+      rethrow;
     } on SocketException catch (_) {
-      throw Exception('Cannot connect to server.');
+      throw ApiException(
+        message: 'Cannot connect to server.',
+        code: 'NETWORK_UNREACHABLE',
+        isRetryable: true,
+      );
     } on TimeoutException catch (_) {
-      throw Exception('Request timed out.');
+      throw ApiException(
+        message: 'Request timed out.',
+        code: 'REQUEST_TIMEOUT',
+        isRetryable: true,
+      );
     } catch (e) {
       _log('DEBUG: Error loading dashboard alerts: $e');
       rethrow;
@@ -1556,9 +1727,10 @@ class ApiService {
     ).replace(queryParameters: {'limit': limit.toString()});
 
     try {
-      final response = await _client
-          .get(uri, headers: headers)
-          .timeout(timeout);
+      final response = await _withRetry(
+        () => _client.get(uri, headers: headers).timeout(timeout),
+        operationName: 'Loading dashboard activity',
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return List<Map<String, dynamic>>.from(data);
@@ -1567,10 +1739,20 @@ class ApiService {
       await _throwIfUnauthorized(response);
       _handleErrorResponse(response, 'Loading dashboard activity');
       throw Exception('Failed to load dashboard activity');
+    } on ApiException {
+      rethrow;
     } on SocketException catch (_) {
-      throw Exception('Cannot connect to server.');
+      throw ApiException(
+        message: 'Cannot connect to server.',
+        code: 'NETWORK_UNREACHABLE',
+        isRetryable: true,
+      );
     } on TimeoutException catch (_) {
-      throw Exception('Request timed out.');
+      throw ApiException(
+        message: 'Request timed out.',
+        code: 'REQUEST_TIMEOUT',
+        isRetryable: true,
+      );
     } catch (e) {
       _log('DEBUG: Error loading dashboard activity: $e');
       rethrow;
@@ -2169,15 +2351,24 @@ class ApiService {
         final data = jsonDecode(response.body);
         final url = data['url'];
         return url;
-      } else if (response.statusCode == 429) {
-        throw Exception('Too many uploads. Please wait a moment.');
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        await clearToken();
-        _unauthorizedController.add(null);
-        throw Exception('Session expired. Please login again.');
       } else {
-        final errorMsg = _parseErrorMessage(response);
-        throw Exception(errorMsg ?? 'Failed to upload cover image');
+        _throwIfRateLimited(
+          response,
+          'Too many uploads. Please wait a moment.',
+        );
+        await _throwIfUnauthorized(response);
+        final payload = _parseApiErrorPayload(
+          response,
+          fallbackCode: 'UPLOAD_FAILED',
+          fallbackMessage: 'Failed to upload cover image',
+        );
+        throw ApiException(
+          message: payload['message'] as String,
+          code: payload['code'] as String,
+          statusCode: response.statusCode,
+          details: payload['details'],
+          isRetryable: _retryableStatusCodes.contains(response.statusCode),
+        );
       }
     } on SocketException catch (_) {
       throw Exception('Cannot connect to server.');
@@ -2223,15 +2414,24 @@ class ApiService {
         final data = jsonDecode(response.body);
         final url = data['url'];
         return url;
-      } else if (response.statusCode == 429) {
-        throw Exception('Too many uploads. Please wait a moment.');
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        await clearToken();
-        _unauthorizedController.add(null);
-        throw Exception('Session expired. Please login again.');
       } else {
-        final errorMsg = _parseErrorMessage(response);
-        throw Exception(errorMsg ?? 'Failed to upload member photo');
+        _throwIfRateLimited(
+          response,
+          'Too many uploads. Please wait a moment.',
+        );
+        await _throwIfUnauthorized(response);
+        final payload = _parseApiErrorPayload(
+          response,
+          fallbackCode: 'UPLOAD_FAILED',
+          fallbackMessage: 'Failed to upload member photo',
+        );
+        throw ApiException(
+          message: payload['message'] as String,
+          code: payload['code'] as String,
+          statusCode: response.statusCode,
+          details: payload['details'],
+          isRetryable: _retryableStatusCodes.contains(response.statusCode),
+        );
       }
     } on SocketException catch (_) {
       throw Exception('Cannot connect to server.');

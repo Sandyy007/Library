@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS members (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
     phone VARCHAR(20),
-    member_type ENUM('guest', 'faculty', 'staff') NOT NULL DEFAULT 'guest',
+    member_type ENUM('student', 'guest', 'faculty', 'staff', 'additional_director', 'joint_director', 'deputy_director', 'assistant_commissioner', 'state_tax_officer', 'assistant') NOT NULL DEFAULT 'guest',
     profile_photo TEXT,
     address TEXT,
     membership_date DATE NOT NULL,
