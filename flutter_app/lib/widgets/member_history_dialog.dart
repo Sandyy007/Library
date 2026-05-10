@@ -1,8 +1,14 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:file_picker/file_picker.dart';
 import '../models/issue.dart';
 import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
+import '../utils/hindi_pdf_helper.dart';
 
 class MemberHistoryDialog extends StatefulWidget {
   final int memberId;
@@ -233,17 +239,26 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextButton.icon(
-                      onPressed: _loadHistory,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh'),
+                      onPressed: _history.isEmpty ? null : _exportToPdf,
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text('Download PDF'),
                     ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Close'),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: _loadHistory,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh'),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Close'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -253,6 +268,182 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportToPdf() async {
+    if (_history.isEmpty) return;
+
+    try {
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Borrowing History PDF',
+        fileName: 'member_history_${widget.memberName.replaceAll(' ', '_')}_${DateTime.now().toIso8601String().split('T')[0]}.pdf',
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+      );
+
+      if (path == null || path.isEmpty) return;
+
+      // Initialize Hindi PDF helper for font support
+      await HindiPdfHelper.initialize();
+      final baseFont = HindiPdfHelper.baseFont;
+      final boldFont = HindiPdfHelper.boldFont;
+
+      // Load organization logo
+      final logoBytes = await _loadPdfLogo();
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
+          build: (context) {
+            return [
+              // Organization Header
+              _buildOrgHeader(logoBytes, boldFont, baseFont),
+              pw.SizedBox(height: 16),
+
+              // Document Title
+              pw.Center(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue800,
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Text(
+                    'Member Borrowing History',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                    ),
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                'Member: ${normalizeHindiForDisplay(widget.memberName)}',
+                style: pw.TextStyle(fontSize: 12),
+              ),
+              pw.Text(
+                'Generated: ${DateFormatter.formatDateTimeIndian(DateTime.now().toIso8601String())}',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Row(
+                children: [
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.blue50,
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text('Total Borrowed', style: pw.TextStyle(fontSize: 10)),
+                          pw.Text('${_history.length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.orange50,
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text('Issued', style: pw.TextStyle(fontSize: 10)),
+                          pw.Text('${_history.where((i) => i.status == 'issued').length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.green50,
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text('Returned', style: pw.TextStyle(fontSize: 10)),
+                          pw.Text('${_history.where((i) => i.status == 'returned').length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.red50,
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text('Overdue', style: pw.TextStyle(fontSize: 10)),
+                          pw.Text('${_history.where((i) => i.status == 'overdue').length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 16),
+              pw.TableHelper.fromTextArray(
+                headers: ['Book Title', 'Author', 'Issue Date', 'Due Date', 'Return Date', 'Status'],
+                data: _history.map((issue) {
+                  return [
+                    normalizeHindiForDisplay(issue.bookTitle),
+                    normalizeHindiForDisplay(issue.bookAuthor),
+                    DateFormatter.formatDateIndian(issue.issueDate),
+                    DateFormatter.formatDateIndian(issue.dueDate),
+                    issue.returnDate != null ? DateFormatter.formatDateIndian(issue.returnDate!) : '-',
+                    issue.status[0].toUpperCase() + issue.status.substring(1),
+                  ];
+                }).toList(),
+                headerStyle: pw.TextStyle(font: boldFont, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellStyle: pw.TextStyle(font: baseFont, fontSize: 9),
+                cellAlignment: pw.Alignment.centerLeft,
+                cellHeight: 18,
+                headerHeight: 22,
+              ),
+            ];
+          },
+        ),
+      );
+
+      final bytes = await doc.save();
+      await File(path).writeAsBytes(bytes, flush: true);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF exported to: $path'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatItem(
@@ -514,5 +705,67 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
 
   String _formatDate(String dateStr) {
     return DateFormatter.formatDateIndian(dateStr);
+  }
+
+  Future<Uint8List?> _loadPdfLogo() async {
+    try {
+      final file = File('assets/images/Office_Logo.png');
+      if (await file.exists()) {
+        return await file.readAsBytes();
+      }
+    } catch (e) {
+      debugPrint('Could not load logo: $e');
+    }
+    return null;
+  }
+
+  pw.Widget _buildOrgHeader(Uint8List? logoBytes, pw.Font boldFont, pw.Font baseFont) {
+    if (logoBytes != null) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Image(pw.MemoryImage(logoBytes), width: 70, height: 70),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    'Uttar Pradesh State Tax Training and Research Institute',
+                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Lucknow',
+                    style: pw.TextStyle(fontSize: 11, font: baseFont, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 90),
+          ],
+        ),
+      );
+    } else {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Center(
+          child: pw.Text(
+            'Uttar Pradesh State Tax Training and Research Institute',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      );
+    }
   }
 }

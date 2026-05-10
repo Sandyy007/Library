@@ -343,7 +343,12 @@ class _MemberDialogState extends State<MemberDialog> {
                     children: [
                       Icon(type['icon'] as IconData, size: 20),
                       const SizedBox(width: 8),
-                      Text(type['label'] as String),
+                      Expanded(
+                        child: Text(
+                          type['label'] as String,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),

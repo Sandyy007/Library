@@ -195,30 +195,36 @@ class SearchResultsDialog extends StatelessWidget {
               ),
             ),
             trailing: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 120),
+              constraints: const BoxConstraints(maxWidth: 100),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Chip(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                  Flexible(
+                    child: Chip(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      label: Text(
+                        issue.status,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      backgroundColor: issue.status == 'returned'
+                          ? Colors.green
+                          : issue.status == 'overdue'
+                          ? Colors.red
+                          : Colors.orange,
                     ),
-                    label: Text(issue.status),
-                    backgroundColor: issue.status == 'returned'
-                        ? Colors.green
-                        : issue.status == 'overdue'
-                        ? Colors.red
-                        : Colors.orange,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Due: ${issue.dueDate}',
                     style: Theme.of(context).textTheme.bodySmall,
                     overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ],
               ),

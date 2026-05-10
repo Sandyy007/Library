@@ -7,13 +7,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart' show PdfGoogleFonts;
 import '../providers/report_provider.dart';
 import '../providers/issue_provider.dart';
 import '../models/report_models.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import '../utils/hindi_pdf_helper.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -1488,21 +1488,43 @@ class _ReportsContentState extends State<ReportsContent>
         ? 'Categories'
         : 'Overdue';
 
-    // Embed a font that supports Hindi/Devanagari so text renders correctly.
-    final baseFont = await PdfGoogleFonts.notoSansDevanagariRegular();
-    final boldFont = await PdfGoogleFonts.notoSansDevanagariBold();
+    // Embed Hindi-supporting font for proper Devanagari text rendering.
+    await HindiPdfHelper.initialize();
+    final baseFont = HindiPdfHelper.baseFont;
+    final boldFont = HindiPdfHelper.boldFont;
+
+    // Load organization logo
+    final logoBytes = await _loadPdfLogo();
 
     final doc = pw.Document();
-    final table = await _buildPdfTable(exportName);
+    final table = await _buildPdfTable(exportName, baseFont);
 
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
         build: (context) => [
-          pw.Text(
-            'Reports & Analytics — $title',
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          // Organization Header
+          _buildOrgHeader(logoBytes, boldFont, baseFont),
+          pw.SizedBox(height: 16),
+
+          // Document Title
+          pw.Center(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.blue800,
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: pw.Text(
+                'Reports & Analytics — $title',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                ),
+              ),
+            ),
           ),
           pw.SizedBox(height: 12),
           table,
@@ -1513,7 +1535,7 @@ class _ReportsContentState extends State<ReportsContent>
     return doc.save();
   }
 
-  Future<pw.Widget> _buildPdfTable(String exportName) async {
+  Future<pw.Widget> _buildPdfTable(String exportName, pw.Font baseFont) async {
     final reportProvider = context.read<ReportProvider>();
 
     List<String> headers;
@@ -1527,9 +1549,9 @@ class _ReportsContentState extends State<ReportsContent>
           .map(
             (e) => [
               '${e.key + 1}',
-              e.value.title,
-              e.value.author,
-              e.value.category ?? 'Uncategorized',
+              normalizeHindiForDisplay(e.value.title),
+              normalizeHindiForDisplay(e.value.author),
+              normalizeHindiForDisplay(e.value.category ?? 'Uncategorized'),
               '${e.value.borrowCount}',
             ],
           )
@@ -1542,8 +1564,8 @@ class _ReportsContentState extends State<ReportsContent>
           .map(
             (e) => [
               '${e.key + 1}',
-              e.value.name,
-              e.value.memberType,
+              normalizeHindiForDisplay(e.value.name),
+              normalizeHindiForDisplay(e.value.memberType),
               '${e.value.borrowCount}',
             ],
           )
@@ -1566,8 +1588,8 @@ class _ReportsContentState extends State<ReportsContent>
       rows = overdue.map((item) {
         final dueDate = item['due_date']?.toString() ?? '';
         return [
-          item['title']?.toString() ?? 'Unknown',
-          item['member_name']?.toString() ?? 'Unknown',
+          normalizeHindiForDisplay(item['title']?.toString() ?? 'Unknown'),
+          normalizeHindiForDisplay(item['member_name']?.toString() ?? 'Unknown'),
           DateFormatter.formatDateIndian(dueDate),
           '${_calculateDaysOverdue(dueDate)}',
         ];
@@ -1586,15 +1608,34 @@ class _ReportsContentState extends State<ReportsContent>
       headers = ['Message'];
     }
 
+    // Use Hindi-aware text styles for all cells
+    pw.TextStyle headerStyleFn(int columnIndex) {
+      return pw.TextStyle(
+        font: baseFont,
+        fontWeight: pw.FontWeight.bold,
+        fontSize: 10,
+      );
+    }
+
+    pw.TextStyle cellStyleFn(int rowIndex, int columnIndex) {
+      return pw.TextStyle(
+        font: baseFont,
+        fontSize: 10,
+      );
+    }
+
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: rows,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+      headerStyle: headerStyleFn(0),
       headerDecoration: const pw.BoxDecoration(),
       cellAlignment: pw.Alignment.centerLeft,
-      cellStyle: const pw.TextStyle(fontSize: 10),
+      cellStyle: cellStyleFn(0, 0),
       headerHeight: 24,
       cellHeight: 20,
+      cellAlignments: {
+        for (int i = 0; i < headers.length; i++) i: pw.Alignment.centerLeft,
+      },
     );
   }
 
@@ -1689,5 +1730,67 @@ class _ReportsContentState extends State<ReportsContent>
         value.contains('\r');
     if (!needsQuotes) return value;
     return '"${value.replaceAll('"', '""')}"';
+  }
+
+  Future<Uint8List?> _loadPdfLogo() async {
+    try {
+      final file = File('assets/images/Office_Logo.png');
+      if (await file.exists()) {
+        return await file.readAsBytes();
+      }
+    } catch (e) {
+      debugPrint('Could not load logo: $e');
+    }
+    return null;
+  }
+
+  pw.Widget _buildOrgHeader(Uint8List? logoBytes, pw.Font boldFont, pw.Font baseFont) {
+    if (logoBytes != null) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Image(pw.MemoryImage(logoBytes), width: 70, height: 70),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    'Uttar Pradesh State Tax Training and Research Institute',
+                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Lucknow',
+                    style: pw.TextStyle(fontSize: 11, font: baseFont, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 90),
+          ],
+        ),
+      );
+    } else {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Center(
+          child: pw.Text(
+            'Uttar Pradesh State Tax Training and Research Institute',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      );
+    }
   }
 }

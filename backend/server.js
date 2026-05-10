@@ -601,7 +601,17 @@ const runMigrations = async () => {
     "CREATE INDEX idx_issues_book_id ON issues(book_id)",
     "CREATE INDEX idx_issues_member_id ON issues(member_id)",
     "CREATE INDEX idx_issues_status ON issues(status)",
-    "CREATE INDEX idx_issues_issue_date ON issues(issue_date)"
+    "CREATE INDEX idx_issues_issue_date ON issues(issue_date)",
+
+    // ── Borrow Slips table ─────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS borrow_slips (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      issue_id INT NOT NULL,
+      slip_number VARCHAR(100) UNIQUE NOT NULL,
+      generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      pdf_data JSON,
+      FOREIGN KEY (issue_id) REFERENCES issues(id) ON DELETE CASCADE
+    )`
   ];
 
   // Run each migration one at a time to prevent deadlocks
@@ -1370,6 +1380,162 @@ app.delete('/api/categories/:id', (req, res) => {
   });
 });
 
+// ==================== BORROW SLIPS ROUTES ====================
+
+// Generate a borrow slip for an issue
+app.post('/api/borrow-slips', (req, res) => {
+  const { issue_id } = req.body;
+
+  if (!issue_id) {
+    return res.status(400).json({ error: 'Issue ID is required' });
+  }
+
+  // Get issue details with book, member, and staff info
+  db.query(`
+    SELECT
+      i.id as issue_id,
+      i.issue_date,
+      i.due_date,
+      i.return_date,
+      i.status,
+      i.notes,
+      i.issued_at,
+      i.returned_at,
+      b.id as book_id,
+      b.isbn,
+      b.title as book_title,
+      b.author as book_author,
+      b.rack_number,
+      b.category as book_category,
+      b.cover_image,
+      m.id as member_id,
+      m.name as member_name,
+      m.email as member_email,
+      m.phone as member_phone,
+      m.member_type,
+      m.profile_photo,
+      m.address as member_address,
+      'Library Staff' as issued_by_name
+    FROM issues i
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    WHERE i.id = ?
+  `, [issue_id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
+    const issue = results[0];
+    const slipNumber = `SLIP-${Date.now()}-${issue_id}`;
+    // Use MySQL datetime format
+    const generatedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    // Check if slip already exists for this issue
+    db.query('SELECT id FROM borrow_slips WHERE issue_id = ?', [issue_id], (err2, existingSlips) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      if (existingSlips && existingSlips.length > 0) {
+        // Return existing slip
+        db.query('SELECT * FROM borrow_slips WHERE issue_id = ?', [issue_id], (err3, slipData) => {
+          if (err3) return res.status(500).json({ error: err3.message });
+          return res.json(slipData[0]);
+        });
+      } else {
+        // Create new slip
+        db.query(`
+          INSERT INTO borrow_slips (issue_id, slip_number, generated_at, pdf_data)
+          VALUES (?, ?, ?, ?)
+        `, [issue_id, slipNumber, generatedAt, JSON.stringify(issue)], (err4, result) => {
+          if (err4) return res.status(500).json({ error: err4.message });
+
+          const slip = {
+            id: result.insertId,
+            issue_id,
+            slip_number: slipNumber,
+            generated_at: new Date().toISOString(),
+            ...issue
+          };
+          res.json(slip);
+        });
+      }
+    });
+  });
+});
+
+// Get borrow slip by issue ID
+app.get('/api/borrow-slips/issue/:issueId', (req, res) => {
+  const { issueId } = req.params;
+
+  db.query('SELECT * FROM borrow_slips WHERE issue_id = ?', [issueId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: 'Borrow slip not found' });
+    }
+    res.json(results[0]);
+  });
+});
+
+// Get borrow slip by ID
+app.get('/api/borrow-slips/:id', (req, res) => {
+  const { id } = req.params;
+
+  db.query('SELECT * FROM borrow_slips WHERE id = ?', [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: 'Borrow slip not found' });
+    }
+    res.json(results[0]);
+  });
+});
+
+// List all borrow slips
+app.get('/api/borrow-slips', (req, res) => {
+  const { page = 1, limit = 50 } = req.query;
+  const offset = (parseInt(page) - 1) * parseInt(limit);
+
+  db.query(`
+    SELECT bs.*, i.issue_date, i.due_date, i.status,
+           b.title as book_title, b.author as book_author,
+           m.name as member_name
+    FROM borrow_slips bs
+    JOIN issues i ON bs.issue_id = i.id
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    ORDER BY bs.generated_at DESC
+    LIMIT ? OFFSET ?
+  `, [parseInt(limit), offset], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    db.query('SELECT COUNT(*) as total FROM borrow_slips', (err2, countResult) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      res.json({
+        data: results,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: countResult[0].total,
+          hasMore: offset + results.length < countResult[0].total
+        }
+      });
+    });
+  });
+});
+
+// Delete borrow slip
+app.delete('/api/borrow-slips/:id', (req, res) => {
+  const { id } = req.params;
+
+  db.query('DELETE FROM borrow_slips WHERE id = ?', [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Borrow slip not found' });
+    }
+    res.json({ message: 'Borrow slip deleted' });
+  });
+});
+
 // ==================== MEMBERS ROUTES ====================
 
 // GET /api/members - Supports pagination for large datasets
@@ -1451,12 +1617,14 @@ app.post('/api/members', (req, res) => {
     'INSERT INTO members (name, email, phone, member_type, membership_date, profile_photo, address, expiry_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)';
 
   // Handle empty strings for date fields and nullable fields
+  // Provide default values for required fields
+  const today = new Date().toISOString().split('T')[0];
   const values = [
     name,
     email || null,
-    phone,
+    phone || null,
     member_type || 'student',
-    membership_date,
+    membership_date || today,
     profile_photo || null,
     address || null,
     expiry_date || null, // Convert empty string to null
@@ -1793,6 +1961,24 @@ app.get('/api/issues', async (req, res) => {
         }
       });
     });
+  });
+});
+
+// Get single issue by ID
+app.get('/api/issues/:id', (req, res) => {
+  db.query(`
+    SELECT i.*, b.title as book_title, b.author as book_author, b.isbn,
+           m.name as member_name, m.email as member_email, m.phone as member_phone, m.member_type
+    FROM issues i
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    WHERE i.id = ?
+  `, [req.params.id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+    res.json(results[0]);
   });
 });
 
@@ -2264,7 +2450,6 @@ app.get('/api/dashboard/alerts', async (req, res) => {
 
   const overdueDays = parseNonNegativeInt(req.query.overdue_days, 7);
   const lowStockThreshold = parseNonNegativeInt(req.query.low_stock_threshold, 1);
-  const inactiveDays = parsePositiveInt(req.query.inactive_days, 60);
   const limit = parsePositiveInt(req.query.limit, 10);
   const lowStockLimit = Math.min(parsePositiveInt(req.query.low_stock_limit, limit), 500);
   const lowStockPage = parsePositiveInt(req.query.low_stock_page, 1);
@@ -2285,8 +2470,9 @@ app.get('/api/dashboard/alerts', async (req, res) => {
         hasMore: false,
       },
     },
-    inactiveMembers: { count: 0, items: [] },
-    deactivatedMembers: { count: 0, items: [] },
+    dailySummary: { count: 0, issued_today: 0, returned_today: 0, items: [] },
+    mostActiveMembers: { count: 0, items: [] },
+    mostIssuedBooks: { count: 0, items: [] },
     kpis: {
       utilization_rate: 0,
       availability_rate: 0,
@@ -2420,56 +2606,85 @@ app.get('/api/dashboard/alerts', async (req, res) => {
       }
     );
 
+    // Daily Issue-Return Summary
     await withCountsAndItems(
       `
         SELECT COUNT(*) AS count
-        FROM members m
-        LEFT JOIN (
-          SELECT member_id, MAX(issue_date) AS last_issue_date
-          FROM issues
-          GROUP BY member_id
-        ) li ON li.member_id = m.id
-        WHERE (m.is_active = TRUE OR m.is_active IS NULL)
-          AND (li.last_issue_date IS NULL OR li.last_issue_date < DATE_SUB(CURDATE(), INTERVAL ? DAY))
-      `,
-      [inactiveDays],
-      `
-        SELECT m.id, m.name, m.email, m.phone, m.member_type, m.profile_photo, m.is_active,
-               li.last_issue_date
-        FROM members m
-        LEFT JOIN (
-          SELECT member_id, MAX(issue_date) AS last_issue_date
-          FROM issues
-          GROUP BY member_id
-        ) li ON li.member_id = m.id
-        WHERE (m.is_active = TRUE OR m.is_active IS NULL)
-          AND (li.last_issue_date IS NULL OR li.last_issue_date < DATE_SUB(CURDATE(), INTERVAL ? DAY))
-        ORDER BY (li.last_issue_date IS NULL) DESC, li.last_issue_date ASC
-        LIMIT ?
-      `,
-      [inactiveDays, limit],
-      (count, items) => {
-        response.inactiveMembers = { count, items };
-      }
-    );
-
-    await withCountsAndItems(
-      `
-        SELECT COUNT(*) AS count
-        FROM members
-        WHERE is_active = FALSE
+        FROM issues
+        WHERE DATE(COALESCE(issued_at, issue_date)) = CURDATE()
       `,
       [],
       `
-        SELECT id, name, email, phone, member_type, profile_photo, is_active, membership_date, expiry_date
-        FROM members
-        WHERE is_active = FALSE
-        ORDER BY name ASC
+        SELECT i.id, i.book_id, i.member_id, i.issue_date, i.due_date, i.status,
+               b.title, b.author,
+               m.name AS member_name
+        FROM issues i
+        JOIN books b ON i.book_id = b.id
+        JOIN members m ON i.member_id = m.id
+        WHERE DATE(COALESCE(i.issued_at, i.issue_date)) = CURDATE()
+        ORDER BY i.issue_date DESC
         LIMIT ?
       `,
       [limit],
       (count, items) => {
-        response.deactivatedMembers = { count, items };
+        // Calculate issued and returned today
+        const issuedToday = items.filter(i => i.status === 'issued' || i.status === 'overdue').length;
+        const returnedToday = items.filter(i => i.status === 'returned').length;
+        response.dailySummary = { count, issued_today: issuedToday, returned_today: returnedToday, items };
+      }
+    );
+
+    // Most Active Members (top borrowers this month)
+    await withCountsAndItems(
+      `
+        SELECT COUNT(*) AS count FROM (
+          SELECT member_id FROM issues
+          WHERE issue_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          GROUP BY member_id
+        ) AS active_members
+      `,
+      [],
+      `
+        SELECT m.id, m.name, m.email, m.member_type, m.profile_photo,
+               COUNT(i.id) AS borrow_count,
+               (SELECT COUNT(*) FROM issues WHERE member_id = m.id AND status IN ('issued', 'overdue')) AS active_issues
+        FROM members m
+        JOIN issues i ON m.id = i.member_id
+        WHERE i.issue_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        GROUP BY m.id
+        ORDER BY borrow_count DESC
+        LIMIT ?
+      `,
+      [limit],
+      (count, items) => {
+        response.mostActiveMembers = { count, items };
+      }
+    );
+
+    // Most Issued Books (top borrowed books this month)
+    await withCountsAndItems(
+      `
+        SELECT COUNT(*) AS count FROM (
+          SELECT book_id FROM issues
+          WHERE issue_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          GROUP BY book_id
+        ) AS active_books
+      `,
+      [],
+      `
+        SELECT b.id, b.title, b.author, b.category, b.cover_image, b.available_copies,
+               COUNT(i.id) AS borrow_count,
+               (SELECT COUNT(*) FROM issues WHERE book_id = b.id AND status IN ('issued', 'overdue')) AS active_copies
+        FROM books b
+        JOIN issues i ON b.id = i.book_id
+        WHERE i.issue_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        GROUP BY b.id
+        ORDER BY borrow_count DESC
+        LIMIT ?
+      `,
+      [limit],
+      (count, items) => {
+        response.mostIssuedBooks = { count, items };
       }
     );
 

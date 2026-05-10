@@ -57,6 +57,7 @@ class _DashboardContentState extends State<DashboardContent>
 
   bool get _enableChartTouch {
     if (kIsWeb) return false;
+    // Disable touch/hover interactions on desktop to avoid mouse tracker assertions
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
       case TargetPlatform.iOS:
@@ -84,10 +85,22 @@ class _DashboardContentState extends State<DashboardContent>
     _floatController = AnimationController(
       duration: const Duration(seconds: 12),
       vsync: this,
-    )..repeat();
+    );
     _alertsScrollController = ScrollController();
 
+    // Delay animation start to avoid timing issues with hot reload
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Use microtask to defer animation start outside device update cycle
+      Future.microtask(() {
+        if (mounted && !_floatController.isDismissed) {
+          try {
+            _floatController.repeat();
+          } catch (e) {
+            debugPrint('Float animation error: $e');
+          }
+        }
+      });
       _refreshAll(showLoading: true, includeStats: true);
 
       // Periodic refresh for realtime-ish updates (other clients).
@@ -204,9 +217,9 @@ class _DashboardContentState extends State<DashboardContent>
 
   bool _showAlertSection(String sectionKey) {
     if (_alertFilter == DashboardAlertFilter.all) return true;
-    const circulationKeys = {'overdue', 'dueToday', 'dueTomorrow'};
-    const inventoryKeys = {'lowStock'};
-    const memberKeys = {'inactiveMembers', 'deactivatedMembers'};
+    const circulationKeys = {'overdue', 'dueToday', 'dueTomorrow', 'dailySummary'};
+    const inventoryKeys = {'lowStock', 'mostIssuedBooks'};
+    const memberKeys = {'mostActiveMembers'};
 
     switch (_alertFilter) {
       case DashboardAlertFilter.circulation:
@@ -276,7 +289,7 @@ class _DashboardContentState extends State<DashboardContent>
       if (includeStats) {
         futures.add(context.read<IssueProvider>().loadStats());
       }
-      futures.add(ApiService.getDashboardAlerts(limit: 10));
+      futures.add(ApiService.getDashboardAlerts(limit: 10, overdueDays: 1));
       futures.add(ApiService.getDashboardActivity(limit: 25));
 
       final results = await Future.wait(futures);
@@ -927,18 +940,6 @@ class _DashboardContentState extends State<DashboardContent>
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth >= 760;
-                      final titleStyle = Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.2,
-                          );
-                      final subtitleStyle =
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: cs.onSurface.withValues(alpha: 0.8),
-                                height: 1.4,
-                              );
                       final chipRow = Wrap(
                         spacing: 10,
                         runSpacing: 10,
@@ -998,13 +999,41 @@ class _DashboardContentState extends State<DashboardContent>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Library overview', style: titleStyle),
-                                  const SizedBox(height: 6),
+                                  // Premium title with accent
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 4,
+                                        height: 28,
+                                        margin: const EdgeInsets.only(right: 12),
+                                        decoration: BoxDecoration(
+                                          color: cs.primary,
+                                          borderRadius: BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          'Library Overview',
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            color: cs.onSurface,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
                                   Text(
                                     'Monitor circulation, inventory, and member health in one place.',
-                                    style: subtitleStyle,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: cs.onSurface.withValues(alpha: 0.7),
+                                      height: 1.4,
+                                    ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
                                   chipRow,
                                 ],
                               ),
@@ -1027,15 +1056,43 @@ class _DashboardContentState extends State<DashboardContent>
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Library overview', style: titleStyle),
-                          const SizedBox(height: 6),
+                          // Premium title with accent
+                          Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 24,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: cs.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'Library Overview',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: cs.onSurface,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           Text(
                             'Monitor circulation, inventory, and member health in one place.',
-                            style: subtitleStyle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: cs.onSurface.withValues(alpha: 0.7),
+                              height: 1.4,
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          chipRow,
                           const SizedBox(height: 14),
+                          chipRow,
+                          const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
                             child: refreshButton,
@@ -1066,7 +1123,7 @@ class _DashboardContentState extends State<DashboardContent>
         sections.add(
           _buildIssueAlertSection(
             context,
-            title: 'Overdue (> 7 days)',
+            title: 'Overdue',
             icon: Icons.warning_rounded,
             color: Colors.red,
             section: alerts['overdue'],
@@ -1101,140 +1158,141 @@ class _DashboardContentState extends State<DashboardContent>
       if (_showAlertSection('lowStock')) {
         sections.add(_buildLowStockSection(context, alerts['lowStock']));
       }
-      if (_showAlertSection('inactiveMembers')) {
-        sections.add(
-          _buildInactiveMembersSection(context, alerts['inactiveMembers']),
-        );
+      if (_showAlertSection('dailySummary')) {
+        sections.add(_buildDailySummarySection(context, alerts['dailySummary']));
       }
-      if (_showAlertSection('deactivatedMembers')) {
-        sections.add(
-          _buildDeactivatedMembersSection(
-            context,
-            alerts['deactivatedMembers'],
-          ),
-        );
+      if (_showAlertSection('mostActiveMembers')) {
+        sections.add(_buildMostActiveMembersSection(context, alerts['mostActiveMembers']));
+      }
+      if (_showAlertSection('mostIssuedBooks')) {
+        sections.add(_buildMostIssuedBooksSection(context, alerts['mostIssuedBooks']));
       }
     }
     return _buildFloatingCard(
       context,
       offsetSeed: 0.12,
-      child: Card(
-        elevation: 12,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Card(
+          elevation: 12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.notification_important_rounded,
-                  color: Theme.of(context).colorScheme.primary,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.notification_important_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Actionable Alerts',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Filtered by ${_alertFilter.name} • $densityLabel layout',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(height: 12),
+
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _buildKpiChip(
+                      context,
+                      label: 'Utilization',
+                      value:
+                          '${(((kpis['utilization_rate'] ?? 0) as num) * 100).toStringAsFixed(1)}%',
+                    ),
+                    _buildKpiChip(
+                      context,
+                      label: 'Availability',
+                      value:
+                          '${(((kpis['availability_rate'] ?? 0) as num) * 100).toStringAsFixed(1)}%',
+                    ),
+                    _buildKpiChip(
+                      context,
+                      label: 'Avg checkout',
+                      value: '${kpis['avg_checkout_duration_days'] ?? 0}d',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Actionable Alerts',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  child: Builder(
+                    builder: (context) {
+                      if (alerts == null && _extrasLoading) {
+                        return _buildAlertsSkeleton(context);
+                      }
+                      if (alerts == null) {
+                        return EmptyStateWidget(
+                          icon: Icons.notifications_off_outlined,
+                          title: 'No alerts available yet',
+                          subtitle:
+                              'Alerts will appear here when circulation, inventory, or member actions need attention.',
+                          actionLabel: 'Refresh alerts',
+                          onAction: () => _refreshAll(
+                            showLoading: true,
+                            includeStats: false,
+                          ),
+                        );
+                      }
+
+                      if (sections.isEmpty) {
+                        return EmptyStateWidget(
+                          icon: Icons.filter_alt_off_rounded,
+                          title: 'No alert sections match this filter',
+                          subtitle:
+                              'Try switching the alert filter or choose a saved view to see more data.',
+                          actionLabel: 'Show all alerts',
+                          onAction: () {
+                            setState(() {
+                              _alertFilter = DashboardAlertFilter.all;
+                              _viewPreset = DashboardViewPreset.balanced;
+                            });
+                            unawaited(_persistDashboardUxPreferences());
+                          },
+                        );
+                      }
+
+                      return Scrollbar(
+                        controller: _alertsScrollController,
+                        thumbVisibility: true,
+                        child: ListView.separated(
+                          controller: _alertsScrollController,
+                          padding: EdgeInsets.zero,
+                          itemCount: sections.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) => sections[index],
                         ),
-                      ),
-                      Text(
-                        'Filtered by ${_alertFilter.name} • $densityLabel layout',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
+                if (sections.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildAlertsScrollControls(context),
+                ],
               ],
             ),
-            const SizedBox(height: 12),
-
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildKpiChip(
-                  context,
-                  label: 'Utilization',
-                  value:
-                      '${(((kpis['utilization_rate'] ?? 0) as num) * 100).toStringAsFixed(1)}%',
-                ),
-                _buildKpiChip(
-                  context,
-                  label: 'Availability',
-                  value:
-                      '${(((kpis['availability_rate'] ?? 0) as num) * 100).toStringAsFixed(1)}%',
-                ),
-                _buildKpiChip(
-                  context,
-                  label: 'Avg checkout',
-                  value: '${kpis['avg_checkout_duration_days'] ?? 0}d',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  if (alerts == null && _extrasLoading) {
-                    return _buildAlertsSkeleton(context);
-                  }
-                  if (alerts == null) {
-                    return EmptyStateWidget(
-                      icon: Icons.notifications_off_outlined,
-                      title: 'No alerts available yet',
-                      subtitle:
-                          'Alerts will appear here when circulation, inventory, or member actions need attention.',
-                      actionLabel: 'Refresh alerts',
-                      onAction: () => _refreshAll(
-                        showLoading: true,
-                        includeStats: false,
-                      ),
-                    );
-                  }
-
-                  if (sections.isEmpty) {
-                    return EmptyStateWidget(
-                      icon: Icons.filter_alt_off_rounded,
-                      title: 'No alert sections match this filter',
-                      subtitle:
-                          'Try switching the alert filter or choose a saved view to see more data.',
-                      actionLabel: 'Show all alerts',
-                      onAction: () {
-                        setState(() {
-                          _alertFilter = DashboardAlertFilter.all;
-                          _viewPreset = DashboardViewPreset.balanced;
-                        });
-                        unawaited(_persistDashboardUxPreferences());
-                      },
-                    );
-                  }
-
-                  return Scrollbar(
-                    controller: _alertsScrollController,
-                    thumbVisibility: true,
-                    child: ListView.separated(
-                      controller: _alertsScrollController,
-                      itemCount: sections.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, index) => sections[index],
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (sections.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _buildAlertsScrollControls(context),
-            ],
-          ],
           ),
         ),
       ),
@@ -1499,16 +1557,55 @@ class _DashboardContentState extends State<DashboardContent>
     required Widget child,
     double offsetSeed = 0,
   }) {
-    return AnimatedBuilder(
-      animation: _floatController,
-      builder: (context, _) {
-        final t = _floatController.value;
-        final lift = 4 * math.sin(2 * math.pi * (t + offsetSeed));
-        return Transform.translate(
-          offset: Offset(0, -lift),
-          child: child,
-        );
-      },
+    // Return card without floating animation to avoid mouse tracker assertion issues on desktop
+    return RepaintBoundary(child: child);
+  }
+
+  Widget _buildPaginationButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    VoidCallback? onPressed,
+  }) {
+    final isEnabled = onPressed != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isEnabled
+                ? Theme.of(context).colorScheme.primaryContainer
+                : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isEnabled
+                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                    : Theme.of(context).colorScheme.outline,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isEnabled
+                      ? Theme.of(context).colorScheme.onPrimaryContainer
+                      : Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1668,14 +1765,18 @@ class _DashboardContentState extends State<DashboardContent>
           Expanded(child: Text('$title ($count)')),
           if (count > 0)
             TextButton(
-              onPressed: () => _showAlertDetailsPopup(
-                title: title,
-                icon: icon,
-                color: color,
-                items: items,
-                type: 'issue',
-                actions: actions,
-              ),
+              onPressed: () {
+                final ctx = context;
+                Future.microtask(() => _showAlertDetailsPopup(
+                  ctx: ctx,
+                  title: title,
+                  icon: icon,
+                  color: color,
+                  items: items,
+                  type: 'issue',
+                  actions: actions,
+                ));
+              },
               child: Text('View All $count'),
             ),
         ],
@@ -1692,12 +1793,16 @@ class _DashboardContentState extends State<DashboardContent>
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => _showSingleAlertPopup(
-              item: item,
-              type: 'issue',
-              color: color,
-              actions: actions,
-            ),
+            onTap: () {
+              final ctx = context;
+              Future.microtask(() => _showSingleAlertPopup(
+                ctx: ctx,
+                item: item,
+                type: 'issue',
+                color: color,
+                actions: actions,
+              ));
+            },
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
@@ -1769,64 +1874,256 @@ class _DashboardContentState extends State<DashboardContent>
     );
   }
 
-  void _showAlertDetailsPopup({
+  Future<void> _showAlertDetailsPopup({
+    required BuildContext ctx,
     required String title,
     required IconData icon,
     required Color color,
     required List<Map<String, dynamic>> items,
     required String type,
     List<String> actions = const [],
-  }) {
+  }) async {
     if (!mounted) return;
-    final rootContext = context;
-    Future.microtask(() {
+    final rootContext = ctx;
+    final int popupPageSize = 10;
+    int currentPage = 1;
+    int totalPages = items.isNotEmpty ? ((items.length + popupPageSize - 1) ~/ popupPageSize) : 1;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       showDialog(
         context: rootContext,
         useRootNavigator: true,
-        builder: (dialogContext) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 12),
-              Expanded(child: Text(title)),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(dialogContext).size.width < 600
-                  ? MediaQuery.of(dialogContext).size.width * 0.9
-                  : MediaQuery.of(dialogContext).size.width * 0.7,
-              maxHeight: MediaQuery.of(dialogContext).size.height * 0.6,
-            ),
-            child: items.isEmpty
-                ? const Center(child: Text('No items'))
-                : ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return _buildAlertPopupItem(
-                        dialogContext,
-                        item,
-                        type,
-                        color,
-                        actions,
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Close'),
-            ),
-          ],
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final dialogWidth = MediaQuery.of(dialogContext).size.width < 600
+                ? MediaQuery.of(dialogContext).size.width * 0.95
+                : MediaQuery.of(dialogContext).size.width * 0.75;
+            final dialogHeight = MediaQuery.of(dialogContext).size.height * 0.7;
+
+            final startIndex = (currentPage - 1) * popupPageSize;
+            final endIndex = (startIndex + popupPageSize > items.length)
+                ? items.length
+                : startIndex + popupPageSize;
+            final pageItems = items.isEmpty ? <Map<String, dynamic>>[] : items.sublist(startIndex, endIndex);
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Container(
+                width: dialogWidth,
+                height: dialogHeight,
+                decoration: BoxDecoration(
+                  color: Theme.of(dialogContext).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Enhanced Header
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.15),
+                            color.withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(icon, color: color, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(dialogContext).colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '${items.length} total items',
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(dialogContext).colorScheme.surfaceContainerHighest,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Content Area
+                    Expanded(
+                      child: items.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.inbox_rounded,
+                                    size: 64,
+                                    color: Theme.of(dialogContext).colorScheme.outline,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No items found',
+                                    style: Theme.of(dialogContext).textTheme.titleMedium?.copyWith(
+                                      color: Theme.of(dialogContext).colorScheme.outline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: pageItems.length,
+                              itemBuilder: (context, index) {
+                                final item = pageItems[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(dialogContext).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Theme.of(dialogContext).colorScheme.outline.withValues(alpha: 0.1),
+                                        ),
+                                      ),
+                                      child: _buildAlertPopupItem(
+                                        dialogContext,
+                                        item,
+                                        type,
+                                        color,
+                                        actions,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    // Enhanced Pagination Footer
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(dialogContext).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(dialogContext).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Showing ${startIndex + 1}-$endIndex of ${items.length}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(dialogContext).colorScheme.primary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              _buildPaginationButton(
+                                context: dialogContext,
+                                icon: Icons.chevron_left_rounded,
+                                label: 'Prev',
+                                onPressed: currentPage > 1
+                                    ? () => setDialogState(() => currentPage--)
+                                    : null,
+                              ),
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$currentPage / $totalPages',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              _buildPaginationButton(
+                                context: dialogContext,
+                                icon: Icons.chevron_right_rounded,
+                                label: 'Next',
+                                onPressed: currentPage < totalPages
+                                    ? () => setDialogState(() => currentPage++)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       );
     });
   }
 
-  Future<void> _showAllLowStockPopup(BuildContext _, int totalCount) async {
+  Future<void> _showAllLowStockPopup(BuildContext ctx, int totalCount) async {
     int currentPage = 1;
     int resolvedTotalCount = totalCount;
     int totalPages = totalCount > 0
@@ -1897,144 +2194,148 @@ class _DashboardContentState extends State<DashboardContent>
       }
     }
 
-    final rootContext = context;
-    await showDialog(
-      context: rootContext,
-      useRootNavigator: true,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
-          if (!hasLoadedInitialPage) {
-            hasLoadedInitialPage = true;
-            unawaited(loadPage(setDialogState, 1));
-          }
+    final rootContext = ctx;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await showDialog(
+        context: rootContext,
+        useRootNavigator: true,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            if (!hasLoadedInitialPage) {
+              hasLoadedInitialPage = true;
+              unawaited(loadPage(setDialogState, 1));
+            }
 
-          final dialogWidth = MediaQuery.of(dialogContext).size.width < 600
-              ? MediaQuery.of(dialogContext).size.width * 0.92
-              : MediaQuery.of(dialogContext).size.width * 0.72;
-          final dialogHeight = MediaQuery.of(dialogContext).size.height * 0.65;
+            final dialogWidth = MediaQuery.of(dialogContext).size.width < 600
+                ? MediaQuery.of(dialogContext).size.width * 0.92
+                : MediaQuery.of(dialogContext).size.width * 0.72;
+            final dialogHeight = MediaQuery.of(dialogContext).size.height * 0.65;
 
-          return AlertDialog(
-            title: Row(
-              children: [
-                const Icon(Icons.inventory_2_rounded, color: Colors.blueGrey),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Low Stock Books ($resolvedTotalCount)')),
-              ],
-            ),
-            content: SizedBox(
-              width: dialogWidth,
-              height: dialogHeight,
-              child: Column(
+            return AlertDialog(
+              title: Row(
                 children: [
-                  if (isLoading) const LinearProgressIndicator(),
-                  if (isLoading) const SizedBox(height: 8),
-                  Expanded(
-                    child: loadError != null && items.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(loadError!, textAlign: TextAlign.center),
-                                const SizedBox(height: 12),
-                                FilledButton.icon(
-                                  onPressed: () async {
-                                    await loadPage(setDialogState, currentPage);
-                                  },
-                                  icon: const Icon(Icons.refresh_rounded),
-                                  label: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : items.isEmpty
-                        ? const Center(child: Text('No low stock books'))
-                        : ListView.builder(
-                            itemCount: items.length,
-                            itemBuilder: (itemContext, index) {
-                              final item = items[index];
-                              return _buildAlertPopupItem(
-                                dialogContext,
-                                item,
-                                'lowstock',
-                                Colors.blueGrey,
-                                const [],
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Showing ${items.length} of $resolvedTotalCount',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextButton.icon(
-                            onPressed: (!isLoading && currentPage > 1)
-                                ? () async {
-                                    await loadPage(
-                                      setDialogState,
-                                      currentPage - 1,
-                                    );
-                                  }
-                                : null,
-                            icon: const Icon(Icons.chevron_left, size: 18),
-                            label: const Text('Prev'),
-                            style: TextButton.styleFrom(
-                              shape: const StadiumBorder(),
-                            ),
-                          ),
-                          Text('Page $currentPage of $totalPages'),
-                          TextButton.icon(
-                            onPressed: (!isLoading && currentPage < totalPages)
-                                ? () async {
-                                    await loadPage(
-                                      setDialogState,
-                                      currentPage + 1,
-                                    );
-                                  }
-                                : null,
-                            icon: const Icon(Icons.chevron_right, size: 18),
-                            label: const Text('Next'),
-                            style: TextButton.styleFrom(
-                              shape: const StadiumBorder(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  const Icon(Icons.inventory_2_rounded, color: Colors.blueGrey),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Low Stock Books ($resolvedTotalCount)')),
                 ],
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Close'),
+              content: SizedBox(
+                width: dialogWidth,
+                height: dialogHeight,
+                child: Column(
+                  children: [
+                    if (isLoading) const LinearProgressIndicator(),
+                    if (isLoading) const SizedBox(height: 8),
+                    Expanded(
+                      child: loadError != null && items.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(loadError!, textAlign: TextAlign.center),
+                                  const SizedBox(height: 12),
+                                  FilledButton.icon(
+                                    onPressed: () async {
+                                      await loadPage(setDialogState, currentPage);
+                                    },
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : items.isEmpty
+                          ? const Center(child: Text('No low stock books'))
+                          : ListView.builder(
+                              itemCount: items.length,
+                              itemBuilder: (itemContext, index) {
+                                final item = items[index];
+                                return _buildAlertPopupItem(
+                                  dialogContext,
+                                  item,
+                                  'lowstock',
+                                  Colors.blueGrey,
+                                  const [],
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Showing ${items.length} of $resolvedTotalCount',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton.icon(
+                              onPressed: (!isLoading && currentPage > 1)
+                                  ? () async {
+                                      await loadPage(
+                                        setDialogState,
+                                        currentPage - 1,
+                                      );
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.chevron_left, size: 18),
+                              label: const Text('Prev'),
+                              style: TextButton.styleFrom(
+                                shape: const StadiumBorder(),
+                              ),
+                            ),
+                            Text('Page $currentPage of $totalPages'),
+                            TextButton.icon(
+                              onPressed: (!isLoading && currentPage < totalPages)
+                                  ? () async {
+                                      await loadPage(
+                                        setDialogState,
+                                        currentPage + 1,
+                                      );
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.chevron_right, size: 18),
+                              label: const Text('Next'),
+                              style: TextButton.styleFrom(
+                                shape: const StadiumBorder(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          );
-        },
-      ),
-    );
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    });
   }
 
   void _showSingleAlertPopup({
+    required BuildContext ctx,
     required Map<String, dynamic> item,
     required String type,
     required Color color,
     List<String> actions = const [],
   }) {
     if (!mounted) return;
-    final rootContext = context;
-    Future.microtask(() {
+    final rootContext = ctx;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       showDialog(
         context: rootContext,
@@ -2082,97 +2383,309 @@ class _DashboardContentState extends State<DashboardContent>
       final dueDate = item['due_date']?.toString() ?? '';
       final daysOverdue = item['days_overdue']?.toString() ?? '';
       final dueDateText = DateFormatter.formatDateIndian(dueDate);
+      final author = item['author']?.toString() ?? '';
+      final issueDate = item['issue_date']?.toString() ?? '';
+      final issueDateText = DateFormatter.formatDateIndian(issueDate);
+      final isOverdue = daysOverdue.isNotEmpty && int.tryParse(daysOverdue) != null && int.parse(daysOverdue) > 0;
 
-      return Card(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                bookTitle,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: isOverdue ? Colors.red.withValues(alpha: 0.05) : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isOverdue ? Colors.red.withValues(alpha: 0.2) : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with book title
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    isOverdue ? Colors.red.withValues(alpha: 0.1) : color.withValues(alpha: 0.1),
+                    Colors.transparent,
+                  ],
                 ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
-              const SizedBox(height: 8),
-              Row(
+              child: Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 16),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text('Member: $memberName')),
+                  // Book icon with colored background
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isOverdue ? Colors.red.withValues(alpha: 0.15) : color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.menu_book_rounded,
+                      color: isOverdue ? Colors.red : color,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          bookTitle,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (author.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'by $author',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // Status badge
+                  if (isOverdue)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.warning_rounded, size: 14, color: Colors.red),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$daysOverdue days',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Row(
+            ),
+            // Details section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  const Icon(Icons.calendar_today, size: 16),
-                  const SizedBox(width: 4),
-                  Text('Due: ${dueDateText.isEmpty ? '-' : dueDateText}'),
-                  if (daysOverdue.isNotEmpty && daysOverdue != '0') ...[
-                    const SizedBox(width: 16),
+                  // Member info
+                  _buildDetailRow(
+                    context,
+                    icon: Icons.person_outline_rounded,
+                    label: 'Member',
+                    value: memberName,
+                    color: color,
+                  ),
+                  const SizedBox(height: 10),
+                  // Issue date
+                  if (issueDateText.isNotEmpty)
+                    _buildDetailRow(
+                      context,
+                      icon: Icons.calendar_month_rounded,
+                      label: 'Issue Date',
+                      value: issueDateText,
+                      color: color,
+                    ),
+                  if (issueDateText.isNotEmpty) const SizedBox(height: 10),
+                  // Due date
+                  _buildDetailRow(
+                    context,
+                    icon: Icons.event_rounded,
+                    label: 'Due Date',
+                    value: dueDateText.isEmpty ? '-' : dueDateText,
+                    color: isOverdue ? Colors.red : color,
+                    isHighlighted: isOverdue,
+                  ),
+                  // Overdue warning
+                  if (isOverdue) ...[
+                    const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        'Overdue: $daysOverdue days',
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 16, color: Colors.red.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This book is overdue by $daysOverdue days',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ],
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (actions.contains('remind'))
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        await _runAction(
-                          context,
-                          () => ApiService.remindIssue(issueId),
-                          successMessage: 'Reminder logged',
-                        );
-                      },
-                      icon: const Icon(Icons.mark_email_unread_rounded, size: 16),
-                      label: const Text('Remind'),
-                    ),
-                  if (actions.contains('return'))
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        await _runAction(context, () async {
-                          await this.context.read<IssueProvider>().returnBook(issueId);
-                        }, successMessage: 'Marked returned');
-                        await _refreshAll(showLoading: false, includeStats: true);
-                        if (context.mounted) Navigator.of(context).pop();
-                      },
-                      icon: const Icon(Icons.assignment_return_rounded, size: 16),
-                      label: const Text('Return'),
-                    ),
-                ],
+            ),
+            // Action buttons
+            if (actions.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    if (actions.contains('remind'))
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await _runAction(
+                              context,
+                              () => ApiService.remindIssue(issueId),
+                              successMessage: 'Reminder sent successfully',
+                            );
+                          },
+                          icon: const Icon(Icons.mark_email_unread_rounded, size: 18),
+                          label: const Text('Send Reminder'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: color,
+                            side: BorderSide(color: color.withValues(alpha: 0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    if (actions.contains('remind') && actions.contains('return'))
+                      const SizedBox(width: 10),
+                    if (actions.contains('return'))
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            await _runAction(context, () async {
+                              await this.context.read<IssueProvider>().returnBook(issueId);
+                            }, successMessage: 'Book marked as returned');
+                            await _refreshAll(showLoading: false, includeStats: true);
+                            if (context.mounted) Navigator.of(context).pop();
+                          },
+                          icon: const Icon(Icons.assignment_return_rounded, size: 18),
+                          label: const Text('Mark Return'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: color,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ],
-          ),
+          ],
         ),
       );
     }
-    
+
     // Generic item display
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        title: Text(item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown'),
-        subtitle: Text(item.entries
-            .where((e) => e.key != 'id' && e.key != 'title' && e.key != 'name')
-            .map((e) => '${e.key}: ${e.value}')
-            .take(3)
-            .join(', ')),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+        ),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.entries
+                .where((e) => e.key != 'id' && e.key != 'title' && e.key != 'name')
+                .map((e) => '${_formatKey(e.key)}: ${_formatValue(e.key, e.value)}')
+                .take(3)
+                .join(' • '),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    bool isHighlighted = false,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: isHighlighted ? Colors.red : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isHighlighted ? Colors.red : Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2282,7 +2795,10 @@ class _DashboardContentState extends State<DashboardContent>
           Expanded(child: Text('Low stock ($count)')),
           if (count > 0)
             TextButton(
-              onPressed: () => _showAllLowStockPopup(context, count),
+              onPressed: () {
+                final ctx = context;
+                _showAllLowStockPopup(ctx, count);
+              },
               child: Text('View All $count'),
             ),
         ],
@@ -2312,131 +2828,279 @@ class _DashboardContentState extends State<DashboardContent>
               ),
             ),
           ),
-          onTap: () => _showSingleAlertPopup(
-            item: item,
-            type: 'lowstock',
-            color: Colors.blueGrey,
-          ),
+          onTap: () {
+            final ctx = context;
+            Future.microtask(() => _showSingleAlertPopup(
+              ctx: ctx,
+              item: item,
+              type: 'lowstock',
+              color: Colors.blueGrey,
+            ));
+          },
         );
       }).toList(),
     );
   }
 
-  Widget _buildInactiveMembersSection(BuildContext context, dynamic section) {
+  Widget _buildDailySummarySection(BuildContext context, dynamic section) {
+    final count = (section is Map ? section['count'] : 0) ?? 0;
+    final issuedToday = (section is Map ? section['issued_today'] : 0) ?? 0;
+    final returnedToday = (section is Map ? section['returned_today'] : 0) ?? 0;
+    final items = _normalizeAlertItems(section);
+    final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
+
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      leading: const Icon(Icons.today_rounded, color: Colors.green),
+      title: Row(
+        children: [
+          Expanded(child: Text('Today\'s Activity ($count)')),
+          if (count > 0)
+            TextButton(
+              onPressed: () {
+                final ctx = context;
+                Future.microtask(() => _showAlertDetailsPopup(
+                  ctx: ctx,
+                  title: 'Daily Issue-Return Summary',
+                  icon: Icons.today_rounded,
+                  color: Colors.green,
+                  items: items,
+                  type: 'daily_summary',
+                ));
+              },
+              child: Text('View All $count'),
+            ),
+        ],
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildStatChip('Issued', issuedToday, Colors.blue),
+              _buildStatChip('Returned', returnedToday, Colors.green),
+            ],
+          ),
+        ),
+        ...items.take(previewLimit).map((raw) {
+          final item = (raw as Map).cast<String, dynamic>();
+          final title = item['title']?.toString() ?? '';
+          final memberName = item['member_name']?.toString() ?? '';
+          final status = item['status']?.toString() ?? '';
+
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              status == 'returned' ? Icons.assignment_return : Icons.assignment,
+              color: status == 'returned' ? Colors.green : Colors.blue,
+              size: 20,
+            ),
+            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(memberName),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: status == 'returned'
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                status == 'returned' ? 'Returned' : 'Issued',
+                style: TextStyle(
+                  color: status == 'returned' ? Colors.green.shade700 : Colors.blue.shade700,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildMostActiveMembersSection(BuildContext context, dynamic section) {
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.person_off_rounded, color: Colors.deepPurple),
+      leading: const Icon(Icons.star_rounded, color: Colors.amber),
       title: Row(
         children: [
-          Expanded(child: Text('No recent activity ($count)')),
+          Expanded(child: Text('Most Active Members ($count)')),
           if (count > 0)
             TextButton(
-              onPressed: () => _showAlertDetailsPopup(
-                title: 'Inactive Members',
-                icon: Icons.person_off_rounded,
-                color: Colors.deepPurple,
-                items: items,
-                type: 'inactive_member',
-              ),
+              onPressed: () {
+                final ctx = context;
+                Future.microtask(() => _showAlertDetailsPopup(
+                  ctx: ctx,
+                  title: 'Most Active Members',
+                  icon: Icons.star_rounded,
+                  color: Colors.amber,
+                  items: items,
+                  type: 'most_active_members',
+                ));
+              },
               child: Text('View All $count'),
             ),
         ],
       ),
       children: items.take(previewLimit).map((raw) {
         final item = (raw as Map).cast<String, dynamic>();
-        final memberId = item['id'] ?? 0;
         final name = item['name']?.toString() ?? '';
-        final email = item['email']?.toString() ?? '';
-        final last = item['last_issue_date']?.toString();
-        final lastText = DateFormatter.formatDateTimeIndian(last);
+        final memberType = item['member_type']?.toString() ?? '';
+        final borrowCount = item['borrow_count'] ?? 0;
+        final activeIssues = item['active_issues'] ?? 0;
 
         return ListTile(
           contentPadding: EdgeInsets.zero,
+          leading: CircleAvatar(
+            backgroundColor: Colors.amber.withValues(alpha: 0.2),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+            ),
+          ),
           title: Text(name),
-          subtitle: Text(
-            '${email.isNotEmpty ? email : 'No email'}${last != null ? ' • Last activity: ${lastText.isEmpty ? last : lastText}' : ''}',
-          ),
-          trailing: OutlinedButton(
-            onPressed: () async {
-              await _runAction(
-                context,
-                () => ApiService.deactivateMember(memberId),
-                successMessage: 'Member deactivated',
-              );
-              await _refreshAll(showLoading: false, includeStats: true);
-            },
-            child: const Text('Deactivate'),
-          ),
-          onTap: () => _showSingleAlertPopup(
-            item: item,
-            type: 'inactive_member',
-            color: Colors.deepPurple,
+          subtitle: Text('${_capitalize(memberType)} • $activeIssues active issues'),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '$borrowCount borrows',
+              style: TextStyle(
+                color: Colors.amber.shade700,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         );
       }).toList(),
     );
   }
 
-  Widget _buildDeactivatedMembersSection(
-    BuildContext context,
-    dynamic section,
-  ) {
+  Widget _buildMostIssuedBooksSection(BuildContext context, dynamic section) {
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.block_rounded, color: Colors.redAccent),
+      leading: const Icon(Icons.trending_up_rounded, color: Colors.purple),
       title: Row(
         children: [
-          Expanded(child: Text('Deactivated accounts ($count)')),
+          Expanded(child: Text('Most Issued Books ($count)')),
           if (count > 0)
             TextButton(
-              onPressed: () => _showAlertDetailsPopup(
-                title: 'Deactivated Accounts',
-                icon: Icons.block_rounded,
-                color: Colors.redAccent,
-                items: items,
-                type: 'deactivated_member',
-              ),
+              onPressed: () {
+                final ctx = context;
+                Future.microtask(() => _showAlertDetailsPopup(
+                  ctx: ctx,
+                  title: 'Most Issued Books',
+                  icon: Icons.trending_up_rounded,
+                  color: Colors.purple,
+                  items: items,
+                  type: 'most_issued_books',
+                ));
+              },
               child: Text('View All $count'),
             ),
         ],
       ),
       children: items.take(previewLimit).map((raw) {
         final item = (raw as Map).cast<String, dynamic>();
-        final memberId = item['id'] ?? 0;
-        final name = item['name']?.toString() ?? '';
-        final email = item['email']?.toString() ?? '';
+        final title = item['title']?.toString() ?? '';
+        final author = item['author']?.toString() ?? '';
+        final borrowCount = item['borrow_count'] ?? 0;
+        final available = item['available_copies'] ?? 0;
 
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(name),
-          subtitle: Text(email.isNotEmpty ? email : 'No email'),
-          trailing: ElevatedButton(
-            onPressed: () async {
-              await _runAction(
-                context,
-                () => ApiService.activateMember(memberId),
-                successMessage: 'Member activated',
-              );
-              await _refreshAll(showLoading: false, includeStats: true);
-            },
-            child: const Text('Activate'),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.purple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.menu_book, color: Colors.purple, size: 20),
           ),
-          onTap: () => _showSingleAlertPopup(
-            item: item,
-            type: 'deactivated_member',
-            color: Colors.redAccent,
+          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.purple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$borrowCount',
+                  style: TextStyle(
+                    color: Colors.purple.shade700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'available: $available',
+                  style: TextStyle(
+                    color: Colors.purple.shade400,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }).toList(),
     );
+  }
+
+  Widget _buildStatChip(String label, int value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _capitalize(String text) {
+    if (text.isEmpty) return '';
+    return text[0].toUpperCase() + text.substring(1);
   }
 
   Future<void> _runAction(

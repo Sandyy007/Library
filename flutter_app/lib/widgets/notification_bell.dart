@@ -14,32 +14,28 @@ class NotificationBell extends StatelessWidget {
       builder: (context, notificationProvider, _) {
         final unreadCount = notificationProvider.unreadCount;
         final cs = Theme.of(context).colorScheme;
-        final buttonLabel = unreadCount > 0
-            ? 'Notifications ($unreadCount)'
-            : 'Notifications';
-        final baseButton = TextButton.icon(
-          onPressed: () => _showNotificationsPanel(context),
-          icon: Icon(
-            unreadCount > 0
-                ? Icons.notifications_active_rounded
-                : Icons.notifications_none_rounded,
-            color: cs.primary,
-          ),
-          label: Text(buttonLabel),
-          style: TextButton.styleFrom(
-            backgroundColor: cs.primary.withValues(alpha: 0.1),
-            foregroundColor: cs.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
 
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            baseButton,
+            TextButton.icon(
+              onPressed: () => _showNotificationsPanel(context),
+              icon: Icon(
+                unreadCount > 0
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_none_rounded,
+                color: cs.primary,
+              ),
+              label: const Text('Notifications'),
+              style: TextButton.styleFrom(
+                backgroundColor: cs.primary.withValues(alpha: 0.1),
+                foregroundColor: cs.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
             if (unreadCount > 0)
               Positioned(
                 right: 6,

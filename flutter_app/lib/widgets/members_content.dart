@@ -228,40 +228,113 @@ class _MembersContentState extends State<MembersContent> {
 
   /// Status filter chips widget (extracted for reuse in both layouts).
   Widget _buildStatusChips() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ChoiceChip(
-          label: const Text('All'),
-          selected: _statusFilter == MemberStatusFilter.all,
-          onSelected: (_) => setState(() => _statusFilter = MemberStatusFilter.all),
-          visualDensity: VisualDensity.compact,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildFilterChip('All', MemberStatusFilter.all),
+          const SizedBox(width: 4),
+          _buildFilterChip('Active', MemberStatusFilter.active),
+          const SizedBox(width: 4),
+          _buildFilterChip('Inactive', MemberStatusFilter.inactive),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, MemberStatusFilter filter) {
+    final isSelected = _statusFilter == filter;
+    return GestureDetector(
+      onTap: () => setState(() => _statusFilter = filter),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
         ),
-        const SizedBox(width: 6),
-        ChoiceChip(
-          label: const Text('Active'),
-          selected: _statusFilter == MemberStatusFilter.active,
-          onSelected: (_) => setState(() => _statusFilter = MemberStatusFilter.active),
-          visualDensity: VisualDensity.compact,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected
+                ? Theme.of(context).colorScheme.onPrimary
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
         ),
-        const SizedBox(width: 6),
-        ChoiceChip(
-          label: const Text('Inactive'),
-          selected: _statusFilter == MemberStatusFilter.inactive,
-          onSelected: (_) => setState(() => _statusFilter = MemberStatusFilter.inactive),
-          visualDensity: VisualDensity.compact,
-        ),
-      ],
+      ),
     );
   }
 
   /// Thin vertical divider for the toolbar.
   Widget _buildToolbarDivider(BuildContext context) {
     return Container(
-      height: 24,
+      height: 20,
       width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+    );
+  }
+
+  /// Toolbar IconButton with consistent styling
+  Widget _buildToolbarIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onPressed,
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 20,
+              color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Table action button with consistent styling
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
+      ),
     );
   }
 
@@ -280,23 +353,14 @@ class _MembersContentState extends State<MembersContent> {
           children: [
             // Search Bar, Status Filters, and Action buttons - all in one bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.12),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.shadow.withValues(alpha: 0.06),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -306,65 +370,80 @@ class _MembersContentState extends State<MembersContent> {
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search...',
+                        hintText: 'Search members...',
                         prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _filterMembers();
+                                  setState(() {}); // Update clear button visibility
+                                },
+                              )
+                            : null,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         isDense: true,
                       ),
                       onChanged: (value) {
                         _searchDebounce?.cancel();
                         _searchDebounce = Timer(const Duration(milliseconds: 350), _filterMembers);
+                        setState(() {}); // Update clear button visibility
                       },
                     ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildStatusChips(),
-                          if (selectedCount > 0) ...[
-                            _buildToolbarDivider(context),
-                            IconButton(
-                              tooltip: 'Delete ($selectedCount)',
-                              onPressed: _deleteSelectedMembers,
-                              icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
-                              visualDensity: VisualDensity.compact,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _buildStatusChips(),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                if (selectedCount > 0) ...[
+                                  _buildToolbarDivider(context),
+                                  _buildToolbarIconButton(
+                                    icon: Icons.delete_forever,
+                                    tooltip: 'Delete ($selectedCount)',
+                                    onPressed: _deleteSelectedMembers,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  _buildToolbarIconButton(
+                                    icon: Icons.clear,
+                                    tooltip: 'Clear selection',
+                                    onPressed: () => setState(_selectedMemberIds.clear),
+                                  ),
+                                ],
+                                _buildToolbarDivider(context),
+                                _buildToolbarIconButton(
+                                  icon: Icons.download,
+                                  tooltip: 'Export CSV',
+                                  onPressed: _exportMembersActivityCsv,
+                                ),
+                                _buildToolbarIconButton(
+                                  icon: Icons.refresh,
+                                  tooltip: 'Refresh',
+                                  onPressed: _loadMembers,
+                                ),
+                                const SizedBox(width: 8),
+                                FilledButton.icon(
+                                  onPressed: () => _showMemberDialog(),
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text('Add'),
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                              ],
                             ),
-                            IconButton(
-                              tooltip: 'Clear selection',
-                              onPressed: () => setState(_selectedMemberIds.clear),
-                              icon: const Icon(Icons.clear, size: 20),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
-                          _buildToolbarDivider(context),
-                          IconButton(
-                            tooltip: 'Export CSV',
-                            onPressed: _exportMembersActivityCsv,
-                            icon: const Icon(Icons.download, size: 20),
-                            visualDensity: VisualDensity.compact,
                           ),
-                          IconButton(
-                            tooltip: 'Refresh',
-                            onPressed: _loadMembers,
-                            icon: const Icon(Icons.refresh, size: 20),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => _showMemberDialog(),
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Add'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ] else ...[
                     // ── Wide layout (>=600px): everything in a single row ──
@@ -376,56 +455,65 @@ class _MembersContentState extends State<MembersContent> {
                             decoration: InputDecoration(
                               hintText: 'Search members...',
                               prefixIcon: const Icon(Icons.search, size: 20),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _filterMembers();
+                                      },
+                                    )
+                                  : null,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               filled: true,
-                              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               isDense: true,
                             ),
                             onChanged: (value) {
                               _searchDebounce?.cancel();
                               _searchDebounce = Timer(const Duration(milliseconds: 350), _filterMembers);
+                              setState(() {}); // Update clear button visibility
                             },
                           ),
                         ),
                         const SizedBox(width: 12),
                         _buildStatusChips(),
+                        const SizedBox(width: 8),
                         if (selectedCount > 0) ...[
                           _buildToolbarDivider(context),
-                          IconButton(
+                          _buildToolbarIconButton(
+                            icon: Icons.delete_forever,
                             tooltip: 'Delete ($selectedCount)',
                             onPressed: _deleteSelectedMembers,
-                            icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
-                            visualDensity: VisualDensity.compact,
+                            color: Theme.of(context).colorScheme.error,
                           ),
-                          IconButton(
+                          _buildToolbarIconButton(
+                            icon: Icons.clear,
                             tooltip: 'Clear selection',
                             onPressed: () => setState(_selectedMemberIds.clear),
-                            icon: const Icon(Icons.clear, size: 20),
-                            visualDensity: VisualDensity.compact,
                           ),
+                          const SizedBox(width: 4),
                         ],
                         _buildToolbarDivider(context),
-                        IconButton(
+                        _buildToolbarIconButton(
+                          icon: Icons.download,
                           tooltip: 'Export CSV',
                           onPressed: _exportMembersActivityCsv,
-                          icon: const Icon(Icons.download, size: 20),
-                          visualDensity: VisualDensity.compact,
                         ),
-                        IconButton(
+                        _buildToolbarIconButton(
+                          icon: Icons.refresh,
                           tooltip: 'Refresh',
                           onPressed: _loadMembers,
-                          icon: const Icon(Icons.refresh, size: 20),
-                          visualDensity: VisualDensity.compact,
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
                           onPressed: () => _showMemberDialog(),
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Add Member'),
-                          style: ElevatedButton.styleFrom(
+                          style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
                       ],
@@ -464,19 +552,22 @@ class _MembersContentState extends State<MembersContent> {
                           ),
                         ),
                         child: DataTable2(
-                        columnSpacing: 8,
-                        horizontalMargin: 12,
-                        dataRowHeight: 65,
-                        headingRowHeight: 48,
+                        columnSpacing: 6,
+                        horizontalMargin: 10,
+                        dataRowHeight: 64,
+                        headingRowHeight: 44,
                         showCheckboxColumn: false,
-                        minWidth: 740,
+                        minWidth: 780,
                         scrollController: ScrollController(),
+                        headingRowColor: WidgetStateProperty.all(
+                          Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        ),
                         columns: [
                           DataColumn2(
-                            fixedWidth: 40,
+                            fixedWidth: 38,
                             label: Center(
                               child: Transform.scale(
-                                scale: 0.8,
+                                scale: 0.78,
                                 child: Checkbox(
                                   tristate: true,
                                   value: filteredMembers.isEmpty
@@ -503,14 +594,14 @@ class _MembersContentState extends State<MembersContent> {
                               ),
                             ),
                           ),
-                          const DataColumn2(label: Text('Photo'), fixedWidth: 54),
+                          const DataColumn2(label: Text('Photo'), fixedWidth: 50),
                           const DataColumn2(label: Text('Name'), size: ColumnSize.L),
                           const DataColumn2(label: Text('Email'), size: ColumnSize.M),
-                          const DataColumn2(label: Text('Phone'), size: ColumnSize.S),
-                          const DataColumn2(label: Text('Type'), fixedWidth: 105),
-                          const DataColumn2(label: Text('Borrowed'), fixedWidth: 85),
-                          const DataColumn2(label: Text('Status'), fixedWidth: 80),
-                          const DataColumn2(label: Text('Actions'), fixedWidth: 120),
+                          const DataColumn2(label: Text('Phone'), fixedWidth: 110),
+                          const DataColumn2(label: Text('Type'), fixedWidth: 115),
+                          const DataColumn2(label: Text('Borrowed'), fixedWidth: 80),
+                          const DataColumn2(label: Text('Status'), fixedWidth: 85),
+                          const DataColumn2(label: Text('Actions'), fixedWidth: 110),
                         ],
                         rows: filteredMembers
                             .asMap()
@@ -616,58 +707,33 @@ class _MembersContentState extends State<MembersContent> {
                                   DataCell(_buildBorrowCountBadge(member)),
                                   DataCell(_buildStatusChip(member.isActive)),
                                   DataCell(
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        SizedBox(
-                                          width: 32,
-                                          height: 32,
-                                          child: IconButton(
-                                            padding: EdgeInsets.zero,
-                                            icon: Icon(
-                                              Icons.history_rounded,
-                                              size: 18,
-                                              color: Theme.of(context).colorScheme.primary,
-                                            ),
+                                    SizedBox(
+                                      width: 105,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          _buildActionButton(
+                                            icon: Icons.history_rounded,
+                                            color: Theme.of(context).colorScheme.primary,
                                             tooltip: 'View History',
-                                            onPressed: () =>
-                                                _showMemberHistory(member),
+                                            onTap: () => _showMemberHistory(member),
                                           ),
-                                        ),
-                                        const SizedBox(width: 2),
-                                        SizedBox(
-                                          width: 32,
-                                          height: 32,
-                                          child: IconButton(
-                                            padding: EdgeInsets.zero,
-                                            icon: Icon(
-                                              Icons.edit_outlined,
-                                              size: 18,
-                                              color: Colors.amber.shade700,
-                                            ),
+                                          const SizedBox(width: 4),
+                                          _buildActionButton(
+                                            icon: Icons.edit_outlined,
+                                            color: Colors.amber.shade700,
                                             tooltip: 'Edit',
-                                            onPressed: () => _showMemberDialog(
-                                              member: member,
-                                            ),
+                                            onTap: () => _showMemberDialog(member: member),
                                           ),
-                                        ),
-                                        const SizedBox(width: 2),
-                                        SizedBox(
-                                          width: 32,
-                                          height: 32,
-                                          child: IconButton(
-                                            padding: EdgeInsets.zero,
-                                            icon: Icon(
-                                              Icons.delete_outline,
-                                              size: 18,
-                                              color: Colors.red.shade400,
-                                            ),
+                                          const SizedBox(width: 4),
+                                          _buildActionButton(
+                                            icon: Icons.delete_outline,
+                                            color: Colors.red.shade400,
                                             tooltip: 'Delete',
-                                            onPressed: () =>
-                                                _deleteMember(member.id),
+                                            onTap: () => _deleteMember(member.id),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -769,13 +835,13 @@ class _MembersContentState extends State<MembersContent> {
 
   Widget _buildPhotoCell(Member member) {
     return Container(
-      width: 45,
-      height: 45,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: Border.all(
-          color: member.isActive ? Colors.green : Colors.grey,
+          color: member.isActive ? Colors.green.withValues(alpha: 0.5) : Colors.grey.withValues(alpha: 0.4),
           width: 2,
         ),
       ),
@@ -785,8 +851,8 @@ class _MembersContentState extends State<MembersContent> {
               child: Image.network(
                 ApiService.resolvePublicUrl(member.profilePhoto!),
                 fit: BoxFit.cover,
-                width: 45,
-                height: 45,
+                width: 42,
+                height: 42,
                 errorBuilder: (context, error, stackTrace) =>
                     _buildPhotoPlaceholder(),
               ),
@@ -799,7 +865,7 @@ class _MembersContentState extends State<MembersContent> {
     return Center(
       child: Icon(
         Icons.person,
-        size: 24,
+        size: 22,
         color: Theme.of(context).colorScheme.outline,
       ),
     );
@@ -860,27 +926,36 @@ class _MembersContentState extends State<MembersContent> {
         icon = Icons.menu_book;
         label = 'Student';
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
+    return Tooltip(
+      message: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        constraints: const BoxConstraints(maxWidth: 110),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 3),
+            Icon(icon, size: 12, color: color),
+          ],
+        ),
       ),
     );
   }
@@ -902,15 +977,16 @@ class _MembersContentState extends State<MembersContent> {
       badgeColor = Colors.grey;
     }
 
-    return InkWell(
-      onTap: () => _showBorrowedBooks(member),
-      borderRadius: BorderRadius.circular(12),
-      child: Tooltip(
-        message: count > 0
-            ? 'Click to view borrowed books ($count/$maxBooks)'
-            : 'No books borrowed (0/$maxBooks)',
+    return Tooltip(
+      message: count > 0
+          ? 'Click to view borrowed books ($count/$maxBooks)'
+          : 'No books borrowed (0/$maxBooks)',
+      child: InkWell(
+        onTap: count > 0 ? () => _showBorrowedBooks(member) : null,
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          constraints: const BoxConstraints(maxWidth: 75),
           decoration: BoxDecoration(
             color: badgeColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
@@ -918,15 +994,19 @@ class _MembersContentState extends State<MembersContent> {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.menu_book, size: 12, color: badgeColor),
-              const SizedBox(width: 4),
-              Text(
-                '$count/$maxBooks',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: badgeColor,
+              Icon(Icons.menu_book, size: 11, color: badgeColor),
+              const SizedBox(width: 3),
+              Flexible(
+                child: Text(
+                  '$count/$maxBooks',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: badgeColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -949,34 +1029,43 @@ class _MembersContentState extends State<MembersContent> {
 
   Widget _buildStatusChip(bool isActive) {
     final color = isActive ? Colors.green : Colors.red;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
+    final label = isActive ? 'Active' : 'Inactive';
+    return Tooltip(
+      message: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        constraints: const BoxConstraints(maxWidth: 80),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            isActive ? 'Active' : 'Inactive',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

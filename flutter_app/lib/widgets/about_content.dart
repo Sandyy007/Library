@@ -1,5 +1,5 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 class AboutContent extends StatefulWidget {
   const AboutContent({super.key});
@@ -8,616 +8,477 @@ class AboutContent extends StatefulWidget {
   State<AboutContent> createState() => _AboutContentState();
 }
 
-class _AboutContentState extends State<AboutContent>
-    with TickerProviderStateMixin {
-  late final AnimationController _revealController;
-  late final AnimationController _floatController;
+class _AboutContentState extends State<AboutContent> {
+  // Fixed color palette
+  static const Color _pageBg = Color(0xFFEBF2F7);
+  static const Color _cardBg = Color(0xFFFFFFFF);
+  static const Color _sidebarDark = Color(0xFF0D2137);
+  static const Color _primaryBlue = Color(0xFF1565C0);
+  static const Color _lightBlueAccent = Color(0xFFDEEAFB);
+  static const Color _iconTeal = Color(0xFFE0F2F1);
+  static const Color _iconOrange = Color(0xFFFBE9E7);
+  static const Color _textDark = Color(0xFF1A1A2E);
+  static const Color _textGrey = Color(0xFF6B7280);
+  static const Color _border = Color(0xFFE5E7EB);
+  static const Color _secondaryBlue = Color(0xFF42A5F5);
 
-  @override
-  void initState() {
-    super.initState();
-    _revealController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..forward();
-    _floatController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _revealController.dispose();
-    _floatController.dispose();
-    super.dispose();
-  }
+  int? _hoveredFeatureIndex;
+  int? _hoveredGalleryIndex;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth >= 1100;
     final horizontalPadding = isWide ? 40.0 : 20.0;
 
-    return AnimatedBuilder(
-      animation: _floatController,
-      builder: (context, child) {
-        final t = _floatController.value;
-        final pulse = 0.5 + 0.5 * math.sin(2 * math.pi * t);
-        final topColor = Color.lerp(
-          cs.surface,
-          cs.primary.withValues(alpha: 0.08),
-          pulse,
-        )!;
-        final bottomColor = Color.lerp(
-          cs.surface,
-          cs.secondary.withValues(alpha: 0.14),
-          1 - pulse,
-        )!;
-        final floatOffset = 10 * math.sin(2 * math.pi * t);
-
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [topColor, bottomColor],
+    return Scaffold(
+      backgroundColor: _pageBg,
+      body: Column(
+        children: [
+          // Top bar placeholder - keep existing
+          Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: const BoxDecoration(
+              color: _cardBg,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 20,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.library_books_rounded, color: _primaryBlue, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'About Us',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _sidebarDark,
                   ),
                 ),
-              ),
+              ],
             ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _DotGridPainter(
-                    color: cs.primary.withValues(alpha: 0.04),
-                    spacing: 28,
-                    radius: 1.2,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: -140,
-              left: -120,
-              child: Transform.translate(
-                offset: Offset(20 * math.cos(2 * math.pi * t), 0),
-                child: _GlowOrb(
-                  size: 280,
-                  colors: [
-                    cs.primary.withValues(alpha: 0.25),
-                    cs.secondary.withValues(alpha: 0.12),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -160,
-              right: -140,
-              child: Transform.translate(
-                offset: Offset(0, 18 * math.sin(2 * math.pi * t)),
-                child: _GlowOrb(
-                  size: 320,
-                  colors: [
-                    cs.secondary.withValues(alpha: 0.22),
-                    cs.primary.withValues(alpha: 0.1),
-                  ],
-                ),
-              ),
-            ),
-            SingleChildScrollView(
+          ),
+          Expanded(
+            child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 horizontal: horizontalPadding,
-                vertical: 24,
+                vertical: 32,
               ),
-              child: Align(
-                alignment: Alignment.topCenter,
+              child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1240),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildReveal(
-                        order: 0,
-                        child: _buildHero(context, isWide, floatOffset),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildReveal(order: 1, child: _buildAboutCard(context)),
-                      const SizedBox(height: 20),
-                      _buildReveal(
-                        order: 2,
-                        child: _buildObjectiveImpactSection(context),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildReveal(
-                        order: 3,
-                        child: _buildFocusSection(context),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildReveal(
-                        order: 4,
-                        child: _buildOperationalExcellence(context),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildReveal(
-                        order: 5,
-                        child: _buildGallery(context),
-                      ),
+                      _buildHeroCard(context),
+                      const SizedBox(height: 32),
+                      _buildAboutTextCard(context),
+                      const SizedBox(height: 32),
+                      _buildCoreFeaturesSection(context),
+                      const SizedBox(height: 32),
+                      _buildOperationalExcellenceCard(context),
+                      const SizedBox(height: 32),
+                      _buildGallerySection(context),
                       const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildHero(BuildContext context, bool isWide, double floatOffset) {
-    final cs = Theme.of(context).colorScheme;
-    final textBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'ABOUT US',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: cs.primary,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2.2,
-              ),
-        ),
-        const SizedBox(height: 10),
-        _buildGradientTitle(
-          context,
-          'Uttar Pradesh State Tax Training and Research Institute',
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'A dedicated environment for the professional development of tax officials, supported by a structured and resource-rich Library Management System.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                height: 1.6,
-              ),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _buildPill(context, 'Structured Learning'),
-            _buildPill(context, 'Operational Transparency'),
-            _buildPill(context, 'Resource Accountability'),
-          ],
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-
-    final heroImage = Transform.translate(
-      offset: Offset(0, floatOffset),
+  // ═══════════════════════════════════════════
+  // HERO SECTION - 55/45 split layout
+  // ═══════════════════════════════════════════
+  Widget _buildHeroCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 20,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Stack(
+        child: Column(
           children: [
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: Image.asset(
-                'assets/images/Lib1.jpeg',
-                fit: BoxFit.cover,
+            // Gradient top border
+            Container(
+              height: 3,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_primaryBlue, _secondaryBlue],
+                ),
               ),
             ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Theme.of(context)
-                          .colorScheme
-                          .surface
-                          .withValues(alpha: 0.2),
+            Padding(
+              padding: const EdgeInsets.all(40),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isStacked = constraints.maxWidth < 700;
+                  if (isStacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeroText(context),
+                        const SizedBox(height: 24),
+                        _buildHeroImage(context),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 55, child: _buildHeroText(context)),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 45, child: _buildHeroImage(context)),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroText(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // UPSTTRI Badge - pill shape
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: _lightBlueAccent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _primaryBlue, width: 1.5),
+          ),
+          child: const Text(
+            'UPSTTRI',
+            style: TextStyle(
+              color: _primaryBlue,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              letterSpacing: 2.0,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Title - 32px, weight 800
+        Text(
+          'Uttar Pradesh State Tax Training and Research Institute',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: _sidebarDark,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Description - 15px
+        SizedBox(
+          width: 480,
+          child: Text(
+            'A dedicated environment for the professional development of tax officials, supported by a structured and resource-rich Library Management System.',
+            style: TextStyle(
+              fontSize: 15,
+              color: _textGrey,
+              height: 1.6,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Tags - styled chips with colored dot
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          children: [
+            _buildTagChip(context, 'Structured Learning', _primaryBlue),
+            _buildTagChip(context, 'Operational Transparency', const Color(0xFF059669)),
+            _buildTagChip(context, 'Resource Accountability', const Color(0xFFD97706)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagChip(BuildContext context, String label, Color dotColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: _lightBlueAccent.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: _sidebarDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroImage(BuildContext context) {
+    return AnimatedScale(
+      scale: _hoveredFeatureIndex == 0 ? 1.02 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x18000000),
+              blurRadius: 24,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            'assets/images/Lib1.jpeg',
+            fit: BoxFit.cover,
+            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+              if (wasSynchronouslyLoaded) return child;
+              return AnimatedOpacity(
+                opacity: frame == null ? 0 : 1,
+                duration: const Duration(seconds: 1),
+                curve: Curves.easeOut,
+                child: child,
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('Image load error: $error');
+              debugPrint('Stack trace: $stackTrace');
+              return Container(
+                color: _lightBlueAccent,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.broken_image_rounded,
+                        size: 64,
+                        color: _primaryBlue.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Image not loading',
+                        style: TextStyle(color: _textGrey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'assets/images/Lib1.jpeg',
+                        style: TextStyle(color: _textGrey, fontSize: 10),
+                      ),
                     ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox.shrink(),
-          ],
-        ),
-      ),
-    );
-
-    final heroCard = Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.surface,
-            cs.surface.withValues(alpha: 0.94),
-          ],
-        ),
-        border: Border.all(
-          color: cs.outline.withValues(alpha: 0.2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: isWide
-          ? Row(
-              children: [
-                Expanded(child: textBlock),
-                const SizedBox(width: 20),
-                Expanded(child: heroImage),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                textBlock,
-                const SizedBox(height: 16),
-                heroImage,
-              ],
-            ),
-    );
-
-    return heroCard;
-  }
-
-  Widget _buildAboutCard(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'About the UPSTTRI Library Management System',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'The Uttar Pradesh State Tax Training and Research Institute (UPSTTRI) is committed to providing a structured and resource-rich environment for the professional development of tax officials. To support this, our specialized Library Management System (LMS) serves as the central administrative backbone for our physical book collection.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  height: 1.7,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'This system is designed to bridge the gap between traditional archival management and modern administrative efficiency, ensuring that every volume in our library is accounted for and accessible.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  height: 1.7,
-                ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: [
-                  cs.primary.withValues(alpha: 0.12),
-                  cs.secondary.withValues(alpha: 0.12),
-                ],
-              ),
-              border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.verified_rounded, color: cs.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Developed under guidance of Mr. Vinod Yadav (Joint Commissioner).',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFocusSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Core System Features',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cardWidth = constraints.maxWidth >= 1200
-                ? (constraints.maxWidth - 42) / 4
-                : constraints.maxWidth >= 760
-                    ? (constraints.maxWidth - 14) / 2
-                    : constraints.maxWidth;
-
-            final cards = [
-              _buildFocusCard(
-                context,
-                width: cardWidth,
-                title: 'Real-Time Physical Monitoring',
-                description:
-                    'A comprehensive registry of every physical book, journal, and manual with instant stock visibility.',
-                icon: Icons.track_changes_rounded,
-              ),
-              _buildFocusCard(
-                context,
-                width: cardWidth,
-                title: 'Seamless Issue & Return Workflow',
-                description:
-                    'Streamlined circulation that automates issue and return tracking for clear custody.',
-                icon: Icons.swap_horiz_rounded,
-              ),
-              _buildFocusCard(
-                context,
-                width: cardWidth,
-                title: 'Automated Member Management',
-                description:
-                    'Centralized member profiles with borrowing history and status tracking.',
-                icon: Icons.people_alt_rounded,
-              ),
-              _buildFocusCard(
-                context,
-                width: cardWidth,
-                title: 'Administrative Reporting',
-                description:
-                    'Detailed analytics on usage, circulation trends, and pending returns.',
-                icon: Icons.analytics_rounded,
-              ),
-            ];
-
-            return Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              children: cards,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildObjectiveImpactSection(BuildContext context) {
-    final left = _buildSectionCard(
-      context,
-      title: 'Our Objective',
-      body:
-          'Provide a robust, transparent, and automated framework for the circulation of physical literature by digitizing inventory and member records with precision and accountability.',
-    );
-    final right = _buildSectionCard(
-      context,
-      title: 'Institutional Impact',
-      body:
-          'Supports a culture of discipline and continuous learning by ensuring the right reference materials reach officers who need them most.',
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Purpose and Impact',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isStacked = constraints.maxWidth < 860;
-            if (isStacked) {
-              return Column(
-                children: [
-                  left,
-                  const SizedBox(height: 12),
-                  right,
-                ],
               );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: left),
-                const SizedBox(width: 12),
-                Expanded(child: right),
-              ],
-            );
-          },
+            },
+          ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildOperationalExcellence(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  // ═══════════════════════════════════════════
+  // ABOUT TEXT SECTION - with left accent bar
+  // ═══════════════════════════════════════════
+  Widget _buildAboutTextCard(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
+            color: Color(0x0D000000),
+            blurRadius: 20,
+            offset: Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Operational Excellence',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'At UPSTTRI, we believe that organized knowledge is the foundation of effective administration. This LMS reflects our move toward paperless administration and enhanced operational transparency in academic facilities.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  height: 1.6,
-                ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: cs.primary.withValues(alpha: 0.08),
-              border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
-            ),
-            child: Text(
-              'Uttar Pradesh State Tax Training and Research Institute\nLucknow, Uttar Pradesh',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionCard(
-    BuildContext context, {
-    required String title,
-    required String body,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cs.surface,
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+        child: Column(
+          children: [
+            // Gradient top border
+            Container(
+              height: 3,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_primaryBlue, _secondaryBlue],
                 ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            body,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  height: 1.6,
-                ),
-          ),
-        ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Heading with left accent bar
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 4,
+                        decoration: BoxDecoration(
+                          color: _primaryBlue,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          'About the UPSTTRI Library Management System',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: _textDark,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Body paragraphs - 14px, line-height 1.8
+                  Text(
+                    'The Uttar Pradesh State Tax Training and Research Institute (UPSTTRI) is committed to providing a structured and resource-rich environment for the professional development of tax officials. To support this, our specialized Library Management System (LMS) serves as the central administrative backbone for our physical book collection.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _textGrey,
+                      height: 1.8,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'This system is designed to bridge the gap between traditional archival management and modern administrative efficiency, ensuring that every volume in our library is accounted for and accessible.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _textGrey,
+                      height: 1.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGallery(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final crossAxisCount = screenWidth >= 1200
-        ? 4
-        : screenWidth >= 900
-            ? 3
-            : screenWidth >= 600
-                ? 2
-                : 1;
-
-    final items = [
-      _GalleryItem('assets/images/Lib1.jpeg', 'Library view'),
-      _GalleryItem('assets/images/Lib2.jpeg', 'Reading hall'),
-      _GalleryItem('assets/images/Lib3.jpeg', 'Training workspace'),
-      _GalleryItem('assets/images/Lib4.jpeg', 'Seminar session'),
-      _GalleryItem('assets/images/Lib5.jpeg', 'Knowledge resources'),
-      _GalleryItem('assets/images/Lib6.jpeg', 'Reference section'),
-      _GalleryItem('assets/images/Lib7.jpeg', 'Campus snapshot'),
-      _GalleryItem('assets/images/Lib8.jpeg', 'Learning environment'),
+  // ═══════════════════════════════════════════
+  // CORE FEATURES SECTION - 2x2 grid
+  // ═══════════════════════════════════════════
+  Widget _buildCoreFeaturesSection(BuildContext context) {
+    final features = [
+      {
+        'icon': Icons.wifi_tethering,
+        'title': 'Real-Time Physical Monitoring',
+        'description': 'A comprehensive registry of every physical book, journal, and manual with instant stock visibility.',
+        'bgColor': _lightBlueAccent,
+        'iconColor': _primaryBlue,
+      },
+      {
+        'icon': Icons.swap_horiz,
+        'title': 'Seamless Issue & Return Workflow',
+        'description': 'Streamlined circulation that automates issue and return tracking for clear custody.',
+        'bgColor': _iconTeal,
+        'iconColor': const Color(0xFF00897B),
+      },
+      {
+        'icon': Icons.group,
+        'title': 'Automated Member Management',
+        'description': 'Centralized member profiles with borrowing history and status tracking.',
+        'bgColor': _iconOrange,
+        'iconColor': const Color(0xFFEF6C00),
+      },
+      {
+        'icon': Icons.bar_chart,
+        'title': 'Administrative Reporting',
+        'description': 'Detailed analytics on usage, circulation trends, and pending returns.',
+        'bgColor': const Color(0xFFF3E5F5),
+        'iconColor': const Color(0xFF7B1FA2),
+      },
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Library and Campus Gallery',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+        // Section heading with blue underline
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Core System Features',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: _textDark,
               ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: 40,
+              height: 3,
+              decoration: BoxDecoration(
+                color: _primaryBlue,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: crossAxisCount == 1 ? 1.6 : 1.2,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final animation = CurvedAnimation(
-              parent: _revealController,
-              curve: Interval(0.3 + index * 0.05, 1, curve: Curves.easeOut),
-            );
-
-            return FadeTransition(
-              opacity: animation,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.97, end: 1).animate(animation),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Image.asset(item.assetPath, fit: BoxFit.cover),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+        const SizedBox(height: 16),
+        // 2x2 Grid
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - 16) / 2;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: List.generate(features.length, (index) {
+                final feature = features[index];
+                return SizedBox(
+                  width: cardWidth,
+                  child: _buildFeatureCard(context, index, feature),
+                );
+              }),
             );
           },
         ),
@@ -625,230 +486,345 @@ class _AboutContentState extends State<AboutContent>
     );
   }
 
-  Widget _buildFocusCard(
-    BuildContext context, {
-    required double width,
-    required String title,
-    required String description,
-    required IconData icon,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: cs.primary.withValues(alpha: 0.12),
+  Widget _buildFeatureCard(BuildContext context, int index, Map<String, dynamic> feature) {
+    final isHovered = _hoveredFeatureIndex == index;
+    final iconData = feature['icon'] as IconData;
+    final title = feature['title'] as String;
+    final description = feature['description'] as String;
+    final bgColor = feature['bgColor'] as Color;
+    final iconColor = feature['iconColor'] as Color;
+
+    return MouseRegion(
+      onEnter: (_) => _scheduleHover(index),
+      onExit: (_) => _scheduleHover(null),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: _cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border(
+            left: BorderSide(
+              color: isHovered ? _primaryBlue : Colors.transparent,
+              width: 3,
             ),
-            child: Icon(icon, color: cs.primary),
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+          boxShadow: [
+            BoxShadow(
+              color: Color(isHovered ? 0x19000000 : 0x0D000000),
+              blurRadius: isHovered ? 16 : 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            children: [
+              // Gradient top line
+              Container(
+                height: 2,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_primaryBlue, _secondaryBlue],
+                  ),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icon in colored square
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(iconData, color: iconColor, size: 24),
+                    ),
+                    const SizedBox(height: 16),
+                    // Title - 16px bold
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Description - 13px
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _textGrey,
+                        height: 1.7,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.5),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // OPERATIONAL EXCELLENCE - left gradient bar
+  // ═══════════════════════════════════════════
+  Widget _buildOperationalExcellenceCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 20,
+            offset: Offset(0, 4),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPill(BuildContext context, String label) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: cs.primary,
-              fontWeight: FontWeight.w600,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          children: [
+            // Left gradient bar
+            Container(
+              width: 6,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [_sidebarDark, _primaryBlue],
+                ),
+              ),
             ),
-      ),
-    );
-  }
-
-  Widget _buildGradientTitle(BuildContext context, String text) {
-    final cs = Theme.of(context).colorScheme;
-    return ShaderMask(
-      shaderCallback: (bounds) => LinearGradient(
-        colors: [cs.primary, cs.secondary],
-      ).createShader(bounds),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              height: 1.1,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Heading - 20px bold
+                    const Text(
+                      'Operational Excellence',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: _textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Body text - 14px
+                    SizedBox(
+                      width: 800,
+                      child: Text(
+                        'At UPSTTRI, we believe that organized knowledge is the foundation of effective administration. This LMS reflects our move toward paperless administration and enhanced operational transparency in academic facilities.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _textGrey,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Address chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _lightBlueAccent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFBBDEFB)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.location_on_rounded, size: 16, color: _primaryBlue),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Uttar Pradesh State Tax Training and Research Institute, Lucknow, Uttar Pradesh',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _primaryBlue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatStrip(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+  // ═══════════════════════════════════════════
+  // GALLERY SECTION - 4x2 grid
+  // ═══════════════════════════════════════════
+  Widget _buildGallerySection(BuildContext context) {
+    final galleryItems = [
+      'assets/images/Lib1.jpeg',
+      'assets/images/Lib2.jpeg',
+      'assets/images/Lib3.jpeg',
+      'assets/images/Lib4.jpeg',
+      'assets/images/Lib5.jpeg',
+      'assets/images/Lib6.jpeg',
+      'assets/images/Lib7.jpeg',
+      'assets/images/Lib8.jpeg',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _StatChip(
-          icon: Icons.event_available_rounded,
-          label: 'Year-round training calendar',
+        // Section heading with blue underline
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Library and Campus Gallery',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: _textDark,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: 40,
+              height: 3,
+              decoration: BoxDecoration(
+                color: _primaryBlue,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
         ),
-        _StatChip(
-          icon: Icons.insights_rounded,
-          label: 'Policy notes and research briefs',
-        ),
-        _StatChip(
-          icon: Icons.laptop_chromebook_rounded,
-          label: 'Classroom and hybrid delivery',
+        const SizedBox(height: 16),
+        // Gallery card
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D000000),
+                blurRadius: 20,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final crossAxisCount = constraints.maxWidth >= 900 ? 4 : (constraints.maxWidth >= 600 ? 3 : 2);
+              final itemWidth = (constraints.maxWidth - (crossAxisCount - 1) * 12) / crossAxisCount;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: List.generate(galleryItems.length, (index) {
+                  return SizedBox(
+                    width: itemWidth,
+                    height: itemWidth * 0.75,
+                    child: _buildGalleryItem(context, index, galleryItems[index]),
+                  );
+                }),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildReveal({required int order, required Widget child}) {
-    final animation = CurvedAnimation(
-      parent: _revealController,
-      curve: Interval(0.08 * order, 1, curve: Curves.easeOutCubic),
-    );
+  Widget _buildGalleryItem(BuildContext context, int index, String assetPath) {
+    final isHovered = _hoveredGalleryIndex == index;
 
-    return FadeTransition(
-      opacity: animation,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.04),
-          end: Offset.zero,
-        ).animate(animation),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _GlowOrb extends StatelessWidget {
-  const _GlowOrb({
-    required this.size,
-    required this.colors,
-  });
-
-  final double size;
-  final List<Color> colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(colors: colors),
-      ),
-    );
-  }
-}
-
-class _DotGridPainter extends CustomPainter {
-  _DotGridPainter({
-    required this.color,
-    required this.spacing,
-    required this.radius,
-  });
-
-  final Color color;
-  final double spacing;
-  final double radius;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    for (double x = 0; x < size.width; x += spacing) {
-      for (double y = 0; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), radius, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DotGridPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.spacing != spacing ||
-        oldDelegate.radius != radius;
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+    return AnimatedScale(
+      scale: isHovered ? 1.03 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      child: MouseRegion(
+        onEnter: (_) => _scheduleGalleryHover(index),
+        onExit: (_) => _scheduleGalleryHover(null),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border),
+            boxShadow: [
+              BoxShadow(
+                color: Color(isHovered ? 0x2D000000 : 0x0D000000),
+                blurRadius: isHovered ? 12 : 8,
+                offset: Offset(0, isHovered ? 6 : 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: cs.primary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.asset(
+              assetPath,
+              fit: BoxFit.cover,
+              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                if (wasSynchronouslyLoaded) return child;
+                return AnimatedOpacity(
+                  opacity: frame == null ? 0 : 1,
+                  duration: const Duration(seconds: 1),
+                  curve: Curves.easeOut,
+                  child: child,
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                debugPrint('Gallery image error: $error - $assetPath');
+                return Container(
+                  color: _lightBlueAccent,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.image_rounded,
+                          color: _primaryBlue.withValues(alpha: 0.5),
+                          size: 32,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Image ${index + 1}',
+                          style: TextStyle(
+                            color: _textGrey,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
-}
 
-class _GalleryItem {
-  const _GalleryItem(this.assetPath, this.label);
+  void _scheduleHover(int? index) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _hoveredFeatureIndex = index);
+    });
+  }
 
-  final String assetPath;
-  final String label;
+  void _scheduleGalleryHover(int? index) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _hoveredGalleryIndex = index);
+    });
+  }
 }

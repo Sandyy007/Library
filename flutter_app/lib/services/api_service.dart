@@ -1561,6 +1561,36 @@ class ApiService {
     }
   }
 
+  static Future<void> deleteIssue(int issueId) async {
+    final headers = await getHeaders();
+    _log('DEBUG: Deleting issue $issueId');
+    try {
+      final response = await http
+          .delete(Uri.parse('$baseUrl/issues/$issueId'), headers: headers)
+          .timeout(timeout);
+
+      _log('DEBUG: Delete issue response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Deleting issue');
+      }
+
+      _notifyDataChanged();
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error deleting issue: $e');
+      throw Exception(
+        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+      );
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout deleting issue: $e');
+      throw Exception('Request timeout. Server is not responding.');
+    } catch (e) {
+      _log('DEBUG: Error deleting issue: $e');
+      rethrow;
+    }
+  }
+
   // ==================== DASHBOARD ====================
 
   static Future<Map<String, int>> getDashboardStats() async {
@@ -1662,7 +1692,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getDashboardAlerts({
     int limit = 10,
-    int overdueDays = 7,
+    int overdueDays = 1,
     int lowStockThreshold = 1,
     int inactiveDays = 60,
     int? lowStockPage,
@@ -2312,6 +2342,136 @@ class ApiService {
     } catch (e) {
       _log('DEBUG: Error exporting data: $e');
       rethrow;
+    }
+  }
+
+  // ==================== BORROW SLIPS ====================
+
+  static Future<Map<String, dynamic>> generateBorrowSlip(int issueId) async {
+    final headers = await getHeaders();
+    _log('DEBUG: Generating borrow slip for issue $issueId');
+    final url = '$baseUrl/borrow-slips';
+    _log('DEBUG: POST URL: $url');
+    try {
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: headers,
+            body: jsonEncode({'issue_id': issueId}),
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _log('DEBUG: Borrow slip generated: ${data['slip_number']}');
+        return data;
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Generating borrow slip');
+        throw Exception('Failed to generate borrow slip');
+      }
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error generating borrow slip: $e');
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout generating borrow slip: $e');
+      throw Exception('Request timeout.');
+    } catch (e) {
+      _log('DEBUG: Error generating borrow slip: $e');
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBorrowSlipByIssue(int issueId) async {
+    final headers = await getHeaders();
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/borrow-slips/issue/$issueId'), headers: headers)
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 404) {
+        return null; // No slip exists
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading borrow slip');
+        throw Exception('Failed to load borrow slip');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timeout.');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBorrowSlip(int id) async {
+    final headers = await getHeaders();
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/borrow-slips/$id'), headers: headers)
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 404) {
+        return null;
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading borrow slip');
+        throw Exception('Failed to load borrow slip');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timeout.');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getBorrowSlips({int page = 1, int limit = 50}) async {
+    final headers = await getHeaders();
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/borrow-slips?page=$page&limit=$limit'),
+            headers: headers,
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Loading borrow slips');
+        throw Exception('Failed to load borrow slips');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timeout.');
+    }
+  }
+
+  static Future<void> deleteBorrowSlip(int id) async {
+    final headers = await getHeaders();
+    try {
+      final response = await http
+          .delete(Uri.parse('$baseUrl/borrow-slips/$id'), headers: headers)
+          .timeout(timeout);
+
+      if (response.statusCode != 200) {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Deleting borrow slip');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Request timeout.');
     }
   }
 

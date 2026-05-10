@@ -193,20 +193,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: [
                   // Modern App Bar
                   Container(
-                    height: isVeryCompact ? 86 : 72,
+                    height: isVeryCompact ? 80 : 68,
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
-                          blurRadius: 10,
+                          color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.04),
+                          blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isVeryCompact ? 12 : 24,
+                        horizontal: isVeryCompact ? 12 : 20,
                       ),
                       child: Row(
                         children: [
@@ -227,9 +227,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       style: TextButton.styleFrom(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
-                                          vertical: 10,
+                                          vertical: 8,
                                         ),
-                                        shape: const StadiumBorder(),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -249,9 +251,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     key: ValueKey<int>(_selectedIndex),
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleLarge
+                                        .titleMedium
                                         ?.copyWith(
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w700,
                                           color: Theme.of(context)
                                               .colorScheme
                                               .primary,
@@ -260,13 +262,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Wrap(
-                                  spacing: 8,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    _buildConnectivityPill(context),
-                                  ],
-                                ),
+                                _buildConnectivityPill(context),
                               ],
                             ),
                           ),
@@ -280,25 +276,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     'Global search. Press Control and F to focus this field.',
                                 child: Container(
                                   width: searchBarWidth,
-                                  height: 44,
+                                  height: 40,
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surface,
-                                    borderRadius: BorderRadius.circular(22),
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.outline.withValues(alpha: 0.3),
+                                      ).colorScheme.outline.withValues(alpha: 0.2),
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .shadow
-                                            .withValues(alpha: 0.04),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
                                   ),
                                   child: TextField(
                                     focusNode: _searchFocusNode,
@@ -308,41 +294,40 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     style: _searchTextStyle(context),
                                     decoration: InputDecoration(
                                       hintText:
-                                          'Search books, members, issues, reports',
+                                          'Search books, members, issues...',
                                       hintStyle: _searchHintStyle(context),
-                                      prefixIcon: Icon(
-                                        Icons.search_rounded,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        size: 22,
+                                      prefixIcon: Padding(
+                                        padding: const EdgeInsets.only(left: 12, right: 4),
+                                        child: Icon(
+                                          Icons.search_rounded,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          size: 20,
+                                        ),
                                       ),
+                                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                                       suffixIcon: Padding(
-                                        padding: const EdgeInsets.only(right: 6),
-                                        child: TextButton.icon(
+                                        padding: const EdgeInsets.only(right: 4),
+                                        child: IconButton(
                                           onPressed: () =>
                                               _performSearch(_searchController.text),
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.arrow_forward_rounded,
                                             size: 18,
+                                            color: Theme.of(context).colorScheme.primary,
                                           ),
-                                          label: const Text('Go'),
-                                          style: TextButton.styleFrom(
-                                            minimumSize: const Size(0, 36),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            shape: const StadiumBorder(),
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                            minimumSize: const Size(32, 32),
                                           ),
                                         ),
                                       ),
-                                      suffixIconConstraints:
-                                          const BoxConstraints(minHeight: 36),
+                                      suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                                       border: InputBorder.none,
                                       contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 12,
+                                        horizontal: 12,
+                                        vertical: 10,
                                       ),
                                     ),
                                   ),
@@ -378,6 +363,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               child: const NotificationBell(),
                             ),
                           ),
+                          const SizedBox(width: 4),
                         ],
                       ),
                     ),

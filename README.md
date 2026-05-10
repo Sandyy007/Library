@@ -36,7 +36,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 ### Member Management
 - Full CRUD with profile photo upload
 - Member types: Student (3 books / 14 days), Faculty (10 / 30), Staff (5 / 21)
-- Borrowing history with statistics dialog
+- Borrowing history with statistics dialogs
 - Active / Inactive status toggling
 - Bulk delete and CSV/JSON export
 

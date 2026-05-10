@@ -69,51 +69,81 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
         opacity: _fadeAnimation,
         child: Column(
           children: [
-            // Header - Compact logo section
+            // Header - Premium logo section
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
+                    const Color(0xFF0D2137),
+                    const Color(0xFF1565C0),
                   ],
                 ),
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo - Clean design with thin white border
-                  Hero(
-                    tag: 'app-logo',
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        border: Border.all(color: Colors.white, width: 0),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                            offset: const Offset(0, 3),
+                  const SizedBox(height: 24),
+                  // Premium Logo - Thin white border with logo inside
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Glow effect behind
+                      Container(
+                        width: 130,
+                        height: 130,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.white.withValues(alpha: 0.15),
+                              Colors.transparent,
+                            ],
                           ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
                       ),
-                      child: ClipOval(
-                        child: Padding(
-                          padding: const EdgeInsets.all(0.5),
-                          child: Image.asset(
-                            'assets/images/Office_Logo.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Image.asset(
-                                'assets/images/App_Logo.png',
+                      // Thin white border circle - 2px
+                      Container(
+                        width: 112,
+                        height: 112,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      // Logo - 100x100 inside the white border
+                      Hero(
+                        tag: 'app-logo',
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Image.asset(
+                                'assets/images/Office_Logo.png',
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
@@ -121,100 +151,97 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                       shape: BoxShape.circle,
                                       gradient: LinearGradient(
                                         colors: [
-                                          Theme.of(context).colorScheme.primary,
-                                          Theme.of(context).colorScheme.secondary,
+                                          const Color(0xFF0D2137),
+                                          const Color(0xFF1565C0),
                                         ],
                                       ),
                                     ),
                                     child: Center(
-                                      child: Text(
-                                        'OL',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineMedium
-                                            ?.copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                      child: Icon(
+                                        Icons.account_balance_rounded,
+                                        size: 40,
+                                        color: Colors.white,
                                       ),
                                     ),
                                   );
                                 },
-                              );
-                            },
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Training Institute Library',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  const SizedBox(height: 14),
+                  // Institute Name
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Text(
+                      'Uttar Pradesh State Tax',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.3,
+                        letterSpacing: 0.5,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    'Management System',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 12,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Text(
+                      'Training & Research Institute',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.3,
+                        letterSpacing: 0.5,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Library Management System',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      letterSpacing: 0.3,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                   if (user != null) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 14),
                     Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 28),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
+                        horizontal: 14,
+                        vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            user.role.toLowerCase() == 'admin'
-                                ? 'Admin'
-                                : user.username,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                          ),
-                          if (user.role.toLowerCase() != 'admin') ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                user.role.toUpperCase(),
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ],
+                      child: Text(
+                        user.role.toLowerCase() == 'admin'
+                            ? 'Administrator'
+                            : user.username,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ],
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -222,10 +249,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
             // Menu Items - Scrollable to handle overflow
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    const SizedBox(height: 4),
                     _buildMenuItem(
                       icon: Icons.dashboard_rounded,
                       title: 'Dashboard',
@@ -256,12 +284,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                       title: 'About Us',
                       index: 5,
                     ),
-                    const Divider(indent: 20, endIndent: 20, height: 20),
-                    // Quick Actions
+                    const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 2,
+                        vertical: 4,
                       ),
                       child: Text(
                         'QUICK ACTIONS',
@@ -269,6 +296,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           color: Theme.of(context).colorScheme.outline,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.2,
+                          fontSize: 10,
                         ),
                       ),
                     ),
@@ -282,6 +310,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                       title: 'Backup & Restore',
                       onTap: () => _showBackupRestore(context),
                     ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -383,85 +412,62 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   }) {
     final isSelected = widget.selectedIndex == index;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: Material(
+        color: isSelected
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
-        gradient: isSelected
-            ? LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                ],
-              )
-            : null,
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.15),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => widget.onItemSelected(index),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isSelected
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                 ),
-              ]
-            : null,
-      ),
-      child: Stack(
-        children: [
-          // Animated left edge indicator pill
-          Positioned(
-            left: 0,
-            top: 6,
-            bottom: 6,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              width: isSelected ? 3.5 : 0,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(2),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+              ],
             ),
           ),
-          ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
-        leading: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.surface,
-          ),
-          child: Icon(
-            icon,
-            color: isSelected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.7),
-            size: 18,
-          ),
         ),
-        title: Text(
-          title,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurface,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            fontSize: 14,
-          ),
-        ),
-        selected: isSelected,
-        onTap: () => widget.onItemSelected(index),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      ),
-        ],
       ),
     );
   }

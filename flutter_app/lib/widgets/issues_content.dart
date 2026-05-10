@@ -8,7 +8,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart' show PdfGoogleFonts;
 import '../providers/issue_provider.dart';
 import '../providers/book_provider.dart';
 import '../providers/member_provider.dart';
@@ -17,11 +16,13 @@ import '../models/book.dart';
 import '../models/member.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
+import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
 import '../utils/color_extensions.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/dashboard_screen.dart';
+import 'borrow_slip_preview.dart';
 
 enum _IssueDialogActiveField { book, member }
 
@@ -264,6 +265,65 @@ class _IssuesContentState extends State<IssuesContent> {
     super.dispose();
   }
 
+  /// Table action button with consistent styling
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReturnButtonFor(int issueId) {
+    return Tooltip(
+      message: 'Return Book',
+      child: Material(
+        color: Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _returnBook(context, issueId),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            constraints: const BoxConstraints(minWidth: 70),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.assignment_return, size: 14, color: Colors.green.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  'Return',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final issueProvider = Provider.of<IssueProvider>(context);
@@ -279,23 +339,14 @@ class _IssuesContentState extends State<IssuesContent> {
           children: [
             // Search Bar and Action buttons - all in one bar
             Container(
-              padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.shadow.withValues(alpha: 0.06),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
               child: Row(
                 children: [
@@ -352,10 +403,10 @@ class _IssuesContentState extends State<IssuesContent> {
                     ),
                     icon: const Icon(Icons.add, size: 18),
                     label: Text(isCompact ? 'Issue' : 'Issue Book'),
-                    style: ElevatedButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -433,24 +484,21 @@ class _IssuesContentState extends State<IssuesContent> {
                         onAction: _loadAllData,
                       )
                     : DataTable2(
-                        columnSpacing: 8,
-                        horizontalMargin: 10,
-                        dataRowHeight: 68,
-                        minWidth: 800,
+                        columnSpacing: 12,
+                        horizontalMargin: 12,
+                        dataRowHeight: 72,
+                        minWidth: 850,
+                        headingRowColor: WidgetStateProperty.all(
+                          Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2),
+                        ),
                         columns: const [
                           DataColumn2(label: Text('Book'), size: ColumnSize.L),
-                          DataColumn2(
-                            label: Text('Member'),
-                            size: ColumnSize.M,
-                          ),
-                          DataColumn2(label: Text('Issue'), size: ColumnSize.S),
-                          DataColumn2(label: Text('Due'), size: ColumnSize.S),
-                          DataColumn2(
-                            label: Text('Return'),
-                            size: ColumnSize.S,
-                          ),
-                          DataColumn2(label: Text('Status'), fixedWidth: 100),
-                          DataColumn2(label: Text('Actions'), fixedWidth: 140),
+                          DataColumn2(label: Text('Member'), size: ColumnSize.M),
+                          DataColumn2(label: Text('Issue Date'), size: ColumnSize.S),
+                          DataColumn2(label: Text('Due Date'), size: ColumnSize.S),
+                          DataColumn2(label: Text('Return'), size: ColumnSize.S),
+                          DataColumn2(label: Text('Status'), fixedWidth: 105),
+                          DataColumn2(label: Text('Actions'), fixedWidth: 240),
                         ],
                         rows:
                             getFilteredIssues(
@@ -474,17 +522,16 @@ class _IssuesContentState extends State<IssuesContent> {
                                 cells: [
                                   DataCell(
                                     Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          normalizeHindiForDisplay(
-                                            issue.bookTitle,
-                                          ),
-                                          style: const TextStyle(
-                                            fontFamilyFallback: [
+                                          normalizeHindiForDisplay(issue.bookTitle),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                            fontFamilyFallback: const [
                                               'KrutiDev',
                                               'NotoSansDevanagari',
                                               'Nirmala UI',
@@ -495,14 +542,15 @@ class _IssuesContentState extends State<IssuesContent> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
+                                        const SizedBox(height: 2),
                                         Text(
-                                          'by ${normalizeHindiForDisplay(issue.bookAuthor)}',
+                                          normalizeHindiForDisplay(issue.bookAuthor),
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .onSurface
-                                                .withValues(alpha: 0.6),
+                                                .withValues(alpha: 0.55),
                                             fontFamilyFallback: const [
                                               'KrutiDev',
                                               'NotoSansDevanagari',
@@ -518,47 +566,37 @@ class _IssuesContentState extends State<IssuesContent> {
                                     ),
                                   ),
                                   DataCell(
-                                    Text(
-                                      normalizeHindiForDisplay(
-                                        issue.memberName,
-                                      ),
-                                      style: const TextStyle(
-                                        fontFamilyFallback: [
-                                          'KrutiDev',
-                                          'NotoSansDevanagari',
-                                          'Nirmala UI',
-                                          'Mangal',
-                                          'Noto Sans Devanagari',
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      DateFormatter.formatDateIndian(
-                                        issue.issueDate,
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 180),
+                                      child: Text(
+                                        normalizeHindiForDisplay(issue.memberName),
+                                        style: const TextStyle(
+                                          fontFamilyFallback: [
+                                            'KrutiDev',
+                                            'NotoSansDevanagari',
+                                            'Nirmala UI',
+                                            'Mangal',
+                                            'Noto Sans Devanagari',
+                                          ],
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      DateFormatter.formatDateIndian(
-                                        issue.dueDate,
-                                      ),
-                                    ),
-                                  ),
+                                  DataCell(Text(DateFormatter.formatDateIndian(issue.issueDate))),
+                                  DataCell(Text(DateFormatter.formatDateIndian(issue.dueDate))),
                                   DataCell(
                                     Text(
                                       issue.returnDate != null
-                                          ? DateFormatter.formatDateIndian(
-                                              issue.returnDate,
-                                            )
+                                          ? DateFormatter.formatDateIndian(issue.returnDate)
                                           : '-',
                                     ),
                                   ),
                                   DataCell(
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                      constraints: const BoxConstraints(maxWidth: 95),
                                       decoration: BoxDecoration(
                                         color: statusColor.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(20),
@@ -568,6 +606,7 @@ class _IssuesContentState extends State<IssuesContent> {
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Container(
                                             width: 6,
@@ -578,12 +617,15 @@ class _IssuesContentState extends State<IssuesContent> {
                                             ),
                                           ),
                                           const SizedBox(width: 4),
-                                          Text(
-                                            issue.status[0].toUpperCase() + issue.status.substring(1),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: statusColor,
+                                          Flexible(
+                                            child: Text(
+                                              issue.status[0].toUpperCase() + issue.status.substring(1),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: statusColor,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                         ],
@@ -591,56 +633,43 @@ class _IssuesContentState extends State<IssuesContent> {
                                     ),
                                   ),
                                   DataCell(
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        SizedBox(
-                                          width: 32,
-                                          height: 32,
-                                          child: IconButton(
-                                            padding: EdgeInsets.zero,
-                                            icon: Icon(
-                                              Icons.edit_outlined,
-                                              size: 18,
-                                              color: Colors.amber.shade700,
-                                            ),
-                                            onPressed: () => _showEditIssueDialog(
+                                    SizedBox(
+                                      width: 220,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          _buildActionButton(
+                                            icon: Icons.description_outlined,
+                                            color: Colors.blue.shade700,
+                                            tooltip: 'Generate Slip',
+                                            onTap: () => _generateBorrowSlip(context, issue),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          _buildActionButton(
+                                            icon: Icons.edit_outlined,
+                                            color: Colors.amber.shade700,
+                                            tooltip: 'Edit Issue',
+                                            onTap: () => _showEditIssueDialog(
                                               context,
                                               issue,
                                             ),
-                                            tooltip: 'Edit Issue',
                                           ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        issue.status == 'issued' || issue.status == 'overdue'
-                                            ? SizedBox(
-                                                width: 78,
-                                                child: ElevatedButton.icon(
-                                                  style: ElevatedButton.styleFrom(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 6,
-                                                        ),
-                                                    minimumSize: const Size(
-                                                      48,
-                                                      32,
-                                                    ),
-                                                    visualDensity:
-                                                        VisualDensity.compact,
-                                                  ),
-                                                  onPressed: () => _returnBook(
-                                                    context,
-                                                    issue.id,
-                                                  ),
-                                                  icon: const Icon(Icons.assignment_return, size: 14),
-                                                  label: const FittedBox(
-                                                    child: Text('Return'),
-                                                  ),
-                                                ),
-                                              )
-                                            : const SizedBox(width: 78),
-                                      ],
+                                          const SizedBox(width: 4),
+                                          _buildActionButton(
+                                            icon: Icons.delete_outline,
+                                            color: Colors.red.shade700,
+                                            tooltip: 'Delete Issue',
+                                            onTap: () => _showDeleteIssueDialog(
+                                              context,
+                                              issue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          issue.status == 'issued' || issue.status == 'overdue'
+                                              ? _buildReturnButtonFor(issue.id)
+                                              : const SizedBox(width: 0),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -659,13 +688,15 @@ class _IssuesContentState extends State<IssuesContent> {
                 ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
                     ),
-                  ],
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1001,8 +1032,9 @@ class _IssuesContentState extends State<IssuesContent> {
                                       messenger?.showSnackBar(
                                         const SnackBar(
                                           content: Text(
-                                            'Book issued successfully',
+                                            'Book issued successfully! Use the slip button to generate a borrow slip.',
                                           ),
+                                          duration: Duration(seconds: 4),
                                         ),
                                       );
                                     }
@@ -1126,11 +1158,29 @@ class _IssuesContentState extends State<IssuesContent> {
     );
     if (path == null || path.isEmpty) return;
 
-    // Embed a font that supports Hindi/Devanagari so text renders correctly.
-    final baseFont = await PdfGoogleFonts.notoSansDevanagariRegular();
-    final boldFont = await PdfGoogleFonts.notoSansDevanagariBold();
+    // Initialize Hindi PDF helper for font support
+    await HindiPdfHelper.initialize();
+    final baseFont = HindiPdfHelper.baseFont;
+    final boldFont = HindiPdfHelper.boldFont;
+
+    // Load organization logo
+    final logoBytes = await _loadPdfLogo();
 
     final doc = pw.Document();
+
+    // Normalize Hindi text in data
+    final normalizedIssues = issues.map((i) => [
+      i.id.toString(),
+      normalizeHindiForDisplay(i.bookTitle),
+      normalizeHindiForDisplay(i.bookAuthor),
+      normalizeHindiForDisplay(i.memberName),
+      DateFormatter.formatDateIndian(i.issueDate),
+      DateFormatter.formatDateIndian(i.dueDate),
+      i.returnDate == null
+          ? '-'
+          : DateFormatter.formatDateIndian(i.returnDate),
+      i.status,
+    ]).toList();
 
     doc.addPage(
       pw.MultiPage(
@@ -1138,44 +1188,49 @@ class _IssuesContentState extends State<IssuesContent> {
         theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
         build: (context) {
           return [
-            pw.Text(
-              'Issues & Returns Export',
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            // Organization Header
+            _buildOrgHeader(logoBytes, boldFont, baseFont),
+            pw.SizedBox(height: 16),
+
+            // Document Title
+            pw.Center(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.blue800,
+                  borderRadius: pw.BorderRadius.circular(4),
+                ),
+                child: pw.Text(
+                  'Issues & Returns Report',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
+              ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               'Generated: ${DateFormatter.formatDateTimeIndian(DateTime.now().toIso8601String())}',
+              style: pw.TextStyle(fontSize: 10),
             ),
             pw.SizedBox(height: 12),
             pw.TableHelper.fromTextArray(
               headers: const [
                 'ID',
-                'Book',
+                'Book Title',
+                'Author',
                 'Member',
-                'Issue',
-                'Due',
-                'Return',
+                'Issue Date',
+                'Due Date',
+                'Return Date',
                 'Status',
               ],
-              data: issues.map((i) {
-                return [
-                  i.id.toString(),
-                  '${i.bookTitle}\nby ${i.bookAuthor}',
-                  i.memberName,
-                  DateFormatter.formatDateIndian(i.issueDate),
-                  DateFormatter.formatDateIndian(i.dueDate),
-                  i.returnDate == null
-                      ? '-'
-                      : DateFormatter.formatDateIndian(i.returnDate),
-                  i.status,
-                ];
-              }).toList(),
-              cellStyle: const pw.TextStyle(fontSize: 9),
-              headerStyle: pw.TextStyle(
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-              ),
-              headerDecoration: const pw.BoxDecoration(),
+              data: normalizedIssues,
+              cellStyle: pw.TextStyle(font: baseFont, fontSize: 9),
+              headerStyle: pw.TextStyle(font: boldFont, fontSize: 10, fontWeight: pw.FontWeight.bold),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
               cellAlignment: pw.Alignment.centerLeft,
             ),
           ];
@@ -1190,6 +1245,51 @@ class _IssuesContentState extends State<IssuesContent> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Exported PDF to: $path')));
+  }
+
+  Future<void> _generateBorrowSlip(BuildContext context, dynamic issue) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Generating borrow slip...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Check if slip already exists
+      final existingSlip = await ApiService.getBorrowSlipByIssue(issue.id);
+
+      Map<String, dynamic> slipData;
+      if (existingSlip != null) {
+        // Use existing slip
+        slipData = existingSlip;
+      } else {
+        // Generate new slip
+        slipData = await ApiService.generateBorrowSlip(issue.id);
+      }
+
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      // Show the slip preview
+      await showBorrowSlipPreview(context, slipData);
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      messenger.showSnackBar(
+        SnackBar(content: Text(getOperationErrorMessage('Generate slip', e))),
+      );
+    }
   }
 
   void _returnBook(BuildContext context, int issueId) async {
@@ -1461,5 +1561,164 @@ class _IssuesContentState extends State<IssuesContent> {
         ),
       ),
     );
+  }
+
+  void _showDeleteIssueDialog(BuildContext context, dynamic issue) {
+    final messenger = ScaffoldMessenger.of(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 12),
+            Text('Delete Issue'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to delete this issue record?'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    normalizeHindiForDisplay(issue.bookTitle),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Issued to: ${normalizeHindiForDisplay(issue.memberName)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    'Status: ${issue.status}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              try {
+                await ApiService.deleteIssue(issue.id);
+                if (mounted) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Issue deleted successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  _loadAllData();
+                }
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(getOperationErrorMessage('Delete issue', e)),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Uint8List?> _loadPdfLogo() async {
+    try {
+      final file = File('assets/images/Office_Logo.png');
+      if (await file.exists()) {
+        return await file.readAsBytes();
+      }
+    } catch (e) {
+      debugPrint('Could not load logo: $e');
+    }
+    return null;
+  }
+
+  pw.Widget _buildOrgHeader(Uint8List? logoBytes, pw.Font boldFont, pw.Font baseFont) {
+    if (logoBytes != null) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Row(
+          children: [
+            pw.Image(pw.MemoryImage(logoBytes), width: 70, height: 70),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    'Uttar Pradesh State Tax Training and Research Institute',
+                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Lucknow',
+                    style: pw.TextStyle(fontSize: 11, font: baseFont, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 90),
+          ],
+        ),
+      );
+    } else {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Center(
+          child: pw.Text(
+            'Uttar Pradesh State Tax Training and Research Institute',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      );
+    }
   }
 }

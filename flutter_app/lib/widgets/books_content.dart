@@ -181,21 +181,14 @@ class _BooksContentState extends State<BooksContent> {
           children: [
             // Search, Filter, and Action buttons - all in one bar
             Container(
-              padding: EdgeInsets.symmetric(horizontal: isVeryCompact ? 8 : 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.12),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
               child: isVeryCompact
                 // ── Compact layout (<600px): search on top, actions below ──
@@ -205,22 +198,32 @@ class _BooksContentState extends State<BooksContent> {
                       TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
-                          hintText: 'Search...',
+                          hintText: 'Search books...',
                           prefixIcon: const Icon(Icons.search, size: 20),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _filterBooks();
+                                  },
+                                )
+                              : null,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           filled: true,
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           isDense: true,
                         ),
                         onChanged: (value) {
                           _searchDebounce?.cancel();
                           _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
+                          setState(() {}); // Update clear button visibility
                         },
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -228,52 +231,48 @@ class _BooksContentState extends State<BooksContent> {
                             _buildCategoryFilterPopup(bookProvider),
                             const SizedBox(width: 4),
                             if (selectedCount > 0) ...[
-                              IconButton(
+                              _buildToolbarIconButton(
+                                icon: Icons.delete_forever,
                                 tooltip: 'Delete ($selectedCount)',
                                 onPressed: _deleteSelectedBooks,
-                                icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
-                                visualDensity: VisualDensity.compact,
+                                color: Theme.of(context).colorScheme.error,
                               ),
-                              IconButton(
+                              _buildToolbarIconButton(
+                                icon: Icons.clear,
                                 tooltip: 'Clear selection',
                                 onPressed: () => setState(_selectedBookIds.clear),
-                                icon: const Icon(Icons.clear, size: 20),
-                                visualDensity: VisualDensity.compact,
                               ),
                             ],
                             _buildToolbarDivider(context),
-                            IconButton(
+                            _buildToolbarIconButton(
+                              icon: Icons.category,
                               tooltip: 'Manage Categories',
                               onPressed: _showCategoryManagement,
-                              icon: Icon(Icons.category, size: 20, color: Theme.of(context).colorScheme.primary),
-                              visualDensity: VisualDensity.compact,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                            IconButton(
+                            _buildToolbarIconButton(
+                              icon: Icons.upload_file,
                               tooltip: 'Import CSV/Excel',
                               onPressed: _importBooks,
-                              icon: const Icon(Icons.upload_file, size: 20),
-                              visualDensity: VisualDensity.compact,
                             ),
-                            IconButton(
+                            _buildToolbarIconButton(
+                              icon: Icons.download,
                               tooltip: 'Export CSV',
                               onPressed: _exportBooksCsv,
-                              icon: const Icon(Icons.download, size: 20),
-                              visualDensity: VisualDensity.compact,
                             ),
-                            IconButton(
+                            _buildToolbarIconButton(
+                              icon: Icons.refresh,
                               tooltip: 'Refresh',
                               onPressed: _loadBooks,
-                              icon: const Icon(Icons.refresh, size: 20),
-                              visualDensity: VisualDensity.compact,
                             ),
                             const SizedBox(width: 8),
-                            ElevatedButton.icon(
+                            FilledButton.icon(
                               onPressed: () => _showBookDialog(),
                               icon: const Icon(Icons.add, size: 18),
                               label: const Text('Add'),
-                              style: ElevatedButton.styleFrom(
+                              style: FilledButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                             ),
                           ],
@@ -289,19 +288,30 @@ class _BooksContentState extends State<BooksContent> {
                         child: TextField(
                           controller: _searchController,
                           decoration: InputDecoration(
-                            hintText: isCompact ? 'Search...' : 'Search books...',
+                            hintText: 'Search books...',
                             prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      _filterBooks();
+                                      setState(() {}); // Update clear button visibility
+                                    },
+                                  )
+                                : null,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                             filled: true,
-                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             isDense: true,
                           ),
                           onChanged: (value) {
                             _searchDebounce?.cancel();
                             _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
+                            setState(() {}); // Update clear button visibility
                           },
                         ),
                       ),
@@ -309,52 +319,48 @@ class _BooksContentState extends State<BooksContent> {
                       _buildCategoryFilterPopup(bookProvider),
                       if (selectedCount > 0) ...[
                         _buildToolbarDivider(context),
-                        IconButton(
+                        _buildToolbarIconButton(
+                          icon: Icons.delete_forever,
                           tooltip: 'Delete ($selectedCount)',
                           onPressed: _deleteSelectedBooks,
-                          icon: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error, size: 20),
-                          visualDensity: VisualDensity.compact,
+                          color: Theme.of(context).colorScheme.error,
                         ),
-                        IconButton(
+                        _buildToolbarIconButton(
+                          icon: Icons.clear,
                           tooltip: 'Clear selection',
                           onPressed: () => setState(_selectedBookIds.clear),
-                          icon: const Icon(Icons.clear, size: 20),
-                          visualDensity: VisualDensity.compact,
                         ),
                       ],
                       _buildToolbarDivider(context),
-                      IconButton(
+                      _buildToolbarIconButton(
+                        icon: Icons.category,
                         tooltip: 'Manage Categories',
                         onPressed: _showCategoryManagement,
-                        icon: Icon(Icons.category, size: 20, color: Theme.of(context).colorScheme.primary),
-                        visualDensity: VisualDensity.compact,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
-                      IconButton(
+                      _buildToolbarIconButton(
+                        icon: Icons.upload_file,
                         tooltip: 'Import CSV/Excel',
                         onPressed: _importBooks,
-                        icon: const Icon(Icons.upload_file, size: 20),
-                        visualDensity: VisualDensity.compact,
                       ),
-                      IconButton(
+                      _buildToolbarIconButton(
+                        icon: Icons.download,
                         tooltip: 'Export CSV',
                         onPressed: _exportBooksCsv,
-                        icon: const Icon(Icons.download, size: 20),
-                        visualDensity: VisualDensity.compact,
                       ),
-                      IconButton(
+                      _buildToolbarIconButton(
+                        icon: Icons.refresh,
                         tooltip: 'Refresh',
                         onPressed: _loadBooks,
-                        icon: const Icon(Icons.refresh, size: 20),
-                        visualDensity: VisualDensity.compact,
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton.icon(
+                      FilledButton.icon(
                         onPressed: () => _showBookDialog(),
                         icon: const Icon(Icons.add, size: 18),
                         label: Text(isCompact ? 'Add' : 'Add Book'),
-                        style: ElevatedButton.styleFrom(
+                        style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
                     ],
@@ -622,7 +628,8 @@ class _BooksContentState extends State<BooksContent> {
                                     ),
                                     DataCell(
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                        constraints: const BoxConstraints(maxWidth: 95),
                                         decoration: BoxDecoration(
                                           color: book.availableCopies > 0
                                               ? Colors.green.withValues(alpha: 0.08)
@@ -636,6 +643,7 @@ class _BooksContentState extends State<BooksContent> {
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             Container(
                                               width: 6,
@@ -648,16 +656,19 @@ class _BooksContentState extends State<BooksContent> {
                                               ),
                                             ),
                                             const SizedBox(width: 4),
-                                            Text(
-                                              book.availableCopies > 0
-                                                  ? 'Available'
-                                                  : 'Borrowed',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: book.availableCopies > 0
-                                                    ? Colors.green
-                                                    : Colors.orange,
+                                            Flexible(
+                                              child: Text(
+                                                book.availableCopies > 0
+                                                    ? 'Available'
+                                                    : 'Borrowed',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: book.availableCopies > 0
+                                                      ? Colors.green
+                                                      : Colors.orange,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
@@ -667,36 +678,18 @@ class _BooksContentState extends State<BooksContent> {
                                     DataCell(
                                       Row(
                                         children: [
-                                          SizedBox(
-                                            width: 32,
-                                            height: 32,
-                                            child: IconButton(
-                                              padding: EdgeInsets.zero,
-                                              icon: Icon(
-                                                Icons.edit_outlined,
-                                                size: 18,
-                                                color: Colors.amber.shade700,
-                                              ),
-                                              tooltip: 'Edit',
-                                              onPressed: () =>
-                                                  _showBookDialog(book: book),
-                                            ),
+                                          _buildActionButton(
+                                            icon: Icons.edit_outlined,
+                                            color: Colors.amber.shade700,
+                                            tooltip: 'Edit',
+                                            onTap: () => _showBookDialog(book: book),
                                           ),
-                                          const SizedBox(width: 2),
-                                          SizedBox(
-                                            width: 32,
-                                            height: 32,
-                                            child: IconButton(
-                                              padding: EdgeInsets.zero,
-                                              icon: Icon(
-                                                Icons.delete_outline,
-                                                size: 18,
-                                                color: Colors.red.shade400,
-                                              ),
-                                              tooltip: 'Delete',
-                                              onPressed: () =>
-                                                  _deleteBook(book.id),
-                                            ),
+                                          const SizedBox(width: 6),
+                                          _buildActionButton(
+                                            icon: Icons.delete_outline,
+                                            color: Colors.red.shade400,
+                                            tooltip: 'Delete',
+                                            onTap: () => _deleteBook(book.id),
                                           ),
                                         ],
                                       ),
@@ -720,13 +713,15 @@ class _BooksContentState extends State<BooksContent> {
                 ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
                     ),
-                  ],
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -778,10 +773,66 @@ class _BooksContentState extends State<BooksContent> {
   /// Thin vertical divider for the toolbar.
   Widget _buildToolbarDivider(BuildContext context) {
     return Container(
-      height: 24,
+      height: 20,
       width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+    );
+  }
+
+  /// Toolbar IconButton with consistent styling
+  Widget _buildToolbarIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onPressed,
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 20,
+              color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Table action button with consistent styling
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
+      ),
     );
   }
 

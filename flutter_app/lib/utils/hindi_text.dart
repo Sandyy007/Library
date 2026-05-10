@@ -14,14 +14,49 @@ final _garbledPrefixPatterns = [
   RegExp(r'^प्ॅनमकरू\s+'),
   // Pattern for "ठवइ श्वीदेवद" (corrupted "Issued:")
   RegExp(r'^ठवइ\s+श्वीदेवद\s+'),
+  // Pattern for corrupted "Returned:" - various KrutiDev conversions
+  RegExp(r'^नदतहेस\s+'),
+  RegExp(r'^टनदवत\s+'),
+  // Pattern for corrupted "Issued:"
+  RegExp(r'^इसतएद\s+'),
+  RegExp(r'^इशउद\s+'),
+  // Pattern for corrupted "New"
+  RegExp(r'^नय\s+'),
+  RegExp(r'^नई\s+'),
+  // Pattern for corrupted "Due"
+  RegExp(r'^डय\s+'),
+  RegExp(r'^डयू\s+'),
+  // Pattern for corrupted "Book"
+  RegExp(r'^बक\s+'),
+  RegExp(r'^बुक\s+'),
+  // Pattern for corrupted "Member"
+  RegExp(r'^मबर\s+'),
+  RegExp(r'^मेमबर\s+'),
+];
+
+/// Additional garbled patterns that appear at various positions in text
+final _garbledPatterns = [
+  // Common corrupted phrases
+  RegExp(r'वृअमतकनमरू'),
+  RegExp(r'प्ॅनमकरू'),
+  RegExp(r'ठवइ\s+श्वीदेवद'),
+  RegExp(r'नदतहेस'),
+  RegExp(r'टनदवत'),
+  RegExp(r'इसतएद'),
+  RegExp(r'श्वीदेवद'),
 ];
 
 String _cleanGarbledText(String text) {
   String cleaned = text;
 
-  // Only remove very specific known garbled prefixes
+  // Remove very specific known garbled prefixes
   for (final pattern in _garbledPrefixPatterns) {
-    cleaned = cleaned.replaceFirst(pattern, '');
+    cleaned = cleaned.replaceAll(pattern, '');
+  }
+
+  // Remove garbled patterns from anywhere in the text
+  for (final pattern in _garbledPatterns) {
+    cleaned = cleaned.replaceAll(pattern, '');
   }
 
   return cleaned.trim();
