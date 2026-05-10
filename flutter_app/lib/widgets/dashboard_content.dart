@@ -500,83 +500,14 @@ class _DashboardContentState extends State<DashboardContent>
                               child: Semantics(
                                 container: true,
                                 label: '$title: $value',
-                                child: Container(
+                                child: _PremiumStatCard(
+                                  title: title,
+                                  value: value,
+                                  icon: stat['icon'] as IconData,
+                                  gradient: stat['gradient'] as LinearGradient,
                                   width: cardWidth,
                                   height: cardHeight,
-                                  padding: EdgeInsets.all(isCompact ? 10 : 14),
-                                  decoration: BoxDecoration(
-                                    gradient:
-                                        stat['gradient'] as LinearGradient,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.18,
-                                      ),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (stat['gradient']
-                                                as LinearGradient)
-                                            .colors
-                                            .first
-                                            .withValues(alpha: 0.3),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        stat['icon'] as IconData,
-                                        size: isCompact ? 20 : 24,
-                                        color: Colors.white,
-                                      ),
-                                      SizedBox(height: isCompact ? 4 : 8),
-                                      Flexible(
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: AnimatedCounter(
-                                            value: int.tryParse(value) ?? 0,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge
-                                                ?.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize:
-                                                      isCompact ? 18 : 22,
-                                                ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(height: isCompact ? 2 : 4),
-                                      Flexible(
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            title,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                                  color: Colors.white
-                                                      .withValues(
-                                                        alpha: 0.9,
-                                                      ),
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize:
-                                                      isCompact ? 11 : 13,
-                                                ),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  isCompact: isCompact,
                                 ),
                               ),
                             ),
@@ -591,44 +522,63 @@ class _DashboardContentState extends State<DashboardContent>
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
                               Theme.of(context).colorScheme.secondary,
                               Theme.of(
                                 context,
-                              ).colorScheme.secondary.withValues(alpha: 0.8),
+                              ).colorScheme.secondary.withValues(alpha: 0.75),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.secondary.withValues(alpha: 0.3),
+                            width: 1.5,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Theme.of(
                                 context,
-                              ).colorScheme.secondary.withValues(alpha: 0.4),
-                              blurRadius: 12,
+                              ).colorScheme.secondary.withValues(alpha: 0.35),
+                              blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),
                           ],
                         ),
                         child: Icon(
                           Icons.analytics_rounded,
-                          size: 24,
+                          size: 22,
                           color: Theme.of(context).colorScheme.onSecondary,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       Expanded(
-                        child: Text(
-                          'Analytics & Insights',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).colorScheme.onSurface,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Analytics & Insights',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    letterSpacing: 0.2,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Library performance metrics and statistics',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -815,29 +765,45 @@ class _DashboardContentState extends State<DashboardContent>
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: cs.surface.withValues(alpha: 0.8),
+        color: cs.surface.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.55)),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.45),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: cs.shadow.withValues(alpha: 0.1),
-            blurRadius: 12,
+            color: cs.shadow.withValues(alpha: 0.08),
+            blurRadius: 16,
             offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: cs.primary.withValues(alpha: 0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: cs.primary),
-          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 12, color: cs.primary),
+          ),
+          const SizedBox(width: 8),
           Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: cs.onSurface.withValues(alpha: 0.85),
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
                 ),
           ),
         ],
@@ -863,8 +829,8 @@ class _DashboardContentState extends State<DashboardContent>
         final glow = 0.16 + 0.04 * math.sin(2 * math.pi * t);
 
         return Material(
-          elevation: 10,
-          shadowColor: cs.primary.withValues(alpha: 0.2),
+          elevation: 0,
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(24),
           clipBehavior: Clip.antiAlias,
           child: Container(
@@ -879,8 +845,23 @@ class _DashboardContentState extends State<DashboardContent>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              border:
-                  Border.all(color: cs.outlineVariant.withValues(alpha: 0.55)),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: cs.primary.withValues(alpha: 0.12),
+                  blurRadius: 32,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: cs.secondary.withValues(alpha: 0.06),
+                  blurRadius: 48,
+                  offset: const Offset(0, 16),
+                ),
+              ],
             ),
             child: Stack(
               children: [
@@ -889,7 +870,7 @@ class _DashboardContentState extends State<DashboardContent>
                     decoration: BoxDecoration(
                       gradient: RadialGradient(
                         colors: [
-                          cs.onSurface.withValues(alpha: 0.08),
+                          cs.onSurface.withValues(alpha: 0.06),
                           Colors.transparent,
                         ],
                         center: Alignment.topLeft,
@@ -906,7 +887,7 @@ class _DashboardContentState extends State<DashboardContent>
                     height: 200,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: cs.primary.withValues(alpha: 0.14),
+                      color: cs.primary.withValues(alpha: 0.12),
                     ),
                   ),
                 ),
@@ -918,7 +899,7 @@ class _DashboardContentState extends State<DashboardContent>
                     height: 160,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: cs.secondary.withValues(alpha: 0.12),
+                      color: cs.secondary.withValues(alpha: 0.1),
                     ),
                   ),
                 ),
@@ -930,13 +911,13 @@ class _DashboardContentState extends State<DashboardContent>
                     height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: cs.tertiary.withValues(alpha: 0.12),
+                      color: cs.tertiary.withValues(alpha: 0.1),
                     ),
                   ),
                 ),
                 Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth >= 760;
@@ -961,32 +942,51 @@ class _DashboardContentState extends State<DashboardContent>
                           ),
                         ],
                       );
-                      final refreshButton = FilledButton.icon(
-                        onPressed: _extrasLoading
-                            ? null
-                            : () => _refreshAll(
-                                  showLoading: true,
-                                  includeStats: true,
-                                ),
-                        icon: _extrasLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.refresh_rounded),
-                        label: Text(
-                          _extrasLoading ? 'Refreshing' : 'Refresh data',
+                      final refreshButton = Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: cs.primary.withValues(alpha: 0.25),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
+                        child: FilledButton.icon(
+                          onPressed: _extrasLoading
+                              ? null
+                              : () => _refreshAll(
+                                    showLoading: true,
+                                    includeStats: true,
+                                  ),
+                          icon: _extrasLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh_rounded, size: 20),
+                          label: Text(
+                            _extrasLoading ? 'Refreshing' : 'Refresh',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3,
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: cs.primary,
+                            foregroundColor: cs.onPrimary,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                         ),
                       );
@@ -999,52 +999,60 @@ class _DashboardContentState extends State<DashboardContent>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Premium title with accent
                                   Row(
                                     children: [
                                       Container(
-                                        width: 4,
-                                        height: 28,
-                                        margin: const EdgeInsets.only(right: 12),
+                                        width: 5,
+                                        height: 32,
+                                        margin: const EdgeInsets.only(right: 14),
                                         decoration: BoxDecoration(
                                           color: cs.primary,
-                                          borderRadius: BorderRadius.circular(2),
+                                          borderRadius: BorderRadius.circular(3),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: cs.primary.withValues(alpha: 0.4),
+                                              blurRadius: 8,
+                                              offset: const Offset(2, 0),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       Expanded(
                                         child: Text(
                                           'Library Overview',
                                           style: TextStyle(
-                                            fontSize: 24,
+                                            fontSize: 26,
                                             fontWeight: FontWeight.w800,
                                             color: cs.onSurface,
-                                            letterSpacing: 0.2,
+                                            letterSpacing: 0.3,
+                                            height: 1.1,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 10),
                                   Text(
                                     'Monitor circulation, inventory, and member health in one place.',
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: cs.onSurface.withValues(alpha: 0.7),
-                                      height: 1.4,
+                                      height: 1.5,
+                                      letterSpacing: 0.1,
                                     ),
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 16),
                                   chipRow,
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 20),
                             ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 180),
+                              constraints: const BoxConstraints(minWidth: 160),
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: SizedBox(
-                                  width: 180,
+                                  width: 160,
                                   child: refreshButton,
                                 ),
                               ),
@@ -1056,43 +1064,51 @@ class _DashboardContentState extends State<DashboardContent>
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Premium title with accent
                           Row(
                             children: [
                               Container(
                                 width: 4,
-                                height: 24,
+                                height: 26,
                                 margin: const EdgeInsets.only(right: 12),
                                 decoration: BoxDecoration(
                                   color: cs.primary,
                                   borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: cs.primary.withValues(alpha: 0.35),
+                                      blurRadius: 6,
+                                      offset: const Offset(1, 0),
+                                    ),
+                                  ],
                                 ),
                               ),
                               Expanded(
                                 child: Text(
                                   'Library Overview',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.w800,
                                     color: cs.onSurface,
                                     letterSpacing: 0.2,
+                                    height: 1.1,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Text(
                             'Monitor circulation, inventory, and member health in one place.',
                             style: TextStyle(
                               fontSize: 13,
                               color: cs.onSurface.withValues(alpha: 0.7),
-                              height: 1.4,
+                              height: 1.5,
+                              letterSpacing: 0.1,
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          chipRow,
                           const SizedBox(height: 16),
+                          chipRow,
+                          const SizedBox(height: 18),
                           SizedBox(
                             width: double.infinity,
                             child: refreshButton,
@@ -1184,11 +1200,37 @@ class _DashboardContentState extends State<DashboardContent>
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.notification_important_rounded,
-                      color: Theme.of(context).colorScheme.primary,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.amber.shade600,
+                            Colors.amber.shade400,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.amber.shade300.withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.amber.shade400.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.notification_important_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,19 +1238,23 @@ class _DashboardContentState extends State<DashboardContent>
                           Text(
                             'Actionable Alerts',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
                             ),
                           ),
+                          const SizedBox(height: 2),
                           Text(
                             'Filtered by ${_alertFilter.name} • $densityLabel layout',
-                            style: Theme.of(context).textTheme.bodySmall,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 Wrap(
                   spacing: 10,
@@ -1233,7 +1279,7 @@ class _DashboardContentState extends State<DashboardContent>
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 Expanded(
                   child: Builder(
@@ -1327,11 +1373,37 @@ class _DashboardContentState extends State<DashboardContent>
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.history_rounded,
-                    color: Theme.of(context).colorScheme.primary,
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.teal.shade600,
+                          Colors.teal.shade400,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.teal.shade300.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.teal.shade400.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.history_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1341,11 +1413,17 @@ class _DashboardContentState extends State<DashboardContent>
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           'Filtered by ${_activityFilter.name}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
                         ),
                       ],
                     ),
@@ -1441,68 +1519,124 @@ class _DashboardContentState extends State<DashboardContent>
                             const TextStyle();
 
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 34,
-                                height: 34,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {},
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
+                                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant.withValues(alpha: 0.15),
+                                  ),
                                 ),
-                                child: Icon(
-                                  icon,
-                                  size: 18,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      title,
-                                      style: hindiAwareTextStyle(
-                                        context,
-                                        text: title,
-                                        base: baseTitle.copyWith(
-                                          fontWeight: FontWeight.w600,
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary.withValues(alpha: 0.15),
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary.withValues(alpha: 0.08),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary.withValues(alpha: 0.2),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      description,
-                                      style: hindiAwareTextStyle(
-                                        context,
-                                        text: description,
-                                        base: baseDesc.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.7),
-                                        ),
+                                      child: Icon(
+                                        icon,
+                                        size: 18,
+                                        color: Theme.of(context).colorScheme.primary,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Tooltip(
-                                      message: occurredAtText,
-                                      child: Text(
-                                        formatRelativeTime(occurredAt),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            style: hindiAwareTextStyle(
+                                              context,
+                                              text: title,
+                                              base: baseTitle.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            description,
+                                            style: hindiAwareTextStyle(
+                                              context,
+                                              text: description,
+                                              base: baseDesc.copyWith(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.65),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Tooltip(
+                                            message: occurredAtText,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.access_time_rounded,
+                                                  size: 12,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withValues(alpha: 0.5),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  formatRelativeTime(occurredAt),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface
+                                                            .withValues(alpha: 0.5),
+                                                        fontSize: 11,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         );
                       },
@@ -1534,20 +1668,57 @@ class _DashboardContentState extends State<DashboardContent>
     required String label,
     required String value,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        gradient: LinearGradient(
+          colors: [
+            cs.surfaceContainerHighest,
+            cs.surfaceContainerHighest.withValues(alpha: 0.8),
+          ],
+        ),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+          color: cs.outlineVariant.withValues(alpha: 0.3),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: cs.shadow.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Text(
-        '$label: $value',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: cs.primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1759,11 +1930,48 @@ class _DashboardContentState extends State<DashboardContent>
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: Icon(icon, color: color),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
       title: Row(
         children: [
-          Expanded(child: Text('$title ($count)')),
-          if (count > 0)
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 10),
             TextButton(
               onPressed: () {
                 final ctx = context;
@@ -1777,8 +1985,27 @@ class _DashboardContentState extends State<DashboardContent>
                   actions: actions,
                 ));
               },
-              child: Text('View All $count'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 14),
+                ],
+              ),
             ),
+          ],
         ],
       ),
       children: items.take(previewLimit).map((item) {
@@ -1788,6 +2015,7 @@ class _DashboardContentState extends State<DashboardContent>
         final dueDate = item['due_date']?.toString() ?? '';
         final daysOverdue = item['days_overdue']?.toString() ?? '';
         final dueDateText = DateFormatter.formatDateIndian(dueDate);
+        final isOverdue = daysOverdue.isNotEmpty && int.tryParse(daysOverdue) != null && int.parse(daysOverdue) > 0;
 
         return Material(
           color: Colors.transparent,
@@ -1805,25 +2033,119 @@ class _DashboardContentState extends State<DashboardContent>
             },
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: isOverdue ? 0.5 : 0.4),
+                    Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: isOverdue ? 0.35 : 0.25),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isOverdue
+                      ? color.withValues(alpha: 0.25)
+                      : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).shadowColor.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    bookTitle,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          color: color,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              bookTitle,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              memberName,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isOverdue
+                              ? color.withValues(alpha: 0.12)
+                              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Due: ${dueDateText.isEmpty ? '-' : dueDateText}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: isOverdue ? color : Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text('Member: $memberName'),
-                  Text(
-                    'Due: ${dueDateText.isEmpty ? '-' : dueDateText}${daysOverdue.isNotEmpty ? ' • Overdue: $daysOverdue d' : ''}',
-                  ),
+                  if (isOverdue) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.warning_rounded, size: 14, color: color),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Overdue: $daysOverdue days',
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 10,
@@ -1840,9 +2162,13 @@ class _DashboardContentState extends State<DashboardContent>
                           },
                           icon: const Icon(
                             Icons.mark_email_unread_rounded,
-                            size: 18,
+                            size: 16,
                           ),
                           label: const Text('Remind'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: Size.zero,
+                          ),
                         ),
                       if (actions.contains('return'))
                         ElevatedButton.icon(
@@ -1859,9 +2185,15 @@ class _DashboardContentState extends State<DashboardContent>
                           },
                           icon: const Icon(
                             Icons.assignment_return_rounded,
-                            size: 18,
+                            size: 16,
                           ),
                           label: const Text('Returned'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: color,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: Size.zero,
+                          ),
                         ),
                     ],
                   ),
@@ -2786,21 +3118,78 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
+    const color = Colors.blueGrey;
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.inventory_2_rounded, color: Colors.blueGrey),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Icon(Icons.inventory_2_rounded, color: color, size: 20),
+      ),
       title: Row(
         children: [
-          Expanded(child: Text('Low stock ($count)')),
-          if (count > 0)
+          Expanded(
+            child: Text(
+              'Low stock',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 10),
             TextButton(
               onPressed: () {
                 final ctx = context;
                 _showAllLowStockPopup(ctx, count);
               },
-              child: Text('View All $count'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 14),
+                ],
+              ),
             ),
+          ],
         ],
       ),
       children: items.take(previewLimit).map((raw) {
@@ -2809,34 +3198,83 @@ class _DashboardContentState extends State<DashboardContent>
         final available = item['available_copies']?.toString() ?? '0';
         final total = item['total_copies']?.toString() ?? '0';
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(title),
-          subtitle: Text('Available: $available / $total'),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '$available left',
-              style: TextStyle(
-                color: Colors.orange.shade700,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              final ctx = context;
+              Future.microtask(() => _showSingleAlertPopup(
+                ctx: ctx,
+                item: item,
+                type: 'lowstock',
+                color: color,
+              ));
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.inventory_2_rounded, color: color, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Available: $available / $total',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$available left',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          onTap: () {
-            final ctx = context;
-            Future.microtask(() => _showSingleAlertPopup(
-              ctx: ctx,
-              item: item,
-              type: 'lowstock',
-              color: Colors.blueGrey,
-            ));
-          },
         );
       }).toList(),
     );
@@ -2848,14 +3286,52 @@ class _DashboardContentState extends State<DashboardContent>
     final returnedToday = (section is Map ? section['returned_today'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
+    const color = Colors.green;
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.today_rounded, color: Colors.green),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Icon(Icons.today_rounded, color: color, size: 20),
+      ),
       title: Row(
         children: [
-          Expanded(child: Text('Today\'s Activity ($count)')),
-          if (count > 0)
+          Expanded(
+            child: Text(
+              'Today\'s Activity',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 10),
             TextButton(
               onPressed: () {
                 final ctx = context;
@@ -2863,18 +3339,37 @@ class _DashboardContentState extends State<DashboardContent>
                   ctx: ctx,
                   title: 'Daily Issue-Return Summary',
                   icon: Icons.today_rounded,
-                  color: Colors.green,
+                  color: color,
                   items: items,
                   type: 'daily_summary',
                 ));
               },
-              child: Text('View All $count'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 14),
+                ],
+              ),
             ),
+          ],
         ],
       ),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -2889,30 +3384,77 @@ class _DashboardContentState extends State<DashboardContent>
           final memberName = item['member_name']?.toString() ?? '';
           final status = item['status']?.toString() ?? '';
 
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              status == 'returned' ? Icons.assignment_return : Icons.assignment,
-              color: status == 'returned' ? Colors.green : Colors.blue,
-              size: 20,
-            ),
-            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(memberName),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          return Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: status == 'returned'
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                status == 'returned' ? 'Returned' : 'Issued',
-                style: TextStyle(
-                  color: status == 'returned' ? Colors.green.shade700 : Colors.blue.shade700,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
                 ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: status == 'returned'
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : Colors.blue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      status == 'returned' ? Icons.assignment_return_rounded : Icons.assignment_rounded,
+                      color: status == 'returned' ? Colors.green : Colors.blue,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          memberName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: status == 'returned'
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : Colors.blue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      status == 'returned' ? 'Returned' : 'Issued',
+                      style: TextStyle(
+                        color: status == 'returned' ? Colors.green.shade700 : Colors.blue.shade700,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -2925,14 +3467,52 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
+    const color = Colors.amber;
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.star_rounded, color: Colors.amber),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Icon(Icons.star_rounded, color: color, size: 20),
+      ),
       title: Row(
         children: [
-          Expanded(child: Text('Most Active Members ($count)')),
-          if (count > 0)
+          Expanded(
+            child: Text(
+              'Most Active Members',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 10),
             TextButton(
               onPressed: () {
                 final ctx = context;
@@ -2940,13 +3520,32 @@ class _DashboardContentState extends State<DashboardContent>
                   ctx: ctx,
                   title: 'Most Active Members',
                   icon: Icons.star_rounded,
-                  color: Colors.amber,
+                  color: color,
                   items: items,
                   type: 'most_active_members',
                 ));
               },
-              child: Text('View All $count'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 14),
+                ],
+              ),
             ),
+          ],
         ],
       ),
       children: items.take(previewLimit).map((raw) {
@@ -2956,30 +3555,73 @@ class _DashboardContentState extends State<DashboardContent>
         final borrowCount = item['borrow_count'] ?? 0;
         final activeIssues = item['active_issues'] ?? 0;
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: CircleAvatar(
-            backgroundColor: Colors.amber.withValues(alpha: 0.2),
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
-            ),
-          ),
-          title: Text(name),
-          subtitle: Text('${_capitalize(memberType)} • $activeIssues active issues'),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        return Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              '$borrowCount borrows',
-              style: TextStyle(
-                color: Colors.amber.shade700,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
               ),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_capitalize(memberType)} • $activeIssues active',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$borrowCount borrows',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -2991,14 +3633,52 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
+    const color = Colors.purple;
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      leading: const Icon(Icons.trending_up_rounded, color: Colors.purple),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Icon(Icons.trending_up_rounded, color: color, size: 20),
+      ),
       title: Row(
         children: [
-          Expanded(child: Text('Most Issued Books ($count)')),
-          if (count > 0)
+          Expanded(
+            child: Text(
+              'Most Issued Books',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 10),
             TextButton(
               onPressed: () {
                 final ctx = context;
@@ -3006,13 +3686,32 @@ class _DashboardContentState extends State<DashboardContent>
                   ctx: ctx,
                   title: 'Most Issued Books',
                   icon: Icons.trending_up_rounded,
-                  color: Colors.purple,
+                  color: color,
                   items: items,
                   type: 'most_issued_books',
                 ));
               },
-              child: Text('View All $count'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 14),
+                ],
+              ),
             ),
+          ],
         ],
       ),
       children: items.take(previewLimit).map((raw) {
@@ -3022,42 +3721,83 @@ class _DashboardContentState extends State<DashboardContent>
         final borrowCount = item['borrow_count'] ?? 0;
         final available = item['available_copies'] ?? 0;
 
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Container(
-            width: 40,
-            height: 40,
+        return Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.purple.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
+              ),
             ),
-            child: const Icon(Icons.menu_book, color: Colors.purple, size: 20),
-          ),
-          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.purple.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Text(
-                  '$borrowCount',
-                  style: TextStyle(
-                    color: Colors.purple.shade700,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.menu_book_rounded, color: color, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        author,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  'available: $available',
-                  style: TextStyle(
-                    color: Colors.purple.shade400,
-                    fontSize: 9,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$borrowCount borrows',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$available available',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -3069,10 +3809,20 @@ class _DashboardContentState extends State<DashboardContent>
 
   Widget _buildStatChip(String label, int value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.15),
+            color.withValues(alpha: 0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: color.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -3080,17 +3830,19 @@ class _DashboardContentState extends State<DashboardContent>
           Text(
             '$value',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
               color: color,
+              height: 1,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: color.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w600,
+              color: color.withValues(alpha: 0.85),
             ),
           ),
         ],
@@ -3541,6 +4293,191 @@ class _DashboardContentState extends State<DashboardContent>
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PremiumStatCard extends StatefulWidget {
+  const _PremiumStatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.gradient,
+    required this.width,
+    required this.height,
+    required this.isCompact,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final LinearGradient gradient;
+  final double width;
+  final double height;
+  final bool isCompact;
+
+  @override
+  State<_PremiumStatCard> createState() => _PremiumStatCardState();
+}
+
+class _PremiumStatCardState extends State<_PremiumStatCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isHovered = _isHovered;
+    final primaryColor = widget.gradient.colors.first;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: widget.width,
+        height: widget.height,
+        transform: Matrix4.diagonal3Values(
+            isHovered ? 1.02 : 1.0,
+            isHovered ? 1.02 : 1.0,
+            1.0,
+          ),
+        child: Container(
+          padding: EdgeInsets.all(widget.isCompact ? 10 : 14),
+          decoration: BoxDecoration(
+            gradient: widget.gradient,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: isHovered ? 0.35 : 0.22),
+              width: isHovered ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withValues(alpha: isHovered ? 0.45 : 0.3),
+                blurRadius: isHovered ? 20 : 14,
+                offset: Offset(0, isHovered ? 10 : 7),
+              ),
+              if (isHovered)
+                BoxShadow(
+                  color: primaryColor.withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  offset: const Offset(0, 15),
+                ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: isHovered ? 0.15 : 0.08),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: widget.isCompact ? 6 : 8,
+                right: widget.isCompact ? 6 : 8,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: isHovered ? 1.0 : 0.0,
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: widget.isCompact ? 12 : 16,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(widget.isCompact ? 8 : 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: isHovered ? 0.25 : 0.18),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      size: widget.isCompact ? 18 : 22,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: widget.isCompact ? 6 : 10),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: AnimatedCounter(
+                        value: int.tryParse(widget.value) ?? 0,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: widget.isCompact ? 18 : 24,
+                          letterSpacing: 0.5,
+                          height: 1,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: widget.isCompact ? 2 : 4),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.title,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w600,
+                          fontSize: widget.isCompact ? 10 : 12,
+                          letterSpacing: 0.3,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: widget.isCompact ? 2 : 3,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(18),
+                    ),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: 0.3),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
