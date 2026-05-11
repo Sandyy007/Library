@@ -33,19 +33,23 @@ class AppPalette {
   static const Color backgroundLight = Color(0xFFF5F8FC);
   static const Color errorLight = Color(0xFFB3261E);
 
-  static const Color primaryDark = Color(0xFFADC6FF);
-  static const Color secondaryDark = Color(0xFF86D5C8);
-  static const Color tertiaryDark = Color(0xFFF6BD7A);
-  static const Color surfaceDark = Color(0xFF111827);
-  static const Color backgroundDark = Color(0xFF0B1220);
-  static const Color errorDark = Color(0xFFFFB4AB);
+  // Premium Dark Mode Palette
+  static const Color primaryDark = Color(0xFF5B8DEF);
+  static const Color secondaryDark = Color(0xFF4ECDC4);
+  static const Color tertiaryDark = Color(0xFFFFB347);
+  static const Color surfaceDark = Color(0xFF0D1829);
+  static const Color backgroundDark = Color(0xFF060D17);
+  static const Color cardDark = Color(0xFF111C2D);
+  static const Color elevatedDark = Color(0xFF162338);
+  static const Color borderDark = Color(0xFF1E2D47);
+  static const Color errorDark = Color(0xFFFF6B6B);
 }
 
 class AppTypography {
   static TextTheme buildTextTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final primaryText = isDark ? const Color(0xFFE8EEF8) : const Color(0xFF122033);
-    final secondaryText = isDark ? const Color(0xFFB6C3D8) : const Color(0xFF445A78);
+    final primaryText = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF122033);
+    final secondaryText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF445A78);
 
     return TextTheme(
       headlineLarge: TextStyle(
@@ -131,9 +135,13 @@ class AppTheme {
       error: isDark ? AppPalette.errorDark : AppPalette.errorLight,
     ).copyWith(
       surface: isDark ? AppPalette.surfaceDark : AppPalette.surfaceLight,
-      surfaceContainerHighest: isDark ? const Color(0xFF1C2638) : const Color(0xFFE8EEF8),
-      outline: isDark ? const Color(0xFF3C4A66) : const Color(0xFF8B9CB7),
-      outlineVariant: isDark ? const Color(0xFF2C3952) : const Color(0xFFC5D1E3),
+      surfaceContainerLowest: isDark ? AppPalette.cardDark : const Color(0xFFFFFFFF),
+      surfaceContainerLow: isDark ? AppPalette.cardDark : const Color(0xFFF8FBFF),
+      surfaceContainer: isDark ? AppPalette.elevatedDark : const Color(0xFFF0F4FA),
+      surfaceContainerHigh: isDark ? const Color(0xFF1A2B40) : const Color(0xFFE8EEF8),
+      surfaceContainerHighest: isDark ? const Color(0xFF1E334D) : const Color(0xFFE0E8F0),
+      outline: isDark ? const Color(0xFF2D4059) : const Color(0xFF8B9CB7),
+      outlineVariant: isDark ? const Color(0xFF1E2D47) : const Color(0xFFC5D1E3),
       shadow: isDark ? Colors.black : const Color(0xFF22324D),
     );
 
@@ -169,14 +177,16 @@ class AppTheme {
         titleTextStyle: textTheme.titleLarge,
       ),
       cardTheme: CardThemeData(
-        elevation: 0,
+        elevation: isDark ? 4 : 0,
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        color: colorScheme.surface,
-        shadowColor: colorScheme.shadow.withValues(alpha: isDark ? 0.35 : 0.08),
+        color: isDark ? AppPalette.cardDark : colorScheme.surface,
+        shadowColor: isDark ? Colors.black54 : colorScheme.shadow.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+          side: BorderSide(
+            color: isDark ? AppPalette.borderDark : colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
         ),
       ),
       iconTheme: IconThemeData(
@@ -296,11 +306,12 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
-        backgroundColor: isDark ? const Color(0xFF1F2C44) : const Color(0xFF173A73),
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
+        elevation: isDark ? 6 : 0,
+        backgroundColor: isDark ? AppPalette.elevatedDark : const Color(0xFF173A73),
+        contentTextStyle: textTheme.bodyMedium?.copyWith(color: isDark ? Colors.white : Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
+          side: isDark ? BorderSide(color: AppPalette.borderDark) : BorderSide.none,
         ),
       ),
       dialogTheme: DialogThemeData(

@@ -472,9 +472,11 @@ class _DashboardContentState extends State<DashboardContent>
                           (availableWidth - (spacing * (cardsPerRow - 1))) /
                           cardsPerRow;
                       final isCompact = availableWidth < 600;
-                      final cardHeight = isDesktop ? 130.0 : (isCompact ? 100.0 : 120.0);
+                      final cardHeight = isDesktop ? 145.0 : (isCompact ? 110.0 : 125.0);
 
-                      return Wrap(
+                      return ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: availableWidth),
+                        child: Wrap(
                         spacing: spacing,
                         runSpacing: spacing,
                         children: List.generate(stats.length, (index) {
@@ -513,8 +515,9 @@ class _DashboardContentState extends State<DashboardContent>
                             ),
                           );
                         }),
-                      );
-                    },
+                      ),
+                    );
+                  },
                   ),
                   const SizedBox(height: 16),
 
@@ -696,59 +699,95 @@ class _DashboardContentState extends State<DashboardContent>
 
   Widget _buildDashboardBackground(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnimatedBuilder(
       animation: _floatController,
       builder: (context, child) {
         final t = _floatController.value;
-        final drift = 14 * math.sin(2 * math.pi * t);
-        final glow = 0.08 + 0.04 * math.sin(2 * math.pi * t);
+        final drift = 18 * math.sin(2 * math.pi * t);
+        final drift2 = 12 * math.sin(2 * math.pi * t + 0.5);
+        final glow = isDark ? (0.12 + 0.06 * math.sin(2 * math.pi * t)) : (0.08 + 0.04 * math.sin(2 * math.pi * t));
+        final pulse = 0.5 + 0.5 * math.sin(2 * math.pi * t);
 
         return Stack(
           children: [
+            // Animated gradient background
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    cs.surface,
-                    cs.primary.withValues(alpha: glow),
-                    cs.secondary.withValues(alpha: glow * 1.2),
-                  ],
-                  stops: const [0.2, 0.6, 1.0],
+                  colors: isDark
+                      ? [
+                          const Color(0xFF070D17),
+                          cs.primary.withValues(alpha: glow * 1.5),
+                          cs.secondary.withValues(alpha: glow * 2),
+                        ]
+                      : [
+                          cs.surface,
+                          cs.primary.withValues(alpha: glow),
+                          cs.secondary.withValues(alpha: glow * 1.2),
+                        ],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
               child: const SizedBox.expand(),
             ),
+            // Animated dot grid pattern
             Positioned.fill(
               child: CustomPaint(
                 painter: _DotGridPainter(
-                  color: cs.primary.withValues(alpha: 0.03),
-                  spacing: 26,
-                  radius: 1.1,
+                  color: isDark
+                      ? cs.primary.withValues(alpha: 0.08 + 0.04 * pulse)
+                      : cs.primary.withValues(alpha: 0.03),
+                  spacing: isDark ? 22 : 26,
+                  radius: isDark ? 1.5 : 1.1,
                 ),
               ),
             ),
+            // Floating ambient orb 1 - Primary
             Positioned(
-              top: -140 + drift,
-              right: -120,
+              top: -160 + drift,
+              right: -140,
               child: _AmbientOrb(
-                size: 260,
+                size: 280,
                 colors: [
-                  cs.primary.withValues(alpha: 0.24),
-                  cs.secondary.withValues(alpha: 0.12),
+                  cs.primary.withValues(alpha: isDark ? 0.32 : 0.24),
+                  cs.secondary.withValues(alpha: isDark ? 0.18 : 0.12),
                 ],
               ),
             ),
+            // Floating ambient orb 2 - Secondary
             Positioned(
-              bottom: -180,
-              left: -140 + drift,
+              bottom: -200 + drift2,
+              left: -160,
               child: _AmbientOrb(
-                size: 320,
+                size: 360,
                 colors: [
-                  cs.secondary.withValues(alpha: 0.2),
-                  cs.tertiary.withValues(alpha: 0.14),
+                  cs.secondary.withValues(alpha: isDark ? 0.28 : 0.2),
+                  cs.tertiary.withValues(alpha: isDark ? 0.2 : 0.14),
                 ],
+              ),
+            ),
+            // Additional accent orb for depth
+            Positioned(
+              top: 100 + drift2 * 0.5,
+              left: 80 + drift * 0.3,
+              child: Opacity(
+                opacity: isDark ? 0.15 : 0.08,
+                child: Container(
+                  width: 120 + 20 * pulse,
+                  height: 120 + 20 * pulse,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        cs.primary.withValues(alpha: 0.4),
+                        cs.primary.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -1167,7 +1206,7 @@ class _DashboardContentState extends State<DashboardContent>
             icon: Icons.event_rounded,
             color: Colors.amber,
             section: alerts['dueTomorrow'],
-            actions: const ['remind', 'return'],
+            actions: const [],
           ),
         );
       }
@@ -4366,6 +4405,7 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
             ],
           ),
           child: Stack(
+            alignment: Alignment.center,
             children: [
               Positioned.fill(
                 child: AnimatedContainer(
@@ -4383,31 +4423,19 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
                   ),
                 ),
               ),
-              Positioned(
-                top: widget.isCompact ? 6 : 8,
-                right: widget.isCompact ? 6 : 8,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: isHovered ? 1.0 : 0.0,
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: widget.isCompact ? 12 : 16,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
                     padding: EdgeInsets.all(widget.isCompact ? 8 : 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: isHovered ? 0.25 : 0.18),
-                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: isHovered ? 0.28 : 0.22),
+                      shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
                       ],
@@ -4418,38 +4446,34 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(height: widget.isCompact ? 6 : 10),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: AnimatedCounter(
-                        value: int.tryParse(widget.value) ?? 0,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: widget.isCompact ? 18 : 24,
-                          letterSpacing: 0.5,
-                          height: 1,
-                        ),
-                        textAlign: TextAlign.center,
+                  SizedBox(height: widget.isCompact ? 6 : 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: AnimatedCounter(
+                      value: int.tryParse(widget.value) ?? 0,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: widget.isCompact ? 16 : 20,
+                        letterSpacing: 0.5,
+                        height: 1,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   SizedBox(height: widget.isCompact ? 2 : 4),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        widget.title,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontWeight: FontWeight.w600,
-                          fontSize: widget.isCompact ? 10 : 12,
-                          letterSpacing: 0.3,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      widget.title,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w600,
+                        fontSize: widget.isCompact ? 10 : 11,
+                        letterSpacing: 0.2,
                       ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
                     ),
                   ),
                 ],

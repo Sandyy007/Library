@@ -1360,6 +1360,12 @@ class _ReportsContentState extends State<ReportsContent>
     }
   }
 
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
+
   Widget _buildEmptyState(String message, IconData icon) {
     return Center(
       child: Column(
@@ -1641,6 +1647,12 @@ class _ReportsContentState extends State<ReportsContent>
 
   Future<String> _buildCsv(String exportName) async {
     final reportProvider = context.read<ReportProvider>();
+    final now = DateTime.now();
+    final generatedOn = '${now.day.toString().padLeft(2, '0')}-'
+        '${_getMonthName(now.month)}-${now.year} '
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:'
+        '${now.second.toString().padLeft(2, '0')} IST';
 
     List<String> headers;
     List<List<String>> rows;
@@ -1715,11 +1727,23 @@ class _ReportsContentState extends State<ReportsContent>
     }
 
     final buffer = StringBuffer();
+    // Add generation timestamp as comment
+    buffer.writeln('# Generated on: $generatedOn');
     buffer.writeln(headers.map(_csvEscape).join(','));
     for (final row in rows) {
       buffer.writeln(row.map(_csvEscape).join(','));
     }
     return buffer.toString();
+  }
+
+  String _formatCsvDate(String dateStr) {
+    if (dateStr.isEmpty) return '-';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day.toString().padLeft(2, '0')}-${_getMonthName(date.month)}-${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
   }
 
   String _csvEscape(String value) {

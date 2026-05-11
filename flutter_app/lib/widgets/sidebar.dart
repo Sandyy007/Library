@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -25,6 +26,19 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // Hover states for menu items
+  final Map<int, bool> _menuHoverStates = {};
+  // Hover states for quick actions
+  final Map<int, bool> _quickActionHoverStates = {};
+  bool _logoutHovered = false;
+  bool _toggleHovered = false;
+
+  void _setToggleHover(bool isHovered) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _toggleHovered = isHovered);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -38,38 +52,45 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
     _animationController.forward();
   }
 
+  void _setMenuHover(int index, bool isHovered) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _menuHoverStates[index] = isHovered);
+    });
+  }
+
+  void _setQuickActionHover(int index, bool isHovered) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _quickActionHoverStates[index] = isHovered);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final sidebarWidth = widget.isDrawer ? 280.0 : 260.0;
+    final sidebarWidth = widget.isDrawer ? 280.0 : 280.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: sidebarWidth,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Theme.of(context).colorScheme.surface,
-            Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
-          ],
-        ),
-        boxShadow: widget.isDrawer
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  offset: const Offset(5, 0),
-                ),
-              ],
+        color: isDark ? const Color(0xFF0D1829) : const Color(0xFFFFFFFF),
+        border: Border.all(color: isDark ? const Color(0xFF1E2D47) : const Color(0xFFE5E7EB), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(4, 0),
+          ),
+        ],
       ),
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: Column(
           children: [
-            // Header - Premium logo section
+            // ══════════════════════════════════════════════
+            // SECTION 1 - SIDEBAR HEADER (gradient top area) - compact
+            // ══════════════════════════════════════════════
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -82,320 +103,474 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              child: Column(
+              child: Stack(
                 children: [
-                  const SizedBox(height: 24),
-                  // Premium Logo - Thin white border with logo inside
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Glow effect behind
-                      Container(
-                        width: 130,
-                        height: 130,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: 0.15),
-                              Colors.transparent,
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 20,
-                              spreadRadius: 2,
+                  // Top-right decorative circle
+                  Positioned(
+                    top: -25,
+                    right: -25,
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                    ),
+                  ),
+                  // Bottom-left decorative circle
+                  Positioned(
+                    bottom: -15,
+                    left: -15,
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.04),
+                      ),
+                    ),
+                  ),
+                  // Glow divider line
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  // Header content - ultra compact
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    child: Column(
+                      children: [
+                        // Logo section - smaller
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Radial glow
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.06),
+                                    Colors.transparent,
+                                  ],
+                                  radius: 0.8,
+                                ),
+                              ),
+                            ),
+                            // Outer ring
+                            Container(
+                              width: 62,
+                              height: 62,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    blurRadius: 8,
+                                    spreadRadius: 0,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Logo container 90x90
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ClipOval(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(1),
+                                  child: Image.asset(
+                                    'assets/images/Office_Logo.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              const Color(0xFF0D2137),
+                                              const Color(0xFF1565C0),
+                                            ],
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.account_balance_rounded,
+                                            size: 36,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      // Thin white border circle - 2px
-                      Container(
-                        width: 112,
-                        height: 112,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      // Logo - 100x100 inside the white border
-                      Hero(
-                        tag: 'app-logo',
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                        const SizedBox(height: 8),
+                        // Institute Name - compact single line
+                        Text(
+                          'Uttar Pradesh State Tax\nTraining & Research Institute',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                            letterSpacing: 0.2,
+                            height: 1.3,
                           ),
-                          child: ClipOval(
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Image.asset(
-                                'assets/images/Office_Logo.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          const Color(0xFF0D2137),
-                                          const Color(0xFF1565C0),
-                                        ],
-                                      ),
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.account_balance_rounded,
-                                        size: 40,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  );
-                                },
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
+                        // Subtitless
+                        const SizedBox(height: 2),
+                        Text(
+                          'Library Management System',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: const Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.7),
+                            letterSpacing: 0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        // Administrator badge - compact
+                        if (user != null) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                width: 1,
                               ),
                             ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.person_rounded,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  user.role.toLowerCase() == 'admin'
+                                      ? 'Administrator'
+                                      : user.username,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Institute Name
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Text(
-                      'Uttar Pradesh State Tax',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1.3,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: TextAlign.center,
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Text(
-                      'Training & Research Institute',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1.3,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Library Management System',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.85),
-                      letterSpacing: 0.3,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (user != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 28),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18),
-                        ),
-                      ),
-                      child: Text(
-                        user.role.toLowerCase() == 'admin'
-                            ? 'Administrator'
-                            : user.username,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
 
-            // Menu Items - Scrollable to handle overflow
+            // ══════════════════════════════════════════════
+            // SECTION 2 - NAV MENU ITEMS (compact, no scroll)
+            // ══════════════════════════════════════════════
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(height: 4),
-                    _buildMenuItem(
+                    // Navigation Items
+                    _buildNavItem(
                       icon: Icons.dashboard_rounded,
                       title: 'Dashboard',
                       index: 0,
                     ),
-                    _buildMenuItem(
+                    const SizedBox(height: 3),
+                    _buildNavItem(
                       icon: Icons.menu_book_rounded,
                       title: 'Books',
                       index: 1,
                     ),
-                    _buildMenuItem(
+                    const SizedBox(height: 3),
+                    _buildNavItem(
                       icon: Icons.people_alt_rounded,
                       title: 'Members',
                       index: 2,
                     ),
-                    _buildMenuItem(
+                    const SizedBox(height: 3),
+                    _buildNavItem(
                       icon: Icons.assignment_turned_in_rounded,
                       title: 'Issues & Returns',
                       index: 3,
                     ),
-                    _buildMenuItem(
+                    const SizedBox(height: 3),
+                    _buildNavItem(
                       icon: Icons.analytics_rounded,
                       title: 'Reports',
                       index: 4,
                     ),
-                    _buildMenuItem(
+                    const SizedBox(height: 3),
+                    _buildNavItem(
                       icon: Icons.info_outline_rounded,
                       title: 'About Us',
                       index: 5,
                     ),
+
+                    // ══════════════════════════════════════
+                    // SECTION 3 - QUICK ACTIONS (compact)
+                    // ══════════════════════════════════════
+                    const SizedBox(height: 12),
+                    // Divider before QUICK ACTIONS
+                    Container(
+                      height: 1,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      color: const Color(0xFFE5E7EB),
+                    ),
                     const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        'QUICK ACTIONS',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                          fontSize: 10,
+                    // QUICK ACTIONS label
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8, bottom: 4),
+                        child: Text(
+                          'QUICK ACTIONS',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF6B7280),
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
                     ),
-                    _buildQuickAction(
+                    _buildQuickActionItem(
                       icon: Icons.search_rounded,
                       title: 'Advanced Search',
+                      index: 0,
                       onTap: () => _showAdvancedSearch(context),
                     ),
-                    _buildQuickAction(
+                    const SizedBox(height: 2),
+                    _buildQuickActionItem(
                       icon: Icons.backup_rounded,
                       title: 'Backup & Restore',
+                      index: 1,
                       onTap: () => _showBackupRestore(context),
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
 
-            // Theme Toggle - Compact
+            // ══════════════════════════════════════════════
+            // SECTION 4 - LIGHT/DARK TOGGLE (fixed bottom)
+            // ══════════════════════════════════════════════
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Consumer<ThemeProvider>(
-                builder: (context, themeProvider, child) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+              child: MouseRegion(
+                onEnter: (_) => _setToggleHover(true),
+                onExit: (_) => _setToggleHover(false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _toggleHovered
+                        ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFF8FAFC))
+                        : (isDark ? const Color(0xFF162338) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF1E2D47) : const Color(0xFFE5E7EB),
+                      width: 1,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      child: Row(
+                  ),
+                  child: Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: Row(
                         children: [
                           Icon(
-                            themeProvider.isDarkMode
-                                ? Icons.dark_mode_rounded
-                                : Icons.light_mode_rounded,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 18,
+                            Icons.light_mode_rounded,
+                            size: 16,
+                            color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Text(
-                            themeProvider.isDarkMode ? 'Dark' : 'Light',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w500),
+                            'Light',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF374151),
+                            ),
                           ),
                           const Spacer(),
                           SizedBox(
-                            height: 24,
-                            child: Switch(
-                              value: themeProvider.isDarkMode,
-                              onChanged: (value) => themeProvider.toggleTheme(),
-                              activeThumbColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              activeTrackColor: Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.3),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                            height: 20,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Switch(
+                                key: ValueKey(themeProvider.isDarkMode),
+                                value: themeProvider.isDarkMode,
+                                onChanged: (value) => themeProvider.toggleTheme(),
+                                activeThumbColor: isDark ? const Color(0xFF5B8DEF) : const Color(0xFF1565C0),
+                                activeTrackColor:
+                                    (isDark ? const Color(0xFF5B8DEF) : const Color(0xFF1565C0)).withValues(alpha: 0.3),
+                                inactiveThumbColor: isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+                                inactiveTrackColor:
+                                    (isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF)).withValues(alpha: 0.3),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
                             ),
                           ),
+                          const Spacer(),
+                          Icon(
+                            Icons.dark_mode_rounded,
+                            size: 16,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                          ),
                         ],
-                      ),
-                    ),
-                  );
-                },
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
 
-            // Logout - Compact
+            // ══════════════════════════════════════════════
+            // SECTION 5 - LOGOUT BUTTON (fixed bottom)
+            // ══════════════════════════════════════════════
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ElevatedButton.icon(
-                onPressed: () => _logout(context),
-                icon: const Icon(Icons.logout_rounded, size: 16),
-                label: const Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
-                  elevation: 2,
-                  shadowColor: Theme.of(
-                    context,
-                  ).colorScheme.error.withValues(alpha: 0.3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _logoutHovered = true),
+                onExit: (_) => setState(() => _logoutHovered = false),
+                child: GestureDetector(
+                  onTapDown: (_) => setState(() => _logoutHovered = true),
+                  onTapUp: (_) => setState(() => _logoutHovered = false),
+                  onTapCancel: () => setState(() => _logoutHovered = false),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    transform: Matrix4.diagonal3Values(
+                      _logoutHovered ? 0.97 : 1.0,
+                      _logoutHovered ? 0.97 : 1.0,
+                      1.0,
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        final ctx = context;
+                        Future.microtask(() => _logout(ctx));
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: _logoutHovered
+                                ? [
+                                    const Color(0xFFC62828),
+                                    const Color(0xFFB71C1C),
+                                  ]
+                                : [
+                                    const Color(0xFFD32F2F),
+                                    const Color(0xFFB71C1C),
+                                  ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFD32F2F).withValues(alpha: _logoutHovered ? 0.35 : 0.2),
+                              blurRadius: _logoutHovered ? 12 : 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            // White shine overlay
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0.06),
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      Colors.white.withValues(alpha: 0.02),
+                                    ],
+                                    stops: const [0.0, 0.4, 0.6, 1.0],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.logout_rounded,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Logout',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  minimumSize: const Size(double.infinity, 38),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
               ),
             ),
@@ -405,83 +580,218 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMenuItem({
+  // ══════════════════════════════════════════════════════
+  // NAV ITEM WIDGET (Active/Inactive with hover states) - compact
+  // ══════════════════════════════════════════════════════
+  Widget _buildNavItem({
     required IconData icon,
     required String title,
     required int index,
   }) {
     final isSelected = widget.selectedIndex == index;
+    final isHovered = _menuHoverStates[index] ?? false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      child: Material(
-        color: isSelected
-            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => widget.onItemSelected(index),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
+    // Theme-aware colors
+    final activeColor = const Color(0xFF1565C0);
+    final hoverColorLight = const Color(0xFFEBF4FF);
+    final hoverColorDark = const Color(0xFF1E3A5F);
+    final iconBgLight = const Color(0xFFF0F4F8);
+    final iconBgDark = const Color(0xFF1E293B);
+
+    final hoverColor = isHovered ? (isDark ? hoverColorDark : hoverColorLight) : Colors.transparent;
+    final iconBg = isSelected ? null : (isHovered ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFDBEAFE)) : (isDark ? iconBgDark : iconBgLight));
+
+    return MouseRegion(
+      onEnter: (_) => _setMenuHover(index, true),
+      onExit: (_) => _setMenuHover(index, false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => Future.microtask(() => widget.onItemSelected(index)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.diagonal3Values(isHovered ? 1.02 : 1.0, isHovered ? 1.02 : 1.0, 1.0),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFDEEAFB))
+                : hoverColor,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isHovered
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: isDark ? 0.25 : 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : (isSelected
+                    ? [
+                        BoxShadow(
+                          color: activeColor.withValues(alpha: 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null),
+          ),
+          child: Row(
+            children: [
+              // Left accent bar (active only)
+              if (isSelected)
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 3,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isSelected
-                        ? Colors.white
-                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      fontSize: 14,
+                    color: activeColor,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(3),
+                      bottomRight: Radius.circular(3),
                     ),
                   ),
                 ),
-                if (isSelected)
-                  Container(
-                    width: 4,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+              // Icon container 32x32 (compact)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            activeColor,
+                            const Color(0xFF42A5F5),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: isSelected ? null : iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected
+                      ? Colors.white
+                      : isHovered
+                          ? const Color(0xFF1565C0)
+                          : const Color(0xFF455A64),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Label
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected
+                        ? activeColor
+                        : isHovered
+                            ? activeColor
+                            : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF374151)),
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  // ══════════════════════════════════════════════════════
+  // QUICK ACTION ITEM WIDGET - compact
+  // ══════════════════════════════════════════════════════
+  Widget _buildQuickActionItem({
+    required IconData icon,
+    required String title,
+    required int index,
+    required VoidCallback onTap,
+  }) {
+    final isHovered = _quickActionHoverStates[index] ?? false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = const Color(0xFF1565C0);
+
+    return MouseRegion(
+      onEnter: (_) => _setQuickActionHover(index, true),
+      onExit: (_) => _setQuickActionHover(index, false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => Future.microtask(() => onTap()),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.diagonal3Values(isHovered ? 1.01 : 1.0, isHovered ? 1.01 : 1.0, 1.0),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isHovered ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEBF4FF)) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isHovered
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: isDark ? 0.2 : 0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              // Icon container 28x28 (compact)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: isHovered
+                      ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFDBEAFE))
+                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4F8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: const Color(0xFF1565C0),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Label
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isHovered ? FontWeight.w600 : FontWeight.w500,
+                    color: isHovered ? activeColor : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF374151)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  // LOGOUT DIALOG
+  // ══════════════════════════════════════════════════════
   void _logout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Icon(
               Icons.logout_rounded,
-              color: Theme.of(context).colorScheme.error,
+              color: Theme.of(dialogContext).colorScheme.error,
             ),
             const SizedBox(width: 8),
             const Text('Logout'),
@@ -490,7 +800,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             style: TextButton.styleFrom(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -498,17 +808,19 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
             ),
             child: Text(
               'Cancel',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              style: TextStyle(
+                color: Theme.of(dialogContext).colorScheme.onSurface,
+              ),
             ),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               Provider.of<AuthProvider>(context, listen: false).logout();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -516,42 +828,6 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
             child: const Text('Logout'),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(horizontal: 0, vertical: -3),
-        leading: Icon(
-          icon,
-          color: Theme.of(context).colorScheme.secondary,
-          size: 18,
-        ),
-        title: Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
-        ),
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: 12,
-          color: Theme.of(context).colorScheme.outline,
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-        hoverColor: Theme.of(
-          context,
-        ).colorScheme.primary.withValues(alpha: 0.05),
       ),
     );
   }

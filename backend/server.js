@@ -1932,7 +1932,8 @@ app.get('/api/issues', async (req, res) => {
   // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
   const selectFields = `i.id, i.book_id, i.member_id, i.issue_date, i.due_date, i.return_date, i.status, i.notes,
          b.title, b.author, b.cover_image,
-         m.name as member_name, m.profile_photo as member_photo`;
+         m.name as member_name, m.profile_photo as member_photo,
+         'Library Staff' as issued_by_name`;
   const dataQuery = `SELECT SQL_CALC_FOUND_ROWS ${selectFields}
     FROM issues i
     JOIN books b ON i.book_id = b.id
@@ -1968,7 +1969,8 @@ app.get('/api/issues', async (req, res) => {
 app.get('/api/issues/:id', (req, res) => {
   db.query(`
     SELECT i.*, b.title as book_title, b.author as book_author, b.isbn,
-           m.name as member_name, m.email as member_email, m.phone as member_phone, m.member_type
+           m.name as member_name, m.email as member_email, m.phone as member_phone, m.member_type,
+           'Library Staff' as issued_by_name
     FROM issues i
     JOIN books b ON i.book_id = b.id
     JOIN members m ON i.member_id = m.id
@@ -2396,6 +2398,36 @@ app.put('/api/issues/:id', (req, res) => {
     });
   }
   );
+});
+
+// DELETE single issue by ID
+app.delete('/api/issues/:id', (req, res) => {
+  const issueId = req.params.id;
+
+  // First get the issue to know the book_id
+  db.query('SELECT book_id FROM issues WHERE id = ?', [issueId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0) return res.status(404).json({ error: 'Issue not found' });
+
+    const bookId = results[0].book_id;
+
+    // Delete the issue
+    db.query('DELETE FROM issues WHERE id = ?', [issueId], (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Issue not found' });
+
+      // Restore book availability
+      if (bookId) {
+        db.query(
+          'UPDATE books SET available_copies = COALESCE(available_copies, 0) + 1, status = CASE WHEN available_copies + 1 >= total_copies THEN "available" ELSE "issued" END WHERE id = ?',
+          [bookId],
+          () => {} // Fire and forget
+        );
+      }
+
+      res.json({ message: 'Issue deleted successfully' });
+    });
+  });
 });
 
 // ==================== DASHBOARD & STATS ROUTES ====================
@@ -3461,10 +3493,21 @@ app.get('/api/export/:type', (req, res) => {
       if (!results || results.length === 0) {
         return res.status(404).json({ error: 'No data to export' });
       }
-      
+
+      // Format current timestamp for CSV comment
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = months[now.getMonth()];
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const generatedOn = `${day}-${monthName}-${year} ${hours}:${minutes}:${seconds} IST`;
+
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename=${filename}_${Date.now()}.csv`);
-      
+
       // CSV escaping function
       const csvEscape = (val) => {
         if (val === null || val === undefined) return '';
@@ -3474,10 +3517,13 @@ app.get('/api/export/:type', (req, res) => {
         }
         return str;
       };
-      
+
       // Write BOM for Excel UTF-8 compatibility
       res.write('\ufeff');
-      
+
+      // Write generation timestamp as comment
+      res.write(`# Generated on: ${generatedOn}\n`);
+
       // Write headers
       const headers = Object.keys(results[0]);
       res.write(headers.join(',') + '\n');

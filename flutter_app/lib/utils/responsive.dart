@@ -16,6 +16,13 @@ abstract final class Breakpoints {
 
   /// Ultra-wide monitors.
   static const double extraExpanded = 1600;
+
+  /// Minimum card width for responsive grids
+  static const double minCardWidth = 160;
+
+  /// Sidebar width
+  static const double sidebarWidth = 280;
+  static const double sidebarCollapsedWidth = 72;
 }
 
 /// Lightweight helper that derives common flags from screen width.
@@ -37,23 +44,52 @@ class Responsive {
   final double width;
   final double height;
 
-  /// < 600 px
+  /// < 600 px - Phone
   bool get isCompact => width < Breakpoints.compact;
 
-  /// < 900 px
+  /// < 900 px - Tablet
   bool get isMedium => width < Breakpoints.medium;
 
-  /// ≥ 1200 px
+  /// 600-899 px - Small desktop
+  bool get isSmallDesktop => width >= Breakpoints.compact && width < Breakpoints.medium;
+
+  /// ≥ 1200 px - Full desktop
   bool get isExpanded => width >= Breakpoints.expanded;
 
-  /// ≥ 1600 px
+  /// ≥ 1600 px - Ultra-wide
   bool get isExtraExpanded => width >= Breakpoints.extraExpanded;
 
+  /// Check if sidebar should be collapsed
+  bool get shouldCollapseSidebar => width < Breakpoints.medium;
+
   /// Adaptive outer padding.
-  double get pagePadding => isCompact ? 8 : (isMedium ? 14 : 20);
+  double get pagePadding {
+    if (isCompact) return 8;
+    if (isMedium) return 14;
+    if (isExpanded) return 24;
+    return 20;
+  }
 
   /// Adaptive toolbar inner padding.
-  double get toolbarPaddingH => isCompact ? 8 : 16;
+  double get toolbarPaddingH {
+    if (isCompact) return 8;
+    if (isMedium) return 12;
+    return 16;
+  }
+
+  /// Adaptive content max width
+  double get contentMaxWidth {
+    if (isCompact) return width * 0.98;
+    if (isMedium) return width * 0.9;
+    if (isExtraExpanded) return 1800;
+    return 1400;
+  }
+
+  /// Card dimensions for responsive grids
+  double cardWidth(int itemsPerRow) {
+    final availableWidth = width - (pagePadding * 2);
+    return (availableWidth - (12 * (itemsPerRow - 1))) / itemsPerRow;
+  }
 
   /// Constrains a dialog width to a reasonable max based on screen size.
   double dialogWidth({double maxDesktop = 520}) {
@@ -67,4 +103,12 @@ class Responsive {
         horizontal: isCompact ? 12 : 20,
         vertical: isCompact ? 12 : 16,
       );
+
+  /// Grid columns based on screen width
+  int get gridColumns {
+    if (isCompact) return 2;
+    if (isMedium) return 3;
+    if (isExpanded) return 5;
+    return 4;
+  }
 }

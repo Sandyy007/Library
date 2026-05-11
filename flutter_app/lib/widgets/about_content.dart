@@ -8,9 +8,8 @@ class AboutContent extends StatefulWidget {
   State<AboutContent> createState() => _AboutContentState();
 }
 
-class _AboutContentState extends State<AboutContent> {
+class _AboutContentState extends State<AboutContent> with TickerProviderStateMixin {
   // Fixed color palette
-  static const Color _pageBg = Color(0xFFEBF2F7);
   static const Color _cardBg = Color(0xFFFFFFFF);
   static const Color _sidebarDark = Color(0xFF0D2137);
   static const Color _primaryBlue = Color(0xFF1565C0);
@@ -25,22 +24,76 @@ class _AboutContentState extends State<AboutContent> {
   int? _hoveredFeatureIndex;
   int? _hoveredGalleryIndex;
 
+  late AnimationController _gradientController;
+  late Animation<double> _gradientAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _gradientController = AnimationController(
+      duration: const Duration(seconds: 10),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _gradientController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _gradientController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth >= 1100;
     final horizontalPadding = isWide ? 40.0 : 20.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    // Theme-aware colors
+    final cardBg = isDark ? const Color(0xFF111C2D) : _cardBg;
+    final textColor = isDark ? colorScheme.onSurface : _textDark;
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : _textGrey;
 
     return Scaffold(
-      backgroundColor: _pageBg,
-      body: Column(
+      backgroundColor: Colors.transparent,
+      body: AnimatedBuilder(
+        animation: _gradientAnimation,
+        builder: (context, child) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [
+                        Color.lerp(const Color(0xFF060D17), const Color(0xFF0A1628), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFF0A1628), const Color(0xFF0D2137), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFF060D17), const Color(0xFF0F2847), _gradientAnimation.value)!,
+                      ]
+                    : [
+                        Color.lerp(const Color(0xFFEBF2F7), const Color(0xFFF5F9FC), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFFF5F9FC), const Color(0xFFE8F0F8), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFFE8F0F8), const Color(0xFFDEEAFB), _gradientAnimation.value)!,
+                      ],
+                stops: [0.0, 0.5, 1.0],
+              ),
+            ),
+            child: child,
+          );
+        },
+        child: Column(
         children: [
           // Top bar placeholder - keep existing
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            decoration: const BoxDecoration(
-              color: _cardBg,
+            decoration: BoxDecoration(
+              color: cardBg,
               boxShadow: [
                 BoxShadow(
                   color: Color(0x0D000000),
@@ -58,7 +111,7 @@ class _AboutContentState extends State<AboutContent> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: _sidebarDark,
+                    color: textColor,
                   ),
                 ),
               ],
@@ -76,6 +129,52 @@ class _AboutContentState extends State<AboutContent> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Developed under guidance highlight
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [const Color(0xFF1E3A5F), const Color(0xFF0D2137)]
+                                : [const Color(0xFF1565C0), const Color(0xFF1976D2)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isDark ? const Color(0xFF1565C0) : const Color(0xFF1565C0)).withValues(alpha: 0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.psychology_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: Text(
+                                'Developed under guidance of Mr. Vinod Kumar Yadav (Joint Director)',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       _buildHeroCard(context),
                       const SizedBox(height: 32),
                       _buildAboutTextCard(context),
@@ -94,6 +193,7 @@ class _AboutContentState extends State<AboutContent> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -101,11 +201,13 @@ class _AboutContentState extends State<AboutContent> {
   // HERO SECTION - 55/45 split layout
   // ═══════════════════════════════════════════
   Widget _buildHeroCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF111C2D) : _cardBg;
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: Color(0x0D000000),
             blurRadius: 20,
@@ -120,9 +222,11 @@ class _AboutContentState extends State<AboutContent> {
             // Gradient top border
             Container(
               height: 3,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [_primaryBlue, _secondaryBlue],
+                  colors: isDark
+                    ? [const Color(0xFF5B8DEF), const Color(0xFF4ECDC4)]
+                    : [_primaryBlue, _secondaryBlue],
                 ),
               ),
             ),
@@ -159,6 +263,11 @@ class _AboutContentState extends State<AboutContent> {
   }
 
   Widget _buildHeroText(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryBlue = isDark ? const Color(0xFF5B8DEF) : _primaryBlue;
+    final lightAccent = isDark ? const Color(0xFF1E3A5F) : _lightBlueAccent;
+    final textColor = isDark ? const Color(0xFFE2E8F0) : _sidebarDark;
+    final textGrey = isDark ? const Color(0xFF94A3B8) : _textGrey;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -166,14 +275,14 @@ class _AboutContentState extends State<AboutContent> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _lightBlueAccent,
+            color: lightAccent,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _primaryBlue, width: 1.5),
+            border: Border.all(color: primaryBlue, width: 1.5),
           ),
-          child: const Text(
+          child: Text(
             'UPSTTRI',
             style: TextStyle(
-              color: _primaryBlue,
+              color: primaryBlue,
               fontWeight: FontWeight.w700,
               fontSize: 12,
               letterSpacing: 2.0,
@@ -187,7 +296,7 @@ class _AboutContentState extends State<AboutContent> {
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w800,
-            color: _sidebarDark,
+            color: textColor,
             height: 1.3,
           ),
         ),
@@ -199,7 +308,7 @@ class _AboutContentState extends State<AboutContent> {
             'A dedicated environment for the professional development of tax officials, supported by a structured and resource-rich Library Management System.',
             style: TextStyle(
               fontSize: 15,
-              color: _textGrey,
+              color: textGrey,
               height: 1.6,
             ),
           ),
@@ -320,11 +429,13 @@ class _AboutContentState extends State<AboutContent> {
   // ABOUT TEXT SECTION - with left accent bar
   // ═══════════════════════════════════════════
   Widget _buildAboutTextCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF111C2D) : _cardBg;
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: Color(0x0D000000),
             blurRadius: 20,
@@ -339,9 +450,11 @@ class _AboutContentState extends State<AboutContent> {
             // Gradient top border
             Container(
               height: 3,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [_primaryBlue, _secondaryBlue],
+                  colors: isDark
+                    ? [const Color(0xFF5B8DEF), const Color(0xFF4ECDC4)]
+                    : [_primaryBlue, _secondaryBlue],
                 ),
               ),
             ),

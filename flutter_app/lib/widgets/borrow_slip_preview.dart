@@ -238,7 +238,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
           title: 'Staff Details',
           icon: Icons.badge,
           children: [
-            _buildInfoRow('Issued By', issue['issued_by_name'] ?? 'N/A'),
+            _buildInfoRow('Issued By', ''),  // Left blank for handwritten signature
           ],
           cardColor: cardColor,
           dividerColor: dividerColor,
@@ -398,6 +398,16 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   String _formatSlipDate(String? isoDate) {
     final date = isoDate ?? DateTime.now().toIso8601String();
     return _formatDate(date);
+  }
+
+  String _formatDateTime(String isoDate) {
+    if (isoDate.isEmpty) return 'N/A';
+    try {
+      final date = DateTime.parse(isoDate);
+      return DateFormat('dd-MMM-yyyy hh:mm a').format(date);
+    } catch (e) {
+      return isoDate;
+    }
   }
 
   String _capitalize(String text) {
@@ -603,76 +613,315 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
 
                 pw.SizedBox(height: 10),
 
-                // Staff Details Box
+                // Issued By Box - leave blank for handwritten signature
                 _buildPdfSection(
-                  'Staff Details',
+                  'Issued By',
                   [
-                    ['Issued By', ''],
+                    ['Name', ''],  // Left blank for handwritten signature
+                    ['Date & Time', _formatDateTime(issue['issue_date'] ?? '')],
                   ],
                   boldFont,
                   baseFont,
-                  emptyRightColumn: true,
                 ),
 
-                pw.SizedBox(height: 20),
+                pw.SizedBox(height: 16),
 
-                // Signature Section
+                // Signature Section with boxes
                 pw.Container(
                   padding: const pw.EdgeInsets.all(16),
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.grey400),
                     borderRadius: pw.BorderRadius.circular(8),
                   ),
-                  child: pw.Row(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(
-                        child: pw.Column(
-                          children: [
-                            pw.Container(
-                              height: 40,
-                              decoration: const pw.BoxDecoration(
-                                border: pw.Border(
-                                  bottom: pw.BorderSide(color: PdfColors.grey400),
-                                ),
-                              ),
-                            ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              'Receiver Signature',
-                              style: const pw.TextStyle(fontSize: 9),
-                            ),
-                            pw.SizedBox(height: 2),
-                            pw.Text(
-                              '(Date: )',
-                              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
-                            ),
-                          ],
+                      // Title
+                      pw.Text(
+                        'Signatures',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.grey800,
                         ),
                       ),
-                      pw.SizedBox(width: 40),
-                      pw.Expanded(
-                        child: pw.Column(
-                          children: [
-                            pw.Container(
-                              height: 40,
-                              decoration: const pw.BoxDecoration(
-                                border: pw.Border(
-                                  bottom: pw.BorderSide(color: PdfColors.grey400),
-                                ),
+                      pw.SizedBox(height: 12),
+                      pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          // Borrower Signature Box
+                          pw.Expanded(
+                            child: pw.Container(
+                              padding: const pw.EdgeInsets.all(10),
+                              decoration: pw.BoxDecoration(
+                                border: pw.Border.all(color: PdfColors.grey400),
+                                borderRadius: pw.BorderRadius.circular(6),
+                              ),
+                              child: pw.Column(
+                                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                                children: [
+                                  // Signature space label
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.grey100,
+                                      borderRadius: pw.BorderRadius.circular(4),
+                                    ),
+                                    child: pw.Text(
+                                      'Borrower',
+                                      style: pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.grey700,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 8),
+                                  // Signature line box
+                                  pw.Container(
+                                    height: 50,
+                                    decoration: pw.BoxDecoration(
+                                      border: pw.Border(
+                                        bottom: pw.BorderSide(color: PdfColors.grey500, width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 6),
+                                  pw.Text(
+                                    'Signature',
+                                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                                  ),
+                                  pw.SizedBox(height: 8),
+                                  // Name & Date fields
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.all(6),
+                                    decoration: pw.BoxDecoration(
+                                      border: pw.Border.all(color: PdfColors.grey300),
+                                      borderRadius: pw.BorderRadius.circular(4),
+                                    ),
+                                    child: pw.Column(
+                                      children: [
+                                        pw.Row(
+                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            pw.Text('Name:', style: pw.TextStyle(fontSize: 8)),
+                                            pw.Container(
+                                              width: 80,
+                                              height: 12,
+                                              decoration: const pw.BoxDecoration(
+                                                border: pw.Border(
+                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        pw.SizedBox(height: 4),
+                                        pw.Row(
+                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            pw.Text('Date:', style: pw.TextStyle(fontSize: 8)),
+                                            pw.Container(
+                                              width: 80,
+                                              height: 12,
+                                              decoration: const pw.BoxDecoration(
+                                                border: pw.Border(
+                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              'Librarian Signature',
-                              style: const pw.TextStyle(fontSize: 9),
+                          ),
+                          pw.SizedBox(width: 20),
+                          // Librarian Signature Box
+                          pw.Expanded(
+                            child: pw.Container(
+                              padding: const pw.EdgeInsets.all(10),
+                              decoration: pw.BoxDecoration(
+                                border: pw.Border.all(color: PdfColors.grey400),
+                                borderRadius: pw.BorderRadius.circular(6),
+                              ),
+                              child: pw.Column(
+                                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                                children: [
+                                  // Signature space label
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.blue100,
+                                      borderRadius: pw.BorderRadius.circular(4),
+                                    ),
+                                    child: pw.Text(
+                                      'Librarian',
+                                      style: pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.blue800,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 8),
+                                  // Signature line box
+                                  pw.Container(
+                                    height: 50,
+                                    decoration: pw.BoxDecoration(
+                                      border: pw.Border(
+                                        bottom: pw.BorderSide(color: PdfColors.grey500, width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 6),
+                                  pw.Text(
+                                    'Signature',
+                                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                                  ),
+                                  pw.SizedBox(height: 8),
+                                  // Name & Date fields
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.all(6),
+                                    decoration: pw.BoxDecoration(
+                                      border: pw.Border.all(color: PdfColors.grey300),
+                                      borderRadius: pw.BorderRadius.circular(4),
+                                    ),
+                                    child: pw.Column(
+                                      children: [
+                                        pw.Row(
+                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            pw.Text('Name:', style: pw.TextStyle(fontSize: 8)),
+                                            pw.Container(
+                                              width: 80,
+                                              height: 12,
+                                              decoration: const pw.BoxDecoration(
+                                                border: pw.Border(
+                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        pw.SizedBox(height: 4),
+                                        pw.Row(
+                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            pw.Text('Date:', style: pw.TextStyle(fontSize: 8)),
+                                            pw.Container(
+                                              width: 80,
+                                              height: 12,
+                                              decoration: const pw.BoxDecoration(
+                                                border: pw.Border(
+                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            pw.SizedBox(height: 2),
-                            pw.Text(
-                              '(Date: )',
-                              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
-                            ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 12),
+
+                // Bottom Signature Section
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey400),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Signatures',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.grey800,
                         ),
+                      ),
+                      pw.SizedBox(height: 16),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Borrower Signature
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'Borrower Signature',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 40),
+                                pw.Container(
+                                  width: double.infinity,
+                                  decoration: const pw.BoxDecoration(
+                                    border: pw.Border(
+                                      bottom: pw.BorderSide(color: PdfColors.grey500, width: 1),
+                                    ),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  'Sign here',
+                                  style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                                ),
+                              ],
+                            ),
+                          ),
+                          pw.SizedBox(width: 40),
+                          // Librarian Signature
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  'Librarian Signature',
+                                  style: pw.TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 40),
+                                pw.Container(
+                                  width: double.infinity,
+                                  decoration: const pw.BoxDecoration(
+                                    border: pw.Border(
+                                      bottom: pw.BorderSide(color: PdfColors.grey500, width: 1),
+                                    ),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  'Sign here',
+                                  style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

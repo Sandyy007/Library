@@ -1,35 +1,43 @@
-# Library Management System
+# UPSTTRI Library Management System
 
-A production-ready desktop Library Management System built with **Flutter (Windows)** and a **Node.js + Express + MySQL** backend.  
-It provides end-to-end book, member, and issue/return workflows together with advanced reporting, real-time notifications, data backup/restore, PDF/CSV export, and a fully responsive, themeable admin interface.
+A production-ready desktop **Library Management System** for **Uttar Pradesh State Tax Training & Research Institute**, built with **Flutter (Windows Desktop)** and **Node.js + Express + MySQL** backend.
+
+It provides end-to-end book, member, and issue/return workflows together with advanced reporting, real-time notifications, data backup/restore, PDF/CSV export, and a fully responsive, premium admin interface.
 
 ---
 
-## Features
+## Key Features
+
+### Premium UI/UX
+- **Premium Sidebar** - Diagonal gradient header, decorative circles, glowing logo container, frosted badge
+- **Dashboard** - Real-time KPI cards, animated stat cards, bar/pie charts, actionable alerts
+- **Actionable Alerts** - Overdue, due today, low stock with color-coded sections
+- **Recent Activity** - Live feed with auto-refresh
+- **Dark/Light Theme** - Material 3 toggle with smooth transitions
+- **Premium Popups** - Gradient headers, pagination, hover effects
 
 ### Authentication & Security
 - Admin-only JWT authentication with bcrypt password hashing
 - Automatic session expiry and forced re-login on token invalidation
 - Brute-force login rate limiting (15 attempts per 15 min window)
-- Secure token storage (OS keychain via `flutter_secure_storage` with `SharedPreferences` fallback)
+- Secure token storage (OS keychain via `flutter_secure_storage`)
 - Helmet security headers, CORS whitelist, global API rate limiting
 - All SQL queries fully parameterised — no injection vectors
-- File upload type/size/filename validation with MIME checking
-- Backup/restore column-whitelist prevents injection via crafted payloads
 
 ### Dashboard
 - Real-time KPI cards (total books, issued, available, overdue, active members)
-- Monthly issue/return bar charts (FL Chart)
-- Customisable widget layout per user (drag, show/hide)
-- Recent activity feed with auto-refresh
-- Dark & light theme toggle (Material 3)
+- Library Statistics bar chart (FL Chart)
+- Book Status Distribution pie chart
+- Actionable Alerts with expandable sections and "View All" popups
+- Recent Activity feed with auto-refresh every 10 seconds
+- Premium Library Overview hero banner with frosted chips
 
 ### Book Management
 - Full CRUD with cover-image upload and preview
 - Multi-copy tracking (total vs available)
 - Categories/genres with CRUD management
 - ISBN, rack number, publisher, year, description fields
-- Bulk import from CSV / XLSX (10 000+ books supported)
+- Bulk import from CSV / XLSX
 - Bulk delete and CSV/JSON export
 - Search and filter by title, author, category, year, availability
 
@@ -44,16 +52,15 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - Issue books with automatic due-date calculation based on member type
 - Quick return processing with availability auto-update
 - Fine calculation for overdue returns
-- Overdue / due-soon alerts and email-style notifications
+- Overdue / due-soon alerts with "Send Reminder" and "Mark Returned" actions
 - Issue editing (extend due date, change status)
 
 ### Reports & Analytics
+- Library Statistics — bar chart by category
+- Book Status Distribution — pie chart
 - Popular Books — ranked by borrow count
-- Active Members — with badge indicators
-- Monthly Statistics — bar chart by month
-- Category Distribution — pie chart
+- Active Members — with statistics
 - Overdue Report — full overdue list
-- Yearly Statistics — year-over-year trends
 - Export any report to PDF or Excel
 
 ### Notifications
@@ -85,7 +92,6 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 | Charts | FL Chart |
 | PDF | pdf + printing packages |
 | File I/O | Multer (backend) · file_picker (Flutter) |
-| Testing | Flutter test (93 tests) · Jest + Supertest (47 tests) |
 
 ---
 
@@ -99,32 +105,20 @@ library_management_system/
 │   ├── .env.example               # Environment template
 │   ├── seed.js                    # Database seeding script
 │   ├── uploads/                   # User-uploaded files (gitignored)
-│   ├── __tests__/                 # Jest API tests (10 suites, 47 tests)
-│   │   ├── test_utils.js
-│   │   ├── auth_and_dashboard.test.js
-│   │   ├── books_api.test.js
-│   │   ├── categories_api.test.js
-│   │   ├── dashboard_settings.test.js
-│   │   ├── health_api.test.js
-│   │   ├── issues_api.test.js
-│   │   ├── members_update.test.js
-│   │   ├── notifications_api.test.js
-│   │   ├── reports_dashboard.test.js
-│   │   └── search_api.test.js
-│   └── tool/                      # Dev utilities
+│   └── __tests__/                 # Jest API tests
 ├── flutter_app/                    # Flutter desktop application
 │   ├── lib/
 │   │   ├── main.dart              # Entry point + AuthWrapper
-│   │   ├── models/                # book, member, issue, user, notification, report_models
-│   │   ├── providers/             # 9 providers (auth, book, member, issue, theme,
-│   │   │                          #   search, notification, report, dashboard)
+│   │   ├── models/                # book, member, issue, user, notification
+│   │   ├── providers/              # 9 providers (auth, book, member, issue,
+│   │   │                          #   theme, search, notification, report, dashboard)
 │   │   ├── screens/               # login_screen, dashboard_screen
 │   │   ├── services/              # api_service, backend_service
-│   │   ├── utils/                 # theme, responsive, date_formatter, error_utils,
-│   │   │                          #   hindi_text, color_extensions
-│   │   └── widgets/               # 15 widget files (content panels, dialogs, sidebar)
-│   ├── test/                      # Flutter unit tests (12 files, 93 tests)
-│   ├── assets/
+│   │   ├── utils/                 # theme, responsive, date_formatter,
+│   │   │                          #   error_utils, hindi_text, color_extensions
+│   │   └── widgets/               # Premium UI widgets (sidebar, dashboard,
+│   │                              #   books, members, issues, reports, dialogs)
+│   ├── assets/                    # Images and icons
 │   └── pubspec.yaml
 ├── database/
 │   ├── schema.sql                 # Base schema
@@ -271,7 +265,6 @@ All endpoints (except health and login) require `Authorization: Bearer <token>`.
 | GET | `/api/reports/active-members` | Active members |
 | GET | `/api/reports/monthly-stats` | Monthly statistics |
 | GET | `/api/reports/category-stats` | Category distribution |
-| GET | `/api/reports/yearly-stats` | Year-over-year stats |
 
 ### Notifications
 | Method | Endpoint | Description |
@@ -303,24 +296,6 @@ All endpoints (except health and login) require `Authorization: Bearer <token>`.
 
 ---
 
-## Testing
-
-### Flutter (93 tests)
-
-```bash
-cd flutter_app
-flutter test -r expanded
-```
-
-### Backend (47 tests)
-
-```bash
-cd backend
-npx jest --forceExit --verbose
-```
-
----
-
 ## Security
 
 | Layer | Measure |
@@ -332,11 +307,10 @@ npx jest --forceExit --verbose
 | Restore | Column-name whitelist prevents injection via crafted backups |
 | HTTP headers | Helmet (CSP, X-Frame, HSTS, etc.) |
 | CORS | Whitelist-based origin policy |
-| File uploads | Extension + MIME validation, size caps (10 MB images, 100 MB imports), sanitised filenames |
+| File uploads | Extension + MIME validation, size caps, sanitised filenames |
 | Tokens | Secure storage (OS keychain) with SharedPreferences fallback |
 | Errors | Internal details hidden in production responses |
 | Secrets | `.env` excluded from VCS; `.env.example` provided |
-| Shutdown | Graceful shutdown with DB pool drain on SIGTERM/SIGINT |
 
 ---
 
@@ -369,14 +343,12 @@ cd backend
 npm start                     # Start server
 npm run dev                   # Dev mode (nodemon)
 node seed.js                  # Seed sample data
-npx jest --forceExit          # Run tests
 
 # Flutter
 cd flutter_app
 flutter pub get               # Install deps
 flutter run -d windows        # Run app
 flutter build windows         # Release build
-flutter test -r expanded      # Run tests
 flutter analyze               # Static analysis
 ```
 
@@ -384,8 +356,8 @@ flutter analyze               # Static analysis
 
 ## License
 
-This project is proprietary software. All rights reserved.
+This project is proprietary software for Uttar Pradesh State Tax Training & Research Institute. All rights reserved.
 
 ---
 
-**Version** 1.4.3 · **Last updated** February 2026
+**Version** 1.1.2 · **Last updated** May 2026

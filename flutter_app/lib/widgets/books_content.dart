@@ -137,7 +137,7 @@ class _BooksContentState extends State<BooksContent> {
             SnackBar(
               content: Text('Error loading books: $error'),
               backgroundColor: Theme.of(context).colorScheme.error,
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -1160,7 +1160,7 @@ class _BooksContentState extends State<BooksContent> {
                         issueProvider.loadStats();
                       },
                     ),
-                    duration: const Duration(seconds: 5),
+                    duration: const Duration(seconds: 3),
                   ),
                 );
               } catch (e) {
@@ -1244,7 +1244,10 @@ class _BooksContentState extends State<BooksContent> {
       setState(() => _selectedBookIds.clear());
 
       messenger.showSnackBar(
-        SnackBar(content: Text('Deleted $deletedCount book(s) successfully.')),
+        SnackBar(
+          content: Text('Deleted $deletedCount book(s) successfully.'),
+          duration: const Duration(seconds: 3),
+        ),
       );
     } catch (e) {
       if (!mounted) return;

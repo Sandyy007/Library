@@ -2364,7 +2364,14 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _log('DEBUG: Borrow slip generated: ${data['slip_number']}');
-        return data;
+        // Handle both Map and other response types
+        if (data is Map<String, dynamic>) {
+          return data;
+        } else if (data is List && data.isNotEmpty) {
+          // If response is a list, return first item
+          return Map<String, dynamic>.from(data.first);
+        }
+        throw Exception('Invalid response format');
       } else {
         _throwIfRateLimited(response);
         await _throwIfUnauthorized(response);
@@ -2391,7 +2398,14 @@ class ApiService {
           .timeout(timeout);
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        // Handle both Map and List response types
+        if (data is Map<String, dynamic>) {
+          return data;
+        } else if (data is List && data.isNotEmpty) {
+          return Map<String, dynamic>.from(data.first);
+        }
+        return null;
       } else if (response.statusCode == 404) {
         return null; // No slip exists
       } else {
@@ -2415,7 +2429,14 @@ class ApiService {
           .timeout(timeout);
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        // Handle both Map and List response types
+        if (data is Map<String, dynamic>) {
+          return data;
+        } else if (data is List && data.isNotEmpty) {
+          return Map<String, dynamic>.from(data.first);
+        }
+        return null;
       } else if (response.statusCode == 404) {
         return null;
       } else {
