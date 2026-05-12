@@ -402,16 +402,19 @@ class _BooksContentState extends State<BooksContent> {
                         child: DataTable2(
                           columnSpacing: 6,
                           horizontalMargin: 10,
-                          dataRowHeight: 60,
-                          headingRowHeight: 48,
+                          dataRowHeight: 68,
+                          headingRowHeight: 52,
                           showCheckboxColumn: false,
                           minWidth: 850,
+                          headingRowColor: WidgetStateProperty.all(
+                            Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          ),
                           columns: [
                             DataColumn2(
-                              fixedWidth: 40,
+                              fixedWidth: 42,
                               label: Center(
                                 child: Transform.scale(
-                                  scale: 0.8,
+                                  scale: 0.78,
                                   child: Checkbox(
                                     tristate: true,
                                     value: filteredBooks.isEmpty
@@ -445,40 +448,40 @@ class _BooksContentState extends State<BooksContent> {
                               ),
                             ),
                             const DataColumn2(
-                              label: Text('Cover'),
-                              fixedWidth: 50,
+                              label: Text('Cover', style: TextStyle(fontWeight: FontWeight.w600)),
+                              fixedWidth: 56,
                             ),
                             const DataColumn2(
-                              label: Text('ISBN'),
+                              label: Text('ISBN', style: TextStyle(fontWeight: FontWeight.w600)),
                               size: ColumnSize.S,
                             ),
                             const DataColumn2(
-                              label: Text('Title'),
+                              label: Text('Title', style: TextStyle(fontWeight: FontWeight.w600)),
                               size: ColumnSize.L,
                             ),
                             const DataColumn2(
-                              label: Text('Author'),
+                              label: Text('Author', style: TextStyle(fontWeight: FontWeight.w600)),
                               size: ColumnSize.M,
                             ),
                             const DataColumn2(
-                              label: Text('Rack'),
+                              label: Text('Rack', style: TextStyle(fontWeight: FontWeight.w600)),
                               size: ColumnSize.S,
                             ),
                             const DataColumn2(
-                              label: Text('Category'),
+                              label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
                               size: ColumnSize.S,
                             ),
                             const DataColumn2(
-                              label: Text('Copies'),
-                              fixedWidth: 65,
+                              label: Text('Copies', style: TextStyle(fontWeight: FontWeight.w600)),
+                              fixedWidth: 70,
                             ),
                             const DataColumn2(
-                              label: Text('Status'),
-                              fixedWidth: 100,
+                              label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600)),
+                              fixedWidth: 105,
                             ),
                             const DataColumn2(
-                              label: Text('Actions'),
-                              fixedWidth: 100,
+                              label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600)),
+                              fixedWidth: 105,
                             ),
                           ],
                           rows: filteredBooks
@@ -530,7 +533,7 @@ class _BooksContentState extends State<BooksContent> {
                                     ),
                                     DataCell(_buildCoverCell(book)),
                                     DataCell(
-                                      Text(book.isbn.isEmpty ? '-' : book.isbn),
+                                      Text(book.isbn.isEmpty ? '-' : book.isbn, style: const TextStyle(fontSize: 12)),
                                     ),
                                     DataCell(
                                       Column(
@@ -548,7 +551,7 @@ class _BooksContentState extends State<BooksContent> {
                                                 book.title,
                                               ),
                                               const TextStyle(
-                                                fontWeight: FontWeight.w500,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             overflow: TextOverflow.ellipsis,
@@ -564,7 +567,7 @@ class _BooksContentState extends State<BooksContent> {
                                                   book.description!,
                                                 ),
                                                 TextStyle(
-                                                  fontSize: 11,
+                                                  fontSize: 10,
                                                   color: Theme.of(
                                                     context,
                                                   ).textTheme.bodySmall?.color,
@@ -587,111 +590,92 @@ class _BooksContentState extends State<BooksContent> {
                                       ),
                                     ),
                                     DataCell(
-                                      Text(
-                                        (book.rackNumber ?? '').isEmpty
-                                            ? '-'
-                                            : book.rackNumber!,
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        (book.category ?? '').isEmpty
-                                            ? '-'
-                                            : book.category!,
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            '${book.availableCopies}/${book.totalCopies}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: book.availableCopies > 0
-                                                  ? Theme.of(context).colorScheme.primary
-                                                  : Theme.of(context).colorScheme.error,
-                                            ),
-                                          ),
-                                          Text(
-                                            'avail.',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall?.color,
-                                            ),
-                                          ),
-                                        ],
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          (book.rackNumber ?? '-'),
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.primary),
+                                        ),
                                       ),
                                     ),
                                     DataCell(
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                        constraints: const BoxConstraints(maxWidth: 95),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          (book.category ?? '-'),
+                                          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSecondaryContainer),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                         decoration: BoxDecoration(
                                           color: book.availableCopies > 0
                                               ? Colors.green.withValues(alpha: 0.08)
                                               : Colors.orange.withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(8),
                                           border: Border.all(
                                             color: book.availableCopies > 0
-                                                ? Colors.green.withValues(alpha: 0.25)
-                                                : Colors.orange.withValues(alpha: 0.25),
+                                                ? Colors.green.withValues(alpha: 0.2)
+                                                : Colors.orange.withValues(alpha: 0.2),
                                           ),
                                         ),
-                                        child: Row(
+                                        child: Column(
                                           mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
-                                            Container(
-                                              width: 6,
-                                              height: 6,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
+                                            Text(
+                                              '${book.availableCopies}/${book.totalCopies}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
                                                 color: book.availableCopies > 0
-                                                    ? Colors.green
-                                                    : Colors.orange,
+                                                    ? Colors.green.shade700
+                                                    : Colors.orange.shade700,
                                               ),
                                             ),
-                                            const SizedBox(width: 4),
-                                            Flexible(
-                                              child: Text(
-                                                book.availableCopies > 0
-                                                    ? 'Available'
-                                                    : 'Borrowed',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: book.availableCopies > 0
-                                                      ? Colors.green
-                                                      : Colors.orange,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
+                                            Text(
+                                              'avail.',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: Theme.of(context).textTheme.bodySmall?.color,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
                                     ),
+                                    DataCell(_buildStatusBadge(book)),
                                     DataCell(
-                                      Row(
-                                        children: [
-                                          _buildActionButton(
-                                            icon: Icons.edit_outlined,
-                                            color: Colors.amber.shade700,
-                                            tooltip: 'Edit',
-                                            onTap: () => _showBookDialog(book: book),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          _buildActionButton(
-                                            icon: Icons.delete_outline,
-                                            color: Colors.red.shade400,
-                                            tooltip: 'Delete',
-                                            onTap: () => _deleteBook(book.id),
-                                          ),
-                                        ],
+                                      SizedBox(
+                                        width: 100,
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            _buildActionButton(
+                                              icon: Icons.edit_rounded,
+                                              color: Colors.amber.shade700,
+                                              tooltip: 'Edit',
+                                              onTap: () => _showBookDialog(book: book),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            _buildActionButton(
+                                              icon: Icons.delete_rounded,
+                                              color: Colors.red.shade400,
+                                              tooltip: 'Delete',
+                                              onTap: () => _deleteBook(book.id),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -789,21 +773,17 @@ class _BooksContentState extends State<BooksContent> {
   }) {
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onPressed,
-          child: Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            child: Icon(
-              icon,
-              size: 20,
-              color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
+        onTap: onPressed,
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 20,
+            color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ),
@@ -819,18 +799,18 @@ class _BooksContentState extends State<BooksContent> {
   }) {
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: color.withValues(alpha: 0.1),
+      child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: color),
+        onTap: onTap,
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(icon, size: 18, color: color),
         ),
       ),
     );
@@ -1145,6 +1125,8 @@ class _BooksContentState extends State<BooksContent> {
                 if (!mounted) return;
                 setState(() => _selectedBookIds.remove(id));
 
+                // Reload books to reflect deletion in UI
+                await bookProvider.loadBooks();
                 await issueProvider.loadStats();
                 if (!mounted) return;
 
@@ -1152,15 +1134,7 @@ class _BooksContentState extends State<BooksContent> {
                 messenger.showSnackBar(
                   SnackBar(
                     content: const Text('Book deleted successfully'),
-                    action: SnackBarAction(
-                      label: 'Undo',
-                      onPressed: () {
-                        // Reload to restore (server still has it briefly)
-                        bookProvider.loadBooks();
-                        issueProvider.loadStats();
-                      },
-                    ),
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               } catch (e) {
@@ -1327,6 +1301,38 @@ class _BooksContentState extends State<BooksContent> {
           category == null || book.category == category;
       return matchesQuery && matchesCategoryFilter;
     }).toList();
+  }
+
+  Widget _buildStatusBadge(Book book) {
+    final isAvailable = book.availableCopies > 0;
+    final color = isAvailable ? Colors.green : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4)],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            isAvailable ? 'Available' : 'Borrowed',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildCoverCell(Book book) {

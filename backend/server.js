@@ -1436,8 +1436,43 @@ app.post('/api/borrow-slips', (req, res) => {
       if (err2) return res.status(500).json({ error: err2.message });
 
       if (existingSlips && existingSlips.length > 0) {
-        // Return existing slip
-        db.query('SELECT * FROM borrow_slips WHERE issue_id = ?', [issue_id], (err3, slipData) => {
+        // Return existing slip with full issue data
+        db.query(`
+          SELECT
+            bs.id,
+            bs.issue_id,
+            bs.slip_number,
+            bs.generated_at,
+            bs.pdf_data,
+            i.id as issue_id,
+            i.issue_date,
+            i.due_date,
+            i.return_date,
+            i.status,
+            i.notes,
+            i.issued_at,
+            i.returned_at,
+            b.id as book_id,
+            b.isbn,
+            b.title as book_title,
+            b.author as book_author,
+            b.rack_number,
+            b.category as book_category,
+            b.cover_image as cover_image,
+            m.id as member_id,
+            m.name as member_name,
+            m.email as member_email,
+            m.phone as member_phone,
+            m.member_type,
+            m.profile_photo,
+            m.address as member_address,
+            'Library Staff' as issued_by_name
+          FROM borrow_slips bs
+          JOIN issues i ON bs.issue_id = i.id
+          JOIN books b ON i.book_id = b.id
+          JOIN members m ON i.member_id = m.id
+          WHERE bs.issue_id = ?
+        `, [issue_id], (err3, slipData) => {
           if (err3) return res.status(500).json({ error: err3.message });
           return res.json(slipData[0]);
         });
@@ -1467,7 +1502,42 @@ app.post('/api/borrow-slips', (req, res) => {
 app.get('/api/borrow-slips/issue/:issueId', (req, res) => {
   const { issueId } = req.params;
 
-  db.query('SELECT * FROM borrow_slips WHERE issue_id = ?', [issueId], (err, results) => {
+  db.query(`
+    SELECT
+      bs.id,
+      bs.issue_id,
+      bs.slip_number,
+      bs.generated_at,
+      bs.pdf_data,
+      i.id as issue_id,
+      i.issue_date,
+      i.due_date,
+      i.return_date,
+      i.status,
+      i.notes,
+      i.issued_at,
+      i.returned_at,
+      b.id as book_id,
+      b.isbn,
+      b.title as book_title,
+      b.author as book_author,
+      b.rack_number,
+      b.category as book_category,
+      b.cover_image as cover_image,
+      m.id as member_id,
+      m.name as member_name,
+      m.email as member_email,
+      m.phone as member_phone,
+      m.member_type,
+      m.profile_photo,
+      m.address as member_address,
+      'Library Staff' as issued_by_name
+    FROM borrow_slips bs
+    JOIN issues i ON bs.issue_id = i.id
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    WHERE bs.issue_id = ?
+  `, [issueId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!results || results.length === 0) {
       return res.status(404).json({ error: 'Borrow slip not found' });
@@ -1480,7 +1550,42 @@ app.get('/api/borrow-slips/issue/:issueId', (req, res) => {
 app.get('/api/borrow-slips/:id', (req, res) => {
   const { id } = req.params;
 
-  db.query('SELECT * FROM borrow_slips WHERE id = ?', [id], (err, results) => {
+  db.query(`
+    SELECT
+      bs.id,
+      bs.issue_id,
+      bs.slip_number,
+      bs.generated_at,
+      bs.pdf_data,
+      i.id as issue_id,
+      i.issue_date,
+      i.due_date,
+      i.return_date,
+      i.status,
+      i.notes,
+      i.issued_at,
+      i.returned_at,
+      b.id as book_id,
+      b.isbn,
+      b.title as book_title,
+      b.author as book_author,
+      b.rack_number,
+      b.category as book_category,
+      b.cover_image as cover_image,
+      m.id as member_id,
+      m.name as member_name,
+      m.email as member_email,
+      m.phone as member_phone,
+      m.member_type,
+      m.profile_photo,
+      m.address as member_address,
+      'Library Staff' as issued_by_name
+    FROM borrow_slips bs
+    JOIN issues i ON bs.issue_id = i.id
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    WHERE bs.id = ?
+  `, [id], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!results || results.length === 0) {
       return res.status(404).json({ error: 'Borrow slip not found' });

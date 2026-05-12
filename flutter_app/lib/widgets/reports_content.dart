@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:provider/provider.dart';
@@ -1503,7 +1504,7 @@ class _ReportsContentState extends State<ReportsContent>
     final logoBytes = await _loadPdfLogo();
 
     final doc = pw.Document();
-    final table = await _buildPdfTable(exportName, baseFont);
+    final table = await _buildPdfTable(exportName);
 
     doc.addPage(
       pw.MultiPage(
@@ -1525,9 +1526,11 @@ class _ReportsContentState extends State<ReportsContent>
               child: pw.Text(
                 'Reports & Analytics — $title',
                 style: pw.TextStyle(
+                  font: boldFont,
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white,
+                  fontFallback: HindiPdfHelper.boldFontFallback,
                 ),
               ),
             ),
@@ -1541,7 +1544,7 @@ class _ReportsContentState extends State<ReportsContent>
     return doc.save();
   }
 
-  Future<pw.Widget> _buildPdfTable(String exportName, pw.Font baseFont) async {
+  Future<pw.Widget> _buildPdfTable(String exportName) async {
     final reportProvider = context.read<ReportProvider>();
 
     List<String> headers;
@@ -1555,9 +1558,9 @@ class _ReportsContentState extends State<ReportsContent>
           .map(
             (e) => [
               '${e.key + 1}',
-              normalizeHindiForDisplay(e.value.title),
-              normalizeHindiForDisplay(e.value.author),
-              normalizeHindiForDisplay(e.value.category ?? 'Uncategorized'),
+              HindiPdfHelper.normalizeForPdf(e.value.title),
+              HindiPdfHelper.normalizeForPdf(e.value.author),
+              HindiPdfHelper.normalizeForPdf(e.value.category ?? 'Uncategorized'),
               '${e.value.borrowCount}',
             ],
           )
@@ -1570,8 +1573,8 @@ class _ReportsContentState extends State<ReportsContent>
           .map(
             (e) => [
               '${e.key + 1}',
-              normalizeHindiForDisplay(e.value.name),
-              normalizeHindiForDisplay(e.value.memberType),
+              HindiPdfHelper.normalizeForPdf(e.value.name),
+              HindiPdfHelper.normalizeForPdf(e.value.memberType),
               '${e.value.borrowCount}',
             ],
           )
@@ -1580,13 +1583,24 @@ class _ReportsContentState extends State<ReportsContent>
       headers = ['Month', 'Issues', 'Returns', 'Overdue'];
       rows = reportProvider.monthlyStats
           .map(
-            (m) => [m.monthName, '${m.issues}', '${m.returns}', '${m.overdue}'],
+            (m) => [
+              HindiPdfHelper.normalizeForPdf(m.monthName),
+              '${m.issues}',
+              '${m.returns}',
+              '${m.overdue}',
+            ],
           )
           .toList();
     } else if (exportName == 'category_stats') {
       headers = ['Category', 'Books', 'Borrows'];
       rows = reportProvider.categoryStats
-          .map((c) => [c.category, '${c.bookCount}', '${c.borrowCount}'])
+          .map(
+            (c) => [
+              HindiPdfHelper.normalizeForPdf(c.category),
+              '${c.bookCount}',
+              '${c.borrowCount}',
+            ],
+          )
           .toList();
     } else if (exportName == 'overdue') {
       final overdue = await context.read<IssueProvider>().getOverdueReport();
@@ -1594,8 +1608,8 @@ class _ReportsContentState extends State<ReportsContent>
       rows = overdue.map((item) {
         final dueDate = item['due_date']?.toString() ?? '';
         return [
-          normalizeHindiForDisplay(item['title']?.toString() ?? 'Unknown'),
-          normalizeHindiForDisplay(item['member_name']?.toString() ?? 'Unknown'),
+          HindiPdfHelper.normalizeForPdf(item['title']?.toString() ?? 'Unknown'),
+          HindiPdfHelper.normalizeForPdf(item['member_name']?.toString() ?? 'Unknown'),
           DateFormatter.formatDateIndian(dueDate),
           '${_calculateDaysOverdue(dueDate)}',
         ];
@@ -1617,16 +1631,18 @@ class _ReportsContentState extends State<ReportsContent>
     // Use Hindi-aware text styles for all cells
     pw.TextStyle headerStyleFn(int columnIndex) {
       return pw.TextStyle(
-        font: baseFont,
+        font: HindiPdfHelper.boldFont,
         fontWeight: pw.FontWeight.bold,
         fontSize: 10,
+        fontFallback: HindiPdfHelper.boldFontFallback,
       );
     }
 
     pw.TextStyle cellStyleFn(int rowIndex, int columnIndex) {
       return pw.TextStyle(
-        font: baseFont,
+        font: HindiPdfHelper.baseFont,
         fontSize: 10,
+        fontFallback: HindiPdfHelper.baseFontFallback,
       );
     }
 
@@ -1736,16 +1752,6 @@ class _ReportsContentState extends State<ReportsContent>
     return buffer.toString();
   }
 
-  String _formatCsvDate(String dateStr) {
-    if (dateStr.isEmpty) return '-';
-    try {
-      final date = DateTime.parse(dateStr);
-      return '${date.day.toString().padLeft(2, '0')}-${_getMonthName(date.month)}-${date.year}';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
   String _csvEscape(String value) {
     final needsQuotes =
         value.contains(',') ||
@@ -1758,10 +1764,8 @@ class _ReportsContentState extends State<ReportsContent>
 
   Future<Uint8List?> _loadPdfLogo() async {
     try {
-      final file = File('assets/images/Office_Logo.png');
-      if (await file.exists()) {
-        return await file.readAsBytes();
-      }
+      final logoData = await rootBundle.load('assets/images/Office_Logo.png');
+      return logoData.buffer.asUint8List();
     } catch (e) {
       debugPrint('Could not load logo: $e');
     }
@@ -1779,25 +1783,45 @@ class _ReportsContentState extends State<ReportsContent>
         child: pw.Row(
           children: [
             pw.Image(pw.MemoryImage(logoBytes), width: 70, height: 70),
-            pw.SizedBox(width: 20),
+            pw.SizedBox(width: 16),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
                   pw.Text(
-                    'Uttar Pradesh State Tax Training and Research Institute',
-                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont),
+                    'Uttar Pradesh State Tax Training',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      font: boldFont,
+                      fontFallback: HindiPdfHelper.boldFontFallback,
+                    ),
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'and Research Institute',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      font: boldFont,
+                      fontFallback: HindiPdfHelper.boldFontFallback,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 2),
                   pw.Text(
                     'Lucknow',
-                    style: pw.TextStyle(fontSize: 11, font: baseFont, color: PdfColors.grey600),
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      font: baseFont,
+                      color: PdfColors.grey600,
+                      fontFallback: HindiPdfHelper.baseFontFallback,
+                    ),
                   ),
                 ],
               ),
             ),
-            pw.SizedBox(width: 90),
+            pw.SizedBox(width: 12),
           ],
         ),
       );
@@ -1809,9 +1833,29 @@ class _ReportsContentState extends State<ReportsContent>
           borderRadius: pw.BorderRadius.circular(8),
         ),
         child: pw.Center(
-          child: pw.Text(
-            'Uttar Pradesh State Tax Training and Research Institute',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          child: pw.Column(
+            children: [
+              pw.Text(
+                'Uttar Pradesh State Tax Training',
+                style: pw.TextStyle(
+                  font: boldFont,
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  fontFallback: HindiPdfHelper.boldFontFallback,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.Text(
+                'and Research Institute',
+                style: pw.TextStyle(
+                  font: boldFont,
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  fontFallback: HindiPdfHelper.boldFontFallback,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+            ],
           ),
         ),
       );

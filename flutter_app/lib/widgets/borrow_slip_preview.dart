@@ -1,5 +1,5 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -7,7 +7,6 @@ import 'package:printing/printing.dart' show Printing;
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../utils/hindi_pdf_helper.dart';
-import '../utils/hindi_text.dart';
 
 class BorrowSlipPreview extends StatefulWidget {
   final Map<String, dynamic> slipData;
@@ -24,69 +23,81 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   @override
   Widget build(BuildContext context) {
     final slip = widget.slipData;
-    final issue = slip['pdf_data'] ?? slip;
+    final issue = _extractIssueDataFromSlip(slip);
+    final theme = Theme.of(context);
 
     return Dialog(
+      backgroundColor: _isDarkMode ? Colors.grey[900] : Colors.white,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width < 600
               ? MediaQuery.of(context).size.width * 0.95
-              : 600,
+              : 650,
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: _isDarkMode
+                    ? Colors.grey[850]
+                    : theme.colorScheme.primaryContainer,
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.receipt_long, size: 24),
+                  Icon(
+                    Icons.receipt_long,
+                    size: 24,
+                    color: _isDarkMode
+                        ? Colors.white
+                        : theme.colorScheme.primary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Borrow Slip',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            color: _isDarkMode ? Colors.white : Colors.black87,
                           ),
                         ),
                         Text(
                           'Slip #: ${slip['slip_number'] ?? 'N/A'}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
+                            color: _isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black54,
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: Icon(_isDarkMode
-                        ? Icons.light_mode
-                        : Icons.dark_mode),
-                    onPressed: () {
-                      setState(() {
-                        _isDarkMode = !_isDarkMode;
-                      });
-                    },
+                    icon: Icon(
+                      _isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                      color: _isDarkMode ? Colors.white : Colors.black54,
+                    ),
+                    onPressed: () => setState(() => _isDarkMode = !_isDarkMode),
                     tooltip: _isDarkMode ? 'Light Mode' : 'Dark Mode',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      color: _isDarkMode ? Colors.white : Colors.black54,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
             // Content
             Flexible(
               child: SingleChildScrollView(
@@ -96,8 +107,11 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
             ),
             const Divider(height: 1),
             // Actions
-            Padding(
+            Container(
               padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _isDarkMode ? Colors.grey[850] : Colors.grey[50],
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -122,9 +136,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   }
 
   Widget _buildSlipContent(Map<String, dynamic> issue) {
-    final theme = Theme.of(context);
-    final cardColor = _isDarkMode ? Colors.grey[850] : Colors.grey[50];
+    final cardBg = _isDarkMode ? Colors.grey[800] : Colors.grey[50];
     final dividerColor = _isDarkMode ? Colors.grey[700]! : Colors.grey[300]!;
+    final textColor = _isDarkMode ? Colors.white : Colors.black87;
+    final subTextColor = _isDarkMode ? Colors.grey[400]! : Colors.grey[600]!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,8 +148,15 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+            gradient: LinearGradient(
+              colors: _isDarkMode
+                  ? [Colors.blueGrey[800]!, Colors.blueGrey[900]!]
+                  : [Colors.blue[50]!, Colors.blue[100]!],
+            ),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _isDarkMode ? Colors.blueGrey[600]! : Colors.blue[200]!,
+            ),
           ),
           child: Row(
             children: [
@@ -142,13 +164,15 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  color: _isDarkMode
+                      ? Colors.blueGrey[700]
+                      : Colors.blue.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.local_library,
                   size: 40,
-                  color: theme.colorScheme.primary,
+                  color: _isDarkMode ? Colors.blue[200] : Colors.blue[700],
                 ),
               ),
               const SizedBox(width: 16),
@@ -157,19 +181,19 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Library Management System',
+                      'Uttar Pradesh State Tax Training and Research Institute',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
+                        color: _isDarkMode ? Colors.blue[200] : Colors.blue[700],
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Date: ${_formatSlipDate(widget.slipData['generated_at'])}',
+                      'Lucknow • Library Management System',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 11,
+                        color: subTextColor,
                       ),
                     ),
                   ],
@@ -178,137 +202,194 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
 
+        // Slip Title Badge
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            decoration: BoxDecoration(
+              color: _isDarkMode ? Colors.blue[700] : Colors.blue[800],
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'BOOK BORROW SLIP',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            'Slip #: ${widget.slipData['slip_number'] ?? 'N/A'}',
+            style: TextStyle(fontSize: 12, color: subTextColor),
+          ),
+        ),
         const SizedBox(height: 20),
 
         // Transaction Details
         _buildSection(
           title: 'Transaction Details',
           icon: Icons.swap_horiz,
+          color: Colors.blue,
           children: [
-            _buildInfoRow('Slip Number', widget.slipData['slip_number'] ?? 'N/A'),
-            _buildInfoRow(
-                'Issue ID', (issue['issue_id'] ?? widget.slipData['issue_id'] ?? 'N/A').toString()),
-            _buildInfoRow('Issue Date', _formatDate(issue['issue_date'] ?? '')),
-            _buildInfoRow('Due Date', _formatDate(issue['due_date'] ?? '')),
-            _buildInfoRow('Status', issue['status'] ?? 'N/A'),
+            _buildInfoRow('Issue ID', (issue['issue_id'] ?? widget.slipData['issue_id'] ?? 'N/A').toString(), textColor, subTextColor),
+            _buildInfoRow('Issue Date', _formatDate(issue['issue_date'] ?? ''), textColor, subTextColor),
+            _buildInfoRow('Due Date', _formatDate(issue['due_date'] ?? ''), textColor, subTextColor),
+            _buildInfoRow('Status', _capitalize(issue['status'] ?? 'N/A'), textColor, subTextColor),
           ],
-          cardColor: cardColor,
+          cardColor: cardBg,
           dividerColor: dividerColor,
         ),
-
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         // Borrower Details
         _buildSection(
           title: 'Borrower Details',
           icon: Icons.person,
+          color: Colors.green,
           children: [
-            _buildInfoRow('Name', issue['member_name'] ?? 'N/A'),
-            _buildInfoRow('ID', (issue['member_id'] ?? 'N/A').toString()),
-            _buildInfoRow('Type', _capitalize(issue['member_type'] ?? 'N/A')),
-            _buildInfoRow('Phone', issue['member_phone'] ?? 'N/A'),
-            _buildInfoRow('Email', issue['member_email'] ?? 'N/A'),
+            _buildInfoRow('Name', _normalizeText(issue['member_name'] ?? 'N/A'), textColor, subTextColor),
+            _buildInfoRow('Member ID', (issue['member_id'] ?? 'N/A').toString(), textColor, subTextColor),
+            _buildInfoRow('Type', _capitalize(issue['member_type'] ?? 'N/A'), textColor, subTextColor),
+            _buildInfoRow('Phone', issue['member_phone'] ?? 'N/A', textColor, subTextColor),
+            _buildInfoRow('Email', issue['member_email'] ?? 'N/A', textColor, subTextColor),
           ],
-          cardColor: cardColor,
+          cardColor: cardBg,
           dividerColor: dividerColor,
         ),
-
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         // Book Details
         _buildSection(
           title: 'Book Details',
           icon: Icons.menu_book,
+          color: Colors.purple,
           children: [
-            _buildInfoRow('Title', issue['book_title'] ?? 'N/A'),
-            _buildInfoRow('Author', issue['book_author'] ?? 'N/A'),
-            _buildInfoRow('ISBN', issue['isbn'] ?? 'N/A'),
-            _buildInfoRow('Category', issue['book_category'] ?? 'N/A'),
-            _buildInfoRow('Rack #', issue['rack_number'] ?? 'N/A'),
+            _buildInfoRow('Title', _normalizeText(issue['book_title'] ?? 'N/A'), textColor, subTextColor),
+            _buildInfoRow('Author', _normalizeText(issue['book_author'] ?? 'N/A'), textColor, subTextColor),
+            _buildInfoRow('ISBN', issue['isbn'] ?? 'N/A', textColor, subTextColor),
+            _buildInfoRow('Category', _normalizeText(issue['book_category'] ?? 'N/A'), textColor, subTextColor),
+            _buildInfoRow('Rack #', issue['rack_number'] ?? 'N/A', textColor, subTextColor),
           ],
-          cardColor: cardColor,
+          cardColor: cardBg,
           dividerColor: dividerColor,
         ),
-
-        const SizedBox(height: 16),
-
-        // Staff Details
-        _buildSection(
-          title: 'Staff Details',
-          icon: Icons.badge,
-          children: [
-            _buildInfoRow('Issued By', ''),  // Left blank for handwritten signature
-          ],
-          cardColor: cardColor,
-          dividerColor: dividerColor,
-        ),
-
         const SizedBox(height: 20),
 
         // Signature Section
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            border: Border.all(color: dividerColor),
+            gradient: LinearGradient(
+              colors: _isDarkMode ? [Colors.grey[800]!, Colors.grey[850]!] : [Colors.grey[50]!, Colors.grey[100]!],
+            ),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: dividerColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.draw_outlined, size: 18, color: subTextColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Signatures',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildSignatureBox('Borrower', Colors.blue, dividerColor, textColor, subTextColor)),
+                  const SizedBox(width: 24),
+                  Expanded(child: _buildSignatureBox('Librarian', Colors.green, dividerColor, textColor, subTextColor)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Footer
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _isDarkMode ? Colors.orange[900]!.withValues(alpha: 0.3) : Colors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
+              Icon(Icons.info_outline, size: 16, color: _isDarkMode ? Colors.orange[300] : Colors.orange[700]),
+              const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: dividerColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Borrower Signature',
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 40),
-              Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: dividerColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Librarian Signature',
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ],
+                child: Text(
+                  'Please return the book on or before the due date. Late returns may incur fines.',
+                  style: TextStyle(fontSize: 11, color: _isDarkMode ? Colors.orange[200] : Colors.orange[800]),
                 ),
               ),
             ],
           ),
         ),
+      ],
+    );
+  }
 
-        const SizedBox(height: 12),
-
-        // Footer note
-        Text(
-          'This slip serves as a temporary record. Please return the book on or before the due date.',
-          style: TextStyle(
-            fontSize: 10,
-            fontStyle: FontStyle.italic,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+  Widget _buildSignatureBox(String label, Color color, Color dividerColor, Color textColor, Color subTextColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textAlign: TextAlign.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.edit, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 60,
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: color, width: 2)),
+          ),
+          child: Center(child: Icon(Icons.horizontal_rule, size: 24, color: subTextColor)),
+        ),
+        const SizedBox(height: 4),
+        Text('Sign Above', style: TextStyle(fontSize: 9, color: subTextColor)),
+        const SizedBox(height: 8),
+        _buildSignatureLine('Name:', dividerColor, subTextColor),
+        const SizedBox(height: 6),
+        _buildSignatureLine('Date:', dividerColor, subTextColor),
+      ],
+    );
+  }
+
+  Widget _buildSignatureLine(String label, Color lineColor, Color labelColor) {
+    return Row(
+      children: [
+        Text(label, style: TextStyle(fontSize: 10, color: labelColor)),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.only(left: 4),
+            height: 14,
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: lineColor)),
+            ),
+          ),
         ),
       ],
     );
@@ -317,6 +398,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   Widget _buildSection({
     required String title,
     required IconData icon,
+    required Color color,
     required List<Widget> children,
     required Color? cardColor,
     required Color dividerColor,
@@ -330,20 +412,20 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+                Icon(icon, size: 16, color: color),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+                Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
               ],
             ),
           ),
@@ -357,27 +439,22 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String value, Color textColor, Color subTextColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 90,
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: subTextColor),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 13, color: textColor),
             ),
           ),
         ],
@@ -386,7 +463,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   }
 
   String _formatDate(String isoDate) {
-    if (isoDate.isEmpty) return 'N/A';
+    if (isoDate.isEmpty || isoDate == 'null') return 'N/A';
     try {
       final date = DateTime.parse(isoDate);
       return DateFormat('dd-MMM-yyyy').format(date);
@@ -395,24 +472,9 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
     }
   }
 
-  String _formatSlipDate(String? isoDate) {
-    final date = isoDate ?? DateTime.now().toIso8601String();
-    return _formatDate(date);
-  }
-
-  String _formatDateTime(String isoDate) {
-    if (isoDate.isEmpty) return 'N/A';
-    try {
-      final date = DateTime.parse(isoDate);
-      return DateFormat('dd-MMM-yyyy hh:mm a').format(date);
-    } catch (e) {
-      return isoDate;
-    }
-  }
-
   String _capitalize(String text) {
-    if (text.isEmpty) return 'N/A';
-    return text[0].toUpperCase() + text.substring(1);
+    if (text.isEmpty || text == 'null') return 'N/A';
+    return text[0].toUpperCase() + text.substring(1).replaceAll('_', ' ');
   }
 
   Future<void> _printSlip(Map<String, dynamic> slip) async {
@@ -420,9 +482,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
       final doc = await _generatePdf(slip);
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => doc.save(),
-        name: 'BorrowSlip_${slip['slip_number'] ?? 'slip'}.pdf',
+        name: 'BorrowSlip_${slip['slip_number'] ?? 'slip'}',
       );
     } catch (e) {
+      debugPrint('Print error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Print error: $e')),
@@ -458,540 +521,430 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   }
 
   Future<pw.Document> _generatePdf(Map<String, dynamic> slip) async {
-    final issue = slip['pdf_data'] ?? slip;
+    // Extract issue data - prioritize all available sources
+    final issue = _extractIssueDataFromSlip(slip);
 
-    // Initialize Hindi PDF helper for font support
+    debugPrint('PDF Slip - full keys: ${slip.keys.toList()}');
+    debugPrint('PDF Issue - extracted: ${issue.keys.toList()}');
+    debugPrint('PDF - member_name: ${issue['member_name']}');
+    debugPrint('PDF - book_title: ${issue['book_title']}');
+
     await HindiPdfHelper.initialize();
     final baseFont = HindiPdfHelper.baseFont;
     final boldFont = HindiPdfHelper.boldFont;
-
-    // Load organization logo
-    final logoBytes = await _loadLogo();
+    final logoBytes = await loadPdfLogo();
 
     final doc = pw.Document();
 
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
         theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
-        build: (context) {
-          return pw.Padding(
-            padding: const pw.EdgeInsets.all(30),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Organization Header
-                if (logoBytes != null)
-                  pw.Container(
-                    padding: const pw.EdgeInsets.all(16),
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey400),
-                      borderRadius: pw.BorderRadius.circular(8),
+        build: (pw.Context context) => [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.blue50,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: PdfColors.blue200),
+                ),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Container(
+                      width: 48,
+                      height: 48,
+                      padding: const pw.EdgeInsets.all(4),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.blue100,
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: logoBytes == null
+                          ? pw.Center(
+                              child: pw.Text(
+                                '📚',
+                                style: pw.TextStyle(fontSize: 22),
+                              ),
+                            )
+                          : pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
                     ),
-                    child: pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Image(pw.MemoryImage(logoBytes), width: 70, height: 70),
-                        pw.SizedBox(width: 20),
-                        pw.Expanded(
-                          child: pw.Column(
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'Uttar Pradesh State Tax Training and Research Institute',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              fontFallback: HindiPdfHelper.boldFontFallback,
+                            ),
+                            maxLines: 2,
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Row(
                             crossAxisAlignment: pw.CrossAxisAlignment.center,
                             children: [
-                              pw.Text(
-                                'Uttar Pradesh State Tax Training and Research Institute',
-                                style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont),
-                                textAlign: pw.TextAlign.center,
+                              pw.Expanded(
+                                child: pw.Text(
+                                  'Library Management System, Lucknow',
+                                  style: pw.TextStyle(
+                                    font: baseFont,
+                                    fontSize: 9,
+                                    color: PdfColors.grey600,
+                                    fontFallback: HindiPdfHelper.baseFontFallback,
+                                  ),
+                                  maxLines: 1,
+                                ),
                               ),
-                              pw.SizedBox(height: 4),
-                              pw.Text(
-                                'Lucknow',
-                                style: pw.TextStyle(fontSize: 11, font: baseFont, color: PdfColors.grey600),
+                              pw.SizedBox(width: 8),
+                              pw.Container(
+                                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColors.blue800,
+                                  borderRadius: pw.BorderRadius.circular(12),
+                                ),
+                                child: pw.Column(
+                                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                                  mainAxisSize: pw.MainAxisSize.min,
+                                  children: [
+                                    pw.Text(
+                                      'BOOK BORROW SLIP',
+                                      style: pw.TextStyle(
+                                        font: boldFont,
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.white,
+                                        fontFallback: HindiPdfHelper.boldFontFallback,
+                                      ),
+                                    ),
+                                    pw.SizedBox(height: 2),
+                                    pw.Text(
+                                      'Slip #: ${slip['slip_number'] ?? 'N/A'}',
+                                      style: pw.TextStyle(
+                                        font: baseFont,
+                                        fontSize: 8,
+                                        color: PdfColors.white,
+                                        fontFallback: HindiPdfHelper.baseFontFallback,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 12),
+
+              // Transaction Details
+              _buildPdfSection(
+                'Transaction Details',
+                PdfColors.blue,
+                [
+                  ['Issue ID', (issue['issue_id'] ?? slip['issue_id'] ?? 'N/A').toString()],
+                  ['Issue Date', _formatDate(issue['issue_date'] ?? '')],
+                  ['Due Date', _formatDate(issue['due_date'] ?? '')],
+                  ['Status', _capitalize(issue['status'] ?? 'N/A')],
+                ],
+                boldFont,
+                baseFont,
+              ),
+              pw.SizedBox(height: 8),
+
+              // Borrower Details
+              _buildPdfSection(
+                'Borrower Details',
+                PdfColors.green800,
+                [
+                  ['Name', _normalizeText(issue['member_name'] ?? 'N/A')],
+                  ['Member ID', (issue['member_id'] ?? 'N/A').toString()],
+                  ['Type', _capitalize(issue['member_type'] ?? 'N/A')],
+                  ['Phone', issue['member_phone'] ?? 'N/A'],
+                  ['Email', issue['member_email'] ?? 'N/A'],
+                ],
+                boldFont,
+                baseFont,
+              ),
+              pw.SizedBox(height: 8),
+
+              // Book Details
+              _buildPdfSection(
+                'Book Details',
+                PdfColors.purple800,
+                [
+                  ['Title', _normalizeText(issue['book_title'] ?? 'N/A')],
+                  ['Author', _normalizeText(issue['book_author'] ?? 'N/A')],
+                  ['ISBN', issue['isbn'] ?? 'N/A'],
+                  ['Category', _normalizeText(issue['book_category'] ?? 'N/A')],
+                  ['Rack #', issue['rack_number'] ?? 'N/A'],
+                ],
+                boldFont,
+                baseFont,
+              ),
+              pw.SizedBox(height: 12),
+
+              // Signature Section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey50,
+                  borderRadius: pw.BorderRadius.circular(12),
+                  border: pw.Border.all(color: PdfColors.grey300),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      children: [
+                        pw.Text(
+                          '✍ Signatures',
+                          style: pw.TextStyle(
+                            font: boldFont,
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            fontFallback: HindiPdfHelper.boldFontFallback,
+                          ),
                         ),
-                        pw.SizedBox(width: 90),
                       ],
                     ),
-                  )
-                else
-                  pw.Container(
-                    padding: const pw.EdgeInsets.all(12),
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey400),
-                      borderRadius: pw.BorderRadius.circular(8),
+                    pw.SizedBox(height: 10),
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        // Borrower Signature Box
+                        pw.Expanded(
+                          child: _buildPdfSignatureBox('Borrower', PdfColors.blue50, PdfColors.blue200, PdfColors.blue800, boldFont, baseFont),
+                        ),
+                        pw.SizedBox(width: 16),
+                        // Librarian Signature Box
+                        pw.Expanded(
+                          child: _buildPdfSignatureBox('Librarian', PdfColors.green50, PdfColors.green200, PdfColors.green800, boldFont, baseFont),
+                        ),
+                      ],
                     ),
-                    child: pw.Center(
-                      child: pw.Text(
-                        'Uttar Pradesh State Tax Training and Research Institute',
-                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                  ),
-
-                pw.SizedBox(height: 16),
-
-                // Title
-                pw.Center(
-                  child: pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.blue800,
-                      borderRadius: pw.BorderRadius.circular(4),
-                    ),
-                    child: pw.Text(
-                      'BOOK BORROW SLIP',
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
+              ),
+              pw.SizedBox(height: 10),
 
-                pw.SizedBox(height: 16),
-
-                // Slip Number
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.center,
+              // Footer Notice
+              pw.Container(
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.orange50,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: PdfColors.orange200),
+                ),
+                child: pw.Row(
                   children: [
-                    pw.Text('Slip #: ', style: pw.TextStyle(fontSize: 11)),
-                    pw.Text(
-                      slip['slip_number'] ?? 'N/A',
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                    pw.Container(
+                      width: 16,
+                      height: 16,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.orange800,
+                        shape: pw.BoxShape.circle,
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'i',
+                          style: pw.TextStyle(
+                            font: boldFont,
+                            fontSize: 10,
+                            color: PdfColors.white,
+                            fontWeight: pw.FontWeight.bold,
+                            fontFallback: HindiPdfHelper.boldFontFallback,
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(width: 8),
+                    pw.Expanded(
+                      child: pw.Text(
+                        'Please return the book on or before the due date. Late returns may incur fines.',
+                        style: pw.TextStyle(
+                          font: baseFont,
+                          fontSize: 9,
+                          color: PdfColors.orange800,
+                          fontFallback: HindiPdfHelper.baseFontFallback,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-
-                pw.SizedBox(height: 12),
-
-                // Transaction Details Box
-                _buildPdfSection(
-                  'Transaction Details',
-                  [
-                    ['Issue ID', (issue['issue_id'] ?? slip['issue_id'] ?? 'N/A').toString()],
-                    ['Issue Date', _formatDate(issue['issue_date'] ?? '')],
-                    ['Due Date', _formatDate(issue['due_date'] ?? '')],
-                    ['Status', _capitalize(issue['status'] ?? 'N/A')],
-                  ],
-                  boldFont,
-                  baseFont,
-                ),
-
-                pw.SizedBox(height: 10),
-
-                // Borrower Details Box
-                _buildPdfSection(
-                  'Borrower Details',
-                  [
-                    ['Name', normalizeHindiForDisplay(issue['member_name'] ?? 'N/A')],
-                    ['ID', (issue['member_id'] ?? 'N/A').toString()],
-                    ['Type', _capitalize(issue['member_type'] ?? 'N/A')],
-                    ['Phone', issue['member_phone'] ?? 'N/A'],
-                    ['Email', issue['member_email'] ?? 'N/A'],
-                  ],
-                  boldFont,
-                  baseFont,
-                ),
-
-                pw.SizedBox(height: 10),
-
-                // Book Details Box
-                _buildPdfSection(
-                  'Book Details',
-                  [
-                    ['Title', normalizeHindiForDisplay(issue['book_title'] ?? 'N/A')],
-                    ['Author', normalizeHindiForDisplay(issue['book_author'] ?? 'N/A')],
-                    ['ISBN', issue['isbn'] ?? 'N/A'],
-                    ['Category', normalizeHindiForDisplay(issue['book_category'] ?? 'N/A')],
-                    ['Rack #', issue['rack_number'] ?? 'N/A'],
-                  ],
-                  boldFont,
-                  baseFont,
-                ),
-
-                pw.SizedBox(height: 10),
-
-                // Issued By Box - leave blank for handwritten signature
-                _buildPdfSection(
-                  'Issued By',
-                  [
-                    ['Name', ''],  // Left blank for handwritten signature
-                    ['Date & Time', _formatDateTime(issue['issue_date'] ?? '')],
-                  ],
-                  boldFont,
-                  baseFont,
-                ),
-
-                pw.SizedBox(height: 16),
-
-                // Signature Section with boxes
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey400),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      // Title
-                      pw.Text(
-                        'Signatures',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey800,
-                        ),
-                      ),
-                      pw.SizedBox(height: 12),
-                      pw.Row(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          // Borrower Signature Box
-                          pw.Expanded(
-                            child: pw.Container(
-                              padding: const pw.EdgeInsets.all(10),
-                              decoration: pw.BoxDecoration(
-                                border: pw.Border.all(color: PdfColors.grey400),
-                                borderRadius: pw.BorderRadius.circular(6),
-                              ),
-                              child: pw.Column(
-                                crossAxisAlignment: pw.CrossAxisAlignment.center,
-                                children: [
-                                  // Signature space label
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.grey100,
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                    ),
-                                    child: pw.Text(
-                                      'Borrower',
-                                      style: pw.TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.grey700,
-                                      ),
-                                    ),
-                                  ),
-                                  pw.SizedBox(height: 8),
-                                  // Signature line box
-                                  pw.Container(
-                                    height: 50,
-                                    decoration: pw.BoxDecoration(
-                                      border: pw.Border(
-                                        bottom: pw.BorderSide(color: PdfColors.grey500, width: 1.5),
-                                      ),
-                                    ),
-                                  ),
-                                  pw.SizedBox(height: 6),
-                                  pw.Text(
-                                    'Signature',
-                                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
-                                  ),
-                                  pw.SizedBox(height: 8),
-                                  // Name & Date fields
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.all(6),
-                                    decoration: pw.BoxDecoration(
-                                      border: pw.Border.all(color: PdfColors.grey300),
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                    ),
-                                    child: pw.Column(
-                                      children: [
-                                        pw.Row(
-                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            pw.Text('Name:', style: pw.TextStyle(fontSize: 8)),
-                                            pw.Container(
-                                              width: 80,
-                                              height: 12,
-                                              decoration: const pw.BoxDecoration(
-                                                border: pw.Border(
-                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        pw.SizedBox(height: 4),
-                                        pw.Row(
-                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            pw.Text('Date:', style: pw.TextStyle(fontSize: 8)),
-                                            pw.Container(
-                                              width: 80,
-                                              height: 12,
-                                              decoration: const pw.BoxDecoration(
-                                                border: pw.Border(
-                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          pw.SizedBox(width: 20),
-                          // Librarian Signature Box
-                          pw.Expanded(
-                            child: pw.Container(
-                              padding: const pw.EdgeInsets.all(10),
-                              decoration: pw.BoxDecoration(
-                                border: pw.Border.all(color: PdfColors.grey400),
-                                borderRadius: pw.BorderRadius.circular(6),
-                              ),
-                              child: pw.Column(
-                                crossAxisAlignment: pw.CrossAxisAlignment.center,
-                                children: [
-                                  // Signature space label
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.blue100,
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                    ),
-                                    child: pw.Text(
-                                      'Librarian',
-                                      style: pw.TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.blue800,
-                                      ),
-                                    ),
-                                  ),
-                                  pw.SizedBox(height: 8),
-                                  // Signature line box
-                                  pw.Container(
-                                    height: 50,
-                                    decoration: pw.BoxDecoration(
-                                      border: pw.Border(
-                                        bottom: pw.BorderSide(color: PdfColors.grey500, width: 1.5),
-                                      ),
-                                    ),
-                                  ),
-                                  pw.SizedBox(height: 6),
-                                  pw.Text(
-                                    'Signature',
-                                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
-                                  ),
-                                  pw.SizedBox(height: 8),
-                                  // Name & Date fields
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.all(6),
-                                    decoration: pw.BoxDecoration(
-                                      border: pw.Border.all(color: PdfColors.grey300),
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                    ),
-                                    child: pw.Column(
-                                      children: [
-                                        pw.Row(
-                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            pw.Text('Name:', style: pw.TextStyle(fontSize: 8)),
-                                            pw.Container(
-                                              width: 80,
-                                              height: 12,
-                                              decoration: const pw.BoxDecoration(
-                                                border: pw.Border(
-                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        pw.SizedBox(height: 4),
-                                        pw.Row(
-                                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            pw.Text('Date:', style: pw.TextStyle(fontSize: 8)),
-                                            pw.Container(
-                                              width: 80,
-                                              height: 12,
-                                              decoration: const pw.BoxDecoration(
-                                                border: pw.Border(
-                                                  bottom: pw.BorderSide(color: PdfColors.grey400),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                pw.SizedBox(height: 12),
-
-                // Bottom Signature Section
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey400),
-                    borderRadius: pw.BorderRadius.circular(8),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Signatures',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey800,
-                        ),
-                      ),
-                      pw.SizedBox(height: 16),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Borrower Signature
-                          pw.Expanded(
-                            child: pw.Column(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                pw.Text(
-                                  'Borrower Signature',
-                                  style: pw.TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey700,
-                                  ),
-                                ),
-                                pw.SizedBox(height: 40),
-                                pw.Container(
-                                  width: double.infinity,
-                                  decoration: const pw.BoxDecoration(
-                                    border: pw.Border(
-                                      bottom: pw.BorderSide(color: PdfColors.grey500, width: 1),
-                                    ),
-                                  ),
-                                ),
-                                pw.SizedBox(height: 4),
-                                pw.Text(
-                                  'Sign here',
-                                  style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
-                                ),
-                              ],
-                            ),
-                          ),
-                          pw.SizedBox(width: 40),
-                          // Librarian Signature
-                          pw.Expanded(
-                            child: pw.Column(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                pw.Text(
-                                  'Librarian Signature',
-                                  style: pw.TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey700,
-                                  ),
-                                ),
-                                pw.SizedBox(height: 40),
-                                pw.Container(
-                                  width: double.infinity,
-                                  decoration: const pw.BoxDecoration(
-                                    border: pw.Border(
-                                      bottom: pw.BorderSide(color: PdfColors.grey500, width: 1),
-                                    ),
-                                  ),
-                                ),
-                                pw.SizedBox(height: 4),
-                                pw.Text(
-                                  'Sign here',
-                                  style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                pw.SizedBox(height: 12),
-
-                // Footer
-                pw.Center(
-                  child: pw.Text(
-                    'Please return the book on or before the due date. Late returns may incur fines.',
-                    style: pw.TextStyle(
-                      fontSize: 9,
-                      fontStyle: pw.FontStyle.italic,
-                      color: PdfColors.grey600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+              ),
+            ],
+          ),
+        ],
       ),
     );
 
     return doc;
   }
 
-  Future<Uint8List?> _loadLogo() async {
-    try {
-      final file = File('assets/images/Office_Logo.png');
-      if (await file.exists()) {
-        return await file.readAsBytes();
-      }
-    } catch (e) {
-      debugPrint('Could not load logo: $e');
-    }
-    return null;
+  pw.Widget _buildPdfSignatureBox(
+    String label,
+    PdfColor bgColor,
+    PdfColor borderColor,
+    PdfColor textColor,
+    pw.Font boldFont,
+    pw.Font baseFont,
+  ) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: bgColor,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: borderColor),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: pw.BoxDecoration(
+              color: borderColor,
+              borderRadius: pw.BorderRadius.circular(10),
+            ),
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                font: boldFont,
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: textColor,
+                fontFallback: HindiPdfHelper.boldFontFallback,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Container(
+            width: double.infinity,
+            height: 40,
+            decoration: pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: textColor, width: 2)),
+            ),
+          ),
+          pw.SizedBox(height: 3),
+          pw.Text(
+            'Signature',
+            style: pw.TextStyle(
+              font: baseFont,
+              fontSize: 7,
+              color: PdfColors.grey500,
+              fontFallback: HindiPdfHelper.baseFontFallback,
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Name:',
+                style: pw.TextStyle(
+                  font: baseFont,
+                  fontSize: 8,
+                  color: PdfColors.grey600,
+                  fontFallback: HindiPdfHelper.baseFontFallback,
+                ),
+              ),
+              pw.Expanded(
+                child: pw.Container(
+                  margin: const pw.EdgeInsets.only(left: 4),
+                  height: 12,
+                  decoration: const pw.BoxDecoration(
+                    border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 4),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Date:',
+                style: pw.TextStyle(
+                  font: baseFont,
+                  fontSize: 8,
+                  color: PdfColors.grey600,
+                  fontFallback: HindiPdfHelper.baseFontFallback,
+                ),
+              ),
+              pw.Expanded(
+                child: pw.Container(
+                  margin: const pw.EdgeInsets.only(left: 4),
+                  height: 12,
+                  decoration: const pw.BoxDecoration(
+                    border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   pw.Widget _buildPdfSection(
     String title,
+    PdfColor color,
     List<List<String>> rows,
     pw.Font boldFont,
-    pw.Font baseFont, {
-    bool emptyRightColumn = false,
-  }) {
+    pw.Font baseFont,
+  ) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(6),
+        borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
             padding: const pw.EdgeInsets.all(8),
-            decoration: const pw.BoxDecoration(
+            decoration: pw.BoxDecoration(
               color: PdfColors.grey100,
-              borderRadius: pw.BorderRadius.only(
-                topLeft: pw.Radius.circular(5),
-                topRight: pw.Radius.circular(5),
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(7),
+                topRight: pw.Radius.circular(7),
               ),
             ),
-            child: pw.Text(
-              title,
-              style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-              ),
+            child: pw.Row(
+              children: [
+                pw.Container(
+                  width: 6,
+                  height: 6,
+                  decoration: pw.BoxDecoration(
+                    color: color,
+                    shape: pw.BoxShape.circle,
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Text(
+                  title,
+                  style: pw.TextStyle(
+                    font: boldFont,
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                    color: color,
+                    fontFallback: HindiPdfHelper.boldFontFallback,
+                  ),
+                ),
+              ],
             ),
           ),
           pw.Padding(
@@ -1001,29 +954,95 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                 0: const pw.FixedColumnWidth(100),
                 1: const pw.FlexColumnWidth(1),
               },
-              children: rows.map((row) {
-                return pw.TableRow(
-                  children: [
-                    pw.Text(
-                      row[0],
-                      style: pw.TextStyle(fontSize: 10, font: baseFont),
+              children: rows.map((row) => pw.TableRow(
+                children: [
+                  pw.Text(
+                    row[0],
+                    style: pw.TextStyle(
+                      font: baseFont,
+                      fontSize: 9,
+                      color: PdfColors.grey600,
+                      fontFallback: HindiPdfHelper.baseFontFallback,
                     ),
-                    pw.Text(
-                      emptyRightColumn ? '' : row[1],
-                      style: pw.TextStyle(fontSize: 10, font: boldFont),
+                  ),
+                  pw.Text(
+                    row[1],
+                    style: pw.TextStyle(
+                      font: baseFont,
+                      fontSize: 9,
+                      fontFallback: HindiPdfHelper.baseFontFallback,
                     ),
-                  ],
-                );
-              }).toList(),
+                  ),
+                ],
+              )).toList(),
             ),
           ),
         ],
       ),
     );
   }
+
+  /// Normalize text for PDF display - handles Hindi text
+  String _normalizeText(String text) {
+    if (text.isEmpty || text == 'null') return 'N/A';
+    return HindiPdfHelper.normalizeForPdf(text);
+  }
+
+  /// Extract issue data from slip root level (primary) with pdf_data as fallback
+  Map<String, dynamic> _extractIssueDataFromSlip(Map<String, dynamic> slip) {
+    final issue = <String, dynamic>{};
+
+    // First, copy root level data (from JOIN query - always has complete data)
+    for (final key in [
+      'issue_id', 'issue_date', 'due_date', 'return_date', 'status', 'notes',
+      'book_id', 'isbn', 'book_title', 'book_author', 'rack_number', 'book_category', 'cover_image',
+      'member_id', 'member_name', 'member_email', 'member_phone', 'member_type',
+      'profile_photo', 'member_address', 'issued_by_name',
+    ]) {
+      if (slip[key] != null) {
+        issue[key] = slip[key];
+      }
+    }
+
+    // If root level is missing key data, try pdf_data as fallback
+    if (issue['member_name'] == null || issue['book_title'] == null) {
+      final pdfData = slip['pdf_data'];
+      if (pdfData != null) {
+        Map<String, dynamic>? parsedPdfData;
+        if (pdfData is Map<String, dynamic>) {
+          parsedPdfData = pdfData;
+        } else if (pdfData is Map) {
+          parsedPdfData = Map<String, dynamic>.fromEntries(
+            pdfData.entries.map((e) => MapEntry(e.key.toString(), e.value)),
+          );
+        } else if (pdfData is String && pdfData.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(pdfData);
+            if (decoded is Map) {
+              parsedPdfData = Map<String, dynamic>.fromEntries(
+                decoded.entries.map((e) => MapEntry(e.key.toString(), e.value)),
+              );
+            }
+          } catch (e) {
+            debugPrint('Failed to parse pdf_data: $e');
+          }
+        }
+
+        // Fill in missing keys from pdf_data
+        if (parsedPdfData != null) {
+          for (final key in parsedPdfData.keys) {
+            if (!issue.containsKey(key) || issue[key] == null) {
+              issue[key] = parsedPdfData[key];
+            }
+          }
+        }
+      }
+    }
+
+    return issue;
+  }
 }
 
-/// Shows the borrow slip preview dialog
 Future<void> showBorrowSlipPreview(BuildContext context, Map<String, dynamic> slipData) {
   return showDialog(
     context: context,

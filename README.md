@@ -9,6 +9,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 ## Key Features
 
 ### Premium UI/UX
+
 - **Premium Sidebar** - Diagonal gradient header, decorative circles, glowing logo container, frosted badge
 - **Dashboard** - Real-time KPI cards, animated stat cards, bar/pie charts, actionable alerts
 - **Actionable Alerts** - Overdue, due today, low stock with color-coded sections
@@ -17,6 +18,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - **Premium Popups** - Gradient headers, pagination, hover effects
 
 ### Authentication & Security
+
 - Admin-only JWT authentication with bcrypt password hashing
 - Automatic session expiry and forced re-login on token invalidation
 - Brute-force login rate limiting (15 attempts per 15 min window)
@@ -25,6 +27,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - All SQL queries fully parameterised — no injection vectors
 
 ### Dashboard
+
 - Real-time KPI cards (total books, issued, available, overdue, active members)
 - Library Statistics bar chart (FL Chart)
 - Book Status Distribution pie chart
@@ -33,6 +36,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - Premium Library Overview hero banner with frosted chips
 
 ### Book Management
+
 - Full CRUD with cover-image upload and preview
 - Multi-copy tracking (total vs available)
 - Categories/genres with CRUD management
@@ -42,6 +46,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - Search and filter by title, author, category, year, availability
 
 ### Member Management
+
 - Full CRUD with profile photo upload
 - Member types: Student (3 books / 14 days), Faculty (10 / 30), Staff (5 / 21)
 - Borrowing history with statistics dialogs
@@ -49,6 +54,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - Bulk delete and CSV/JSON export
 
 ### Issue & Return System
+
 - Issue books with automatic due-date calculation based on member type
 - Quick return processing with availability auto-update
 - Fine calculation for overdue returns
@@ -56,6 +62,7 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - Issue editing (extend due date, change status)
 
 ### Reports & Analytics
+
 - Library Statistics — bar chart by category
 - Book Status Distribution — pie chart
 - Popular Books — ranked by borrow count
@@ -63,18 +70,21 @@ It provides end-to-end book, member, and issue/return workflows together with ad
 - Overdue Report — full overdue list
 - Export any report to PDF or Excel
 
-### Notifications
+### Notifications 
+
 - In-app notification bell with unread count badge
 - Types: overdue, due-soon, new-book, system, warning, error, success
 - Mark read (individual / bulk), delete
 - Auto-refresh via polling + instant refresh on data mutations
 
 ### Search & Discovery
+
 - Global search across books, members, and issues from the sidebar
 - Advanced search dialog with multi-field filters
 - Book recommendations based on a member's borrowing history
 
 ### Data Operations
+
 - Full JSON backup & restore (books, members, issues)
 - CSV / JSON export for books, members, issues
 - CSV / XLSX bulk import with smart header mapping
@@ -360,4 +370,4 @@ This project is proprietary software for Uttar Pradesh State Tax Training & Rese
 
 ---
 
-**Version** 1.1.2 · **Last updated** May 2026
+**Version** 1.1.2 · **Last updated** May 2026  

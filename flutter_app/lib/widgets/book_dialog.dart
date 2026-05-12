@@ -34,6 +34,7 @@ class _BookDialogState extends State<BookDialog> {
   bool _isUploading = false;
   List<String> _dynamicCategories = [];
   bool _categoriesLoading = true;
+  bool _isInitialized = false;
 
   void _onTextChanged() {
     if (mounted) setState(() {});
@@ -51,20 +52,21 @@ class _BookDialogState extends State<BookDialog> {
       _titleController.text = normalizeHindiForDisplay(widget.book!.title);
       _authorController.text = normalizeHindiForDisplay(widget.book!.author);
       _rackNumberController.text = widget.book!.rackNumber ?? '';
-      _publisherController.text = normalizeHindiForDisplay(
-        widget.book!.publisher ?? '',
-      );
+      _publisherController.text = normalizeHindiForDisplay(widget.book!.publisher ?? '');
       _yearController.text = widget.book!.yearPublished?.toString() ?? '';
       _selectedCategory = widget.book!.category;
       _totalCopiesController.text = widget.book!.totalCopies.toString();
-      _descriptionController.text = normalizeHindiForDisplay(
-        widget.book!.description ?? '',
-      );
+      _descriptionController.text = normalizeHindiForDisplay(widget.book!.description ?? '');
       _coverImageUrl = widget.book!.coverImage;
     } else {
       _totalCopiesController.text = '1';
     }
     _loadCategories();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+    });
   }
 
   Future<void> _loadCategories() async {
@@ -72,124 +74,54 @@ class _BookDialogState extends State<BookDialog> {
       final apiCategories = await ApiService.getCategories(forceRefresh: true);
       if (mounted) {
         setState(() {
-          _dynamicCategories = apiCategories
-              .map((c) => c.name)
-              .where((n) => n.trim().isNotEmpty)
-              .toList();
+          _dynamicCategories = apiCategories.map((c) => c.name).where((n) => n.trim().isNotEmpty).toList();
           _categoriesLoading = false;
         });
       }
     } catch (_) {
-      // On error, fall back to the static defaults
-      if (mounted) {
-        setState(() => _categoriesLoading = false);
-      }
+      if (mounted) setState(() => _categoriesLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.book != null;
+    final colorScheme = Theme.of(context).colorScheme;
     final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 900;
-    final maxWidth = (isSmallScreen ? screenSize.width * 0.95 : 900).toDouble();
-    final maxHeight = (isSmallScreen ? screenSize.height * 0.95 : 800)
-        .toDouble();
+    final isSmallScreen = screenSize.width < 700;
+    final maxWidth = (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
+    final maxHeight = screenSize.height * 0.92;
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8 : 24, vertical: 16),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
-        child: Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.shadow.withValues(alpha: 0.15),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          color: Theme.of(context).colorScheme.surface,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        isEditing ? 'Edit Book' : 'Add Book',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              // Content
+              _buildHeader(colorScheme, isEditing),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
                   child: Form(
                     key: _formKey,
-                    child: SingleChildScrollView(
-                      child: isSmallScreen
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildCoverImagePicker(),
-                                const SizedBox(height: 20),
-                                _buildCopiesField(),
-                                const SizedBox(height: 24),
-                                _buildFormFields(),
-                              ],
-                            )
-                          : Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Column(
-                                  children: [
-                                    _buildCoverImagePicker(),
-                                    const SizedBox(height: 20),
-                                    _buildCopiesField(),
-                                  ],
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(child: _buildFormFields()),
-                              ],
-                            ),
-                    ),
+                    child: isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme),
                   ),
                 ),
               ),
-              const Divider(height: 1),
-              // Footer
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _isUploading ? null : _saveBook,
-                      icon: _isUploading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(isEditing ? Icons.save : Icons.add),
-                      label: Text(isEditing ? 'Update' : 'Add'),
-                    ),
-                  ],
-                ),
-              ),
+              _buildFooter(colorScheme, isEditing),
             ],
           ),
         ),
@@ -197,340 +129,535 @@ class _BookDialogState extends State<BookDialog> {
     );
   }
 
-  Widget _buildFormFields() {
-    final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextFormField(
-          controller: _isbnController,
-          decoration: const InputDecoration(
-            labelText: 'ISBN',
-            prefixIcon: Icon(Icons.qr_code),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _titleController,
-          style: hindiAwareTextStyle(
-            context,
-            text: _titleController.text,
-            base: baseFieldStyle,
-          ),
-          decoration: const InputDecoration(
-            labelText: 'Title',
-            prefixIcon: Icon(Icons.book),
-          ),
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Title is required';
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _authorController,
-          style: hindiAwareTextStyle(
-            context,
-            text: _authorController.text,
-            base: baseFieldStyle,
-          ),
-          decoration: const InputDecoration(
-            labelText: 'Author',
-            prefixIcon: Icon(Icons.person),
-          ),
-          validator: (value) {
-            if (value?.isEmpty ?? true) return 'Author is required';
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _rackNumberController,
-          decoration: const InputDecoration(
-            labelText: 'Rack Number',
-            prefixIcon: Icon(Icons.location_on_outlined),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _categoriesLoading
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: LinearProgressIndicator(),
-              )
-            : DropdownButtonFormField<String>(
-                initialValue: _getAllCategories().contains(_selectedCategory)
-                    ? _selectedCategory
-                    : null,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category),
-                ),
-                items: _getAllCategories()
-                    .map(
-                      (category) => DropdownMenuItem(
-                          value: category, child: Text(category)),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _selectedCategory = value),
-              ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _publisherController,
-                style: hindiAwareTextStyle(
-                  context,
-                  text: _publisherController.text,
-                  base: baseFieldStyle,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Publisher',
-                  prefixIcon: Icon(Icons.business),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            SizedBox(
-              width: 120,
-              child: TextFormField(
-                controller: _yearController,
-                decoration: const InputDecoration(
-                  labelText: 'Year',
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
+  Widget _buildHeader(ColorScheme colorScheme, bool isEditing) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.primaryContainer.withValues(alpha: 0.7),
           ],
         ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _descriptionController,
-          style: hindiAwareTextStyle(
-            context,
-            text: _descriptionController.text,
-            base: baseFieldStyle,
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
+            ),
+            child: Icon(isEditing ? Icons.edit_square : Icons.library_add, color: colorScheme.onPrimary, size: 24),
           ),
-          decoration: const InputDecoration(
-            labelText: 'Description',
-            prefixIcon: Icon(Icons.description),
-            alignLabelWithHint: true,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isEditing ? 'Edit Book' : 'Add New Book',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isEditing ? 'Update book information and details' : 'Fill in the details to add a new book',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
+                ),
+              ],
+            ),
           ),
-          maxLines: 3,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_stories, size: 16, color: colorScheme.onPrimaryContainer),
+                const SizedBox(width: 6),
+                Text('Library', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colorScheme.onPrimaryContainer)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: colorScheme.surface.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
+              child: Icon(Icons.close, size: 20, color: colorScheme.onPrimaryContainer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWideLayout(ColorScheme colorScheme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 200,
+          child: Column(
+            children: [
+              _buildCoverCard(colorScheme),
+              const SizedBox(height: 20),
+              if (_isInitialized) _buildCopiesCard(colorScheme),
+            ],
+          ),
         ),
+        const SizedBox(width: 32),
+        Expanded(child: _buildFormSection(colorScheme)),
       ],
     );
   }
 
-  Widget _buildCoverImagePicker() {
+  Widget _buildCompactLayout(ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCoverCard(colorScheme, compact: true),
+            const SizedBox(width: 20),
+            Expanded(child: _buildFormSection(colorScheme, compact: true)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (_isInitialized) _buildCopiesCard(colorScheme),
+      ],
+    );
+  }
+
+  Widget _buildCoverCard(ColorScheme colorScheme, {bool compact = false}) {
     return Container(
-      width: 160,
-      height: 220,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: compact ? 100 : 160,
+                height: compact ? 140 : 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [colorScheme.primary.withValues(alpha: 0.08), colorScheme.tertiary.withValues(alpha: 0.08)],
+                  ),
+                  border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 2),
+                ),
+                child: ClipRRect(borderRadius: BorderRadius.circular(14), child: _buildImagePreview()),
+              ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))],
+                    ),
+                    child: Icon(_coverImageUrl != null || _selectedImageBytes != null ? Icons.edit : Icons.add_a_photo, color: colorScheme.onPrimary, size: compact ? 16 : 20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if ((_coverImageUrl != null || _selectedImageBytes != null) && !compact) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => setState(() { _coverImageUrl = null; _selectedImageBytes = null; _selectedImageName = null; }),
+              icon: Icon(Icons.delete_outline, size: 16, color: colorScheme.error),
+              label: Text('Remove', style: TextStyle(color: colorScheme.error, fontSize: 12)),
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCopiesCard(ColorScheme colorScheme) {
+    final total = int.tryParse(_totalCopiesController.text) ?? 1;
+    final available = widget.book?.availableCopies ?? total;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colorScheme.primaryContainer.withValues(alpha: 0.4), colorScheme.primaryContainer.withValues(alpha: 0.2)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildCounterButton(Icons.remove_circle_outline, () {
+                if (total > 1) _totalCopiesController.text = (total - 1).toString();
+                setState(() {});
+              }, colorScheme),
+              Container(
+                width: 60,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(12)),
+                child: Text(
+                  _totalCopiesController.text,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.primary),
+                ),
+              ),
+              _buildCounterButton(Icons.add_circle_outline, () {
+                _totalCopiesController.text = (total + 1).toString();
+                setState(() {});
+              }, colorScheme),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('Total Copies', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colorScheme.primary)),
+          if (widget.book != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
+              child: Text('$available available', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCounterButton(IconData icon, VoidCallback onPressed, ColorScheme colorScheme) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onPressed,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, size: 28, color: colorScheme.primary),
         ),
       ),
-      child: Stack(
+    );
+  }
+
+  Widget _buildFormSection(ColorScheme colorScheme, {bool compact = false}) {
+    final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Book Information', Icons.book_outlined),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _titleController, label: 'Title', hint: 'Enter book title', icon: Icons.book_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Title is required' : null, style: hindiAwareTextStyle(context, text: _titleController.text, base: baseFieldStyle))),
+            if (!compact) ...[
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code)),
+            ],
+          ],
+        ),
+        if (compact) ...[
+          const SizedBox(height: 16),
+          _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code),
+        ],
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 2, child: _buildTextField(controller: _authorController, label: 'Author', hint: 'Enter author name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Author is required' : null, style: hindiAwareTextStyle(context, text: _authorController.text, base: baseFieldStyle))),
+            const SizedBox(width: 16),
+            Expanded(child: _buildTextField(controller: _rackNumberController, label: 'Rack No.', hint: 'A-12', icon: Icons.location_on_outlined)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(flex: 2, child: _buildTextField(controller: _publisherController, label: 'Publisher', hint: 'Enter publisher', icon: Icons.business, style: hindiAwareTextStyle(context, text: _publisherController.text, base: baseFieldStyle))),
+            const SizedBox(width: 16),
+            Expanded(child: _buildTextField(controller: _yearController, label: 'Year', hint: '2024', icon: Icons.calendar_today, keyboardType: TextInputType.number)),
+          ],
+        ),
+        const SizedBox(height: 28),
+        _buildSectionTitle('Classification', Icons.category_outlined),
+        const SizedBox(height: 16),
+        if (!_categoriesLoading) _buildCategorySelector(colorScheme) else const LinearProgressIndicator(),
+        const SizedBox(height: 28),
+        _buildSectionTitle('Additional Details', Icons.description_outlined),
+        const SizedBox(height: 16),
+        _buildTextField(controller: _descriptionController, label: 'Description', hint: 'Enter book description', icon: Icons.description, maxLines: 3, style: hindiAwareTextStyle(context, text: _descriptionController.text, base: baseFieldStyle)),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: colorScheme.primaryContainer.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 18, color: colorScheme.primary),
+        ),
+        const SizedBox(width: 12),
+        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextStyle? style,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: style,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget _buildCategorySelector(ColorScheme colorScheme) {
+    final allCategories = _getAllCategories();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _selectedCategory,
+                decoration: InputDecoration(
+                  labelText: 'Category',
+                  prefixIcon: const Icon(Icons.category_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                ),
+                hint: const Text('Select category'),
+                items: allCategories.map((cat) {
+                  return DropdownMenuItem(
+                    value: cat,
+                    child: Text(cat, style: const TextStyle(fontSize: 14)),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedCategory = value);
+                },
+              ),
+            ),
+          ],
+        ),
+        if (allCategories.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Quick Select:',
+            style: TextStyle(fontSize: 11, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 32,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: allCategories.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(width: 6),
+              itemBuilder: (context, index) {
+                if (index == allCategories.length) {
+                  // Add new category button
+                  return GestureDetector(
+                    onTap: () => _showAddCategoryDialog(colorScheme),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: colorScheme.primary, style: BorderStyle.solid),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 14, color: colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'New',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                final category = allCategories[index];
+                final isSelected = _selectedCategory == category;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedCategory = category),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
+                      ),
+                    ),
+                    child: Text(
+                      category,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected ? Colors.white : colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _showAddCategoryDialog(ColorScheme colorScheme) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.add_circle, color: colorScheme.primary),
+            const SizedBox(width: 12),
+            const Text('Add New Category'),
+          ],
+        ),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: 'Category Name',
+            hintText: 'Enter category name',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: const Icon(Icons.category),
+          ),
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(context, controller.text.trim());
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        if (!_dynamicCategories.contains(result)) {
+          _dynamicCategories.add(result);
+        }
+        _selectedCategory = result;
+      });
+    }
+  }
+
+  Widget _buildFooter(ColorScheme colorScheme, bool isEditing) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(11),
-            child: _buildImagePreview(),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('Cancel'),
           ),
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Material(
-              color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(20),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: _pickImage,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(
-                    _coverImageUrl != null || _selectedImageBytes != null
-                        ? Icons.edit
-                        : Icons.add_photo_alternate,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
+          const SizedBox(width: 16),
+          FilledButton.icon(
+            onPressed: _isUploading ? null : _saveBook,
+            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            icon: _isUploading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Icon(isEditing ? Icons.save : Icons.add),
+            label: Text(isEditing ? 'Update Book' : 'Add Book'),
           ),
-          if (_coverImageUrl != null || _selectedImageBytes != null)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Material(
-                color: Theme.of(context).colorScheme.error,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    setState(() {
-                      _coverImageUrl = null;
-                      _selectedImageBytes = null;
-                      _selectedImageName = null;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close, color: Theme.of(context).colorScheme.onError, size: 16),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
   Widget _buildImagePreview() {
-    if (_selectedImageBytes != null) {
-      return Image.memory(
-        _selectedImageBytes!,
-        fit: BoxFit.cover,
-        width: 160,
-        height: 220,
-      );
-    } else if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
-      return Image.network(
-        ApiService.resolvePublicUrl(_coverImageUrl!),
-        fit: BoxFit.cover,
-        width: 160,
-        height: 220,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-      );
+    if (_selectedImageBytes != null) return Image.memory(_selectedImageBytes!, fit: BoxFit.cover, width: 160, height: 200);
+    if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
+      return Image.network(ApiService.resolvePublicUrl(_coverImageUrl!), fit: BoxFit.cover, width: 160, height: 200, loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(child: CircularProgressIndicator(value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null, strokeWidth: 2));
+      }, errorBuilder: (context, error, stackTrace) => _buildPlaceholder());
     }
     return _buildPlaceholder();
   }
 
   Widget _buildPlaceholder() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.image_outlined,
-            size: 48,
-            color: Theme.of(context).colorScheme.outline,
-          ),
+          Icon(Icons.menu_book, size: 40, color: colorScheme.outline),
           const SizedBox(height: 8),
-          Text(
-            'Book Cover',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.outline,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCopiesField() {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.primaryContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Total Copies',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    constraints: const BoxConstraints.tightFor(
-                      width: 32,
-                      height: 32,
-                    ),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      final current =
-                          int.tryParse(_totalCopiesController.text) ?? 1;
-                      if (current > 1) {
-                        _totalCopiesController.text = (current - 1).toString();
-                        setState(() {});
-                      }
-                    },
-                    icon: const Icon(Icons.remove_circle_outline),
-                    iconSize: 24,
-                  ),
-                ),
-                SizedBox(
-                  width: 50,
-                  child: TextFormField(
-                    controller: _totalCopiesController,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    constraints: const BoxConstraints.tightFor(
-                      width: 32,
-                      height: 32,
-                    ),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      final current =
-                          int.tryParse(_totalCopiesController.text) ?? 1;
-                      _totalCopiesController.text = (current + 1).toString();
-                      setState(() {});
-                    },
-                    icon: const Icon(Icons.add_circle_outline),
-                    iconSize: 24,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (widget.book != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Available: ${widget.book!.availableCopies}',
-              style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context).colorScheme.secondary,
-              ),
-            ),
-          ],
+          Text('Book Cover', style: TextStyle(fontSize: 12, color: colorScheme.outline)),
         ],
       ),
     );
@@ -540,62 +667,32 @@ class _BookDialogState extends State<BookDialog> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: const [
-          'jpg',
-          'jpeg',
-          'png',
-          'gif',
-          'webp',
-          'bmp',
-          'tif',
-          'tiff',
-          'ico',
-        ],
+        allowedExtensions: const ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'ico'],
         allowMultiple: false,
         withData: true,
       );
-
       if (result != null && result.files.isNotEmpty) {
         final picked = result.files.first;
         final bytes = picked.bytes;
         const maxBytes = 10 * 1024 * 1024;
         if (picked.size > maxBytes) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Image must be 10MB or smaller.')),
-            );
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image must be 10MB or smaller.')));
           return;
         }
         if (bytes == null || bytes.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Could not read the selected image.'),
-              ),
-            );
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not read the selected image.')));
           return;
         }
-        setState(() {
-          _selectedImageBytes = bytes;
-          _selectedImageName = picked.name;
-        });
+        setState(() { _selectedImageBytes = bytes; _selectedImageName = picked.name; });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to pick image')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to pick image')));
     }
   }
 
   void _saveBook() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isUploading = true);
-
     try {
       String? coverImagePath = _coverImageUrl;
       final bookProvider = Provider.of<BookProvider>(context, listen: false);
@@ -603,37 +700,28 @@ class _BookDialogState extends State<BookDialog> {
       final navigator = Navigator.of(context);
 
       if (_selectedImageBytes != null && _selectedImageName != null) {
-        coverImagePath = await ApiService.uploadBookCover(
-          _selectedImageBytes!,
-          _selectedImageName!,
-        );
+        coverImagePath = await ApiService.uploadBookCover(_selectedImageBytes!, _selectedImageName!);
       }
 
-        final title = normalizeHindiForDisplay(_titleController.text);
-        final author = normalizeHindiForDisplay(_authorController.text);
-        final publisher = normalizeHindiForDisplay(_publisherController.text);
-        final description = normalizeHindiForDisplay(_descriptionController.text);
+      final title = normalizeHindiForDisplay(_titleController.text);
+      final author = normalizeHindiForDisplay(_authorController.text);
+      final publisher = normalizeHindiForDisplay(_publisherController.text);
+      final description = normalizeHindiForDisplay(_descriptionController.text);
 
-        final book = Book(
+      final book = Book(
         id: widget.book?.id ?? 0,
         isbn: _isbnController.text,
         title: title,
         author: author,
-        rackNumber: _rackNumberController.text.trim().isEmpty
-            ? null
-            : _rackNumberController.text.trim(),
+        rackNumber: _rackNumberController.text.trim().isEmpty ? null : _rackNumberController.text.trim(),
         category: _selectedCategory,
         publisher: publisher.isEmpty ? null : publisher,
-        yearPublished: _yearController.text.isEmpty
-            ? null
-            : int.tryParse(_yearController.text),
+        yearPublished: _yearController.text.isEmpty ? null : int.tryParse(_yearController.text),
         status: widget.book?.status ?? 'available',
         addedDate: widget.book?.addedDate ?? DateTime.now().toIso8601String(),
         coverImage: coverImagePath,
         totalCopies: int.tryParse(_totalCopiesController.text) ?? 1,
-        availableCopies:
-            widget.book?.availableCopies ??
-            (int.tryParse(_totalCopiesController.text) ?? 1),
+        availableCopies: widget.book?.availableCopies ?? (int.tryParse(_totalCopiesController.text) ?? 1),
         description: description.isEmpty ? null : description,
       );
 
@@ -644,51 +732,25 @@ class _BookDialogState extends State<BookDialog> {
       }
       if (mounted) {
         navigator.pop(true);
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Book ${widget.book != null ? 'updated' : 'added'} successfully',
-            ),
-          ),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('Book ${widget.book != null ? 'updated' : 'added'} successfully')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Save book', e))));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Save book', e))));
     } finally {
-      if (mounted) {
-        setState(() => _isUploading = false);
-      }
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
-  /// Fallback categories when API is unavailable
   static const List<String> _fallbackCategories = [
-    'Fiction', 'Non-Fiction', 'Science', 'History', 'Biography',
-    'Literature', 'Philosophy', 'Psychology', 'Art', 'Music',
-    'Technology', 'Mathematics', 'Physics', 'Chemistry', 'Biology',
-    'Medicine', 'Engineering', 'Computer Science', 'Business', 'Economics',
-    'Politics', 'Law', 'Religion', 'Education', 'Sports',
-    'Travel', 'Cooking', 'Health', 'Self-Help', 'Poetry',
-    'Drama', 'Romance', 'Mystery', 'Thriller', 'Fantasy',
-    'Science Fiction', 'Horror', 'Adventure', 'Children', 'Young Adult',
-    'Reference', 'Dictionary', 'Encyclopedia', 'Atlas', 'Periodicals',
-    'Comics', 'Graphic Novels', 'GST',
+    'Fiction', 'Non-Fiction', 'Science', 'History', 'Biography', 'Literature', 'Philosophy', 'Psychology', 'Art', 'Music',
+    'Technology', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Medicine', 'Engineering', 'Computer Science', 'Business', 'Economics',
+    'GST',
   ];
 
-  /// Get all categories: dynamic (API) first, then merged with fallback + current book's category
   List<String> _getAllCategories() {
-    final base = _dynamicCategories.isNotEmpty
-        ? _dynamicCategories
-        : _fallbackCategories;
+    final base = _dynamicCategories.isNotEmpty ? _dynamicCategories : _fallbackCategories;
     final categories = <String>{...base};
-    // Include current book's category even if not in the list
-    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-      categories.add(_selectedCategory!);
-    }
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) categories.add(_selectedCategory!);
     final sorted = categories.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return sorted;
   }

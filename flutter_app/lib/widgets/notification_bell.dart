@@ -472,10 +472,18 @@ class NotificationTile extends StatelessWidget {
   }
 
   String _formatTimestamp(String createdAtStr) {
+    if (createdAtStr.isEmpty || createdAtStr == 'null') return '';
     try {
-      final dateTime = DateTime.parse(createdAtStr);
+      final parsed = DateTime.tryParse(createdAtStr);
+      if (parsed == null) return createdAtStr;
+
+      final dateTime = parsed.isUtc ? parsed.toLocal() : parsed;
       final now = DateTime.now();
       final difference = now.difference(dateTime);
+
+      if (difference.isNegative) {
+        return DateFormatter.formatDateTimeIndian(dateTime.toIso8601String());
+      }
 
       if (difference.inMinutes < 1) {
         return 'Just now';
@@ -486,9 +494,9 @@ class NotificationTile extends StatelessWidget {
       } else if (difference.inDays < 7) {
         return '${difference.inDays}d ago';
       } else {
-        return DateFormatter.formatDateIndian(dateTime.toIso8601String());
+        return DateFormatter.formatDateTimeIndian(dateTime.toIso8601String());
       }
-    } catch (e) {
+    } catch (_) {
       return createdAtStr;
     }
   }

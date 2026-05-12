@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
@@ -34,9 +33,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   bool _toggleHovered = false;
 
   void _setToggleHover(bool isHovered) {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _toggleHovered = isHovered);
-    });
+    if (mounted) setState(() => _toggleHovered = isHovered);
   }
 
   @override
@@ -53,15 +50,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   }
 
   void _setMenuHover(int index, bool isHovered) {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _menuHoverStates[index] = isHovered);
-    });
+    if (mounted) setState(() => _menuHoverStates[index] = isHovered);
   }
 
   void _setQuickActionHover(int index, bool isHovered) {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _quickActionHoverStates[index] = isHovered);
-    });
+    if (mounted) setState(() => _quickActionHoverStates[index] = isHovered);
   }
 
   @override
@@ -304,13 +297,13 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
             ),
 
             // ══════════════════════════════════════════════
-            // SECTION 2 - NAV MENU ITEMS (compact, no scroll)
+            // SECTION 2 - NAV MENU ITEMS (compact, scrollable)
             // ══════════════════════════════════════════════
             Expanded(
               child: Container(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                child: ListView(
+                  shrinkWrap: true,
                   children: [
                     // Navigation Items
                     _buildNavItem(

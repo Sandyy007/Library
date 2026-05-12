@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
@@ -314,21 +315,32 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                   child: pw.Text(
                     'Member Borrowing History',
                     style: pw.TextStyle(
+                      font: boldFont,
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.white,
+                      fontFallback: HindiPdfHelper.boldFontFallback,
                     ),
                   ),
                 ),
               ),
               pw.SizedBox(height: 8),
               pw.Text(
-                'Member: ${normalizeHindiForDisplay(widget.memberName)}',
-                style: pw.TextStyle(fontSize: 12),
+                'Member: ${HindiPdfHelper.normalizeForPdf(widget.memberName)}',
+                style: pw.TextStyle(
+                  font: baseFont,
+                  fontSize: 12,
+                  fontFallback: HindiPdfHelper.baseFontFallback,
+                ),
               ),
               pw.Text(
                 'Generated: ${DateFormatter.formatDateTimeIndian(DateTime.now().toIso8601String())}',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                style: pw.TextStyle(
+                  font: baseFont,
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                  fontFallback: HindiPdfHelper.baseFontFallback,
+                ),
               ),
               pw.SizedBox(height: 16),
               pw.Row(
@@ -342,8 +354,23 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       ),
                       child: pw.Column(
                         children: [
-                          pw.Text('Total Borrowed', style: pw.TextStyle(fontSize: 10)),
-                          pw.Text('${_history.length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(
+                            'Total Borrowed',
+                            style: pw.TextStyle(
+                              font: baseFont,
+                              fontSize: 10,
+                              fontFallback: HindiPdfHelper.baseFontFallback,
+                            ),
+                          ),
+                          pw.Text(
+                            '${_history.length}',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              fontFallback: HindiPdfHelper.boldFontFallback,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -358,8 +385,23 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       ),
                       child: pw.Column(
                         children: [
-                          pw.Text('Issued', style: pw.TextStyle(fontSize: 10)),
-                          pw.Text('${_history.where((i) => i.status == 'issued').length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(
+                            'Issued',
+                            style: pw.TextStyle(
+                              font: baseFont,
+                              fontSize: 10,
+                              fontFallback: HindiPdfHelper.baseFontFallback,
+                            ),
+                          ),
+                          pw.Text(
+                            '${_history.where((i) => i.status == 'issued').length}',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              fontFallback: HindiPdfHelper.boldFontFallback,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -374,8 +416,23 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       ),
                       child: pw.Column(
                         children: [
-                          pw.Text('Returned', style: pw.TextStyle(fontSize: 10)),
-                          pw.Text('${_history.where((i) => i.status == 'returned').length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(
+                            'Returned',
+                            style: pw.TextStyle(
+                              font: baseFont,
+                              fontSize: 10,
+                              fontFallback: HindiPdfHelper.baseFontFallback,
+                            ),
+                          ),
+                          pw.Text(
+                            '${_history.where((i) => i.status == 'returned').length}',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              fontFallback: HindiPdfHelper.boldFontFallback,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -390,8 +447,23 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       ),
                       child: pw.Column(
                         children: [
-                          pw.Text('Overdue', style: pw.TextStyle(fontSize: 10)),
-                          pw.Text('${_history.where((i) => i.status == 'overdue').length}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(
+                            'Overdue',
+                            style: pw.TextStyle(
+                              font: baseFont,
+                              fontSize: 10,
+                              fontFallback: HindiPdfHelper.baseFontFallback,
+                            ),
+                          ),
+                          pw.Text(
+                            '${_history.where((i) => i.status == 'overdue').length}',
+                            style: pw.TextStyle(
+                              font: boldFont,
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              fontFallback: HindiPdfHelper.boldFontFallback,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -403,17 +475,26 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                 headers: ['Book Title', 'Author', 'Issue Date', 'Due Date', 'Return Date', 'Status'],
                 data: _history.map((issue) {
                   return [
-                    normalizeHindiForDisplay(issue.bookTitle),
-                    normalizeHindiForDisplay(issue.bookAuthor),
+                    HindiPdfHelper.normalizeForPdf(issue.bookTitle),
+                    HindiPdfHelper.normalizeForPdf(issue.bookAuthor),
                     DateFormatter.formatDateIndian(issue.issueDate),
                     DateFormatter.formatDateIndian(issue.dueDate),
                     issue.returnDate != null ? DateFormatter.formatDateIndian(issue.returnDate!) : '-',
                     issue.status[0].toUpperCase() + issue.status.substring(1),
                   ];
                 }).toList(),
-                headerStyle: pw.TextStyle(font: boldFont, fontSize: 10, fontWeight: pw.FontWeight.bold),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-                cellStyle: pw.TextStyle(font: baseFont, fontSize: 9),
+                headerStyle: pw.TextStyle(
+                  font: boldFont,
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  fontFallback: HindiPdfHelper.boldFontFallback,
+                ),
+                cellStyle: pw.TextStyle(
+                  font: baseFont,
+                  fontSize: 9,
+                  fontFallback: HindiPdfHelper.baseFontFallback,
+                ),
                 cellAlignment: pw.Alignment.centerLeft,
                 cellHeight: 18,
                 headerHeight: 22,
@@ -709,10 +790,8 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
 
   Future<Uint8List?> _loadPdfLogo() async {
     try {
-      final file = File('assets/images/Office_Logo.png');
-      if (await file.exists()) {
-        return await file.readAsBytes();
-      }
+      final logoData = await rootBundle.load('assets/images/Office_Logo.png');
+      return logoData.buffer.asUint8List();
     } catch (e) {
       debugPrint('Could not load logo: $e');
     }
@@ -730,25 +809,45 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
         child: pw.Row(
           children: [
             pw.Image(pw.MemoryImage(logoBytes), width: 70, height: 70),
-            pw.SizedBox(width: 20),
+            pw.SizedBox(width: 16),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
                   pw.Text(
-                    'Uttar Pradesh State Tax Training and Research Institute',
-                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont),
+                    'Uttar Pradesh State Tax Training',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      font: boldFont,
+                      fontFallback: HindiPdfHelper.boldFontFallback,
+                    ),
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'and Research Institute',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      font: boldFont,
+                      fontFallback: HindiPdfHelper.boldFontFallback,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 2),
                   pw.Text(
                     'Lucknow',
-                    style: pw.TextStyle(fontSize: 11, font: baseFont, color: PdfColors.grey600),
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      font: baseFont,
+                      color: PdfColors.grey600,
+                      fontFallback: HindiPdfHelper.baseFontFallback,
+                    ),
                   ),
                 ],
               ),
             ),
-            pw.SizedBox(width: 90),
+            pw.SizedBox(width: 12),
           ],
         ),
       );
@@ -760,9 +859,29 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
           borderRadius: pw.BorderRadius.circular(8),
         ),
         child: pw.Center(
-          child: pw.Text(
-            'Uttar Pradesh State Tax Training and Research Institute',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          child: pw.Column(
+            children: [
+              pw.Text(
+                'Uttar Pradesh State Tax Training',
+                style: pw.TextStyle(
+                  font: boldFont,
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  fontFallback: HindiPdfHelper.boldFontFallback,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.Text(
+                'and Research Institute',
+                style: pw.TextStyle(
+                  font: boldFont,
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  fontFallback: HindiPdfHelper.boldFontFallback,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+            ],
           ),
         ),
       );

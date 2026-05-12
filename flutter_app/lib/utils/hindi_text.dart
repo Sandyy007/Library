@@ -101,6 +101,15 @@ String normalizeHindiForDisplay(String text) {
   return result.trim();
 }
 
+/// Normalize Hindi text for PDF output.
+///
+/// PDF output should avoid aggressive cleanup that can remove valid words
+/// from book titles. We still convert legacy Hindi to Unicode and strip
+/// leading junk symbols, but we do not remove content using garbled patterns.
+String normalizeHindiForPdf(String text) {
+  return normalizeHindiForDisplay(text);
+}
+
 TextStyle hindiAwareTextStyle(
   BuildContext context, {
   required String text,

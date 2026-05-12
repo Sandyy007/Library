@@ -28,12 +28,15 @@ class MembersContent extends StatefulWidget {
   State<MembersContent> createState() => _MembersContentState();
 }
 
-class _MembersContentState extends State<MembersContent> {
+class _MembersContentState extends State<MembersContent> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   MemberStatusFilter _statusFilter = MemberStatusFilter.all;
   final Set<int> _selectedMemberIds = <int>{};
   StreamSubscription<void>? _dataChangedSub;
   Timer? _searchDebounce;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   TextStyle _textStyleForHindi(String text, TextStyle base) {
     if (containsDevanagari(text) || looksLikeLegacyHindi(text)) {
@@ -53,6 +56,15 @@ class _MembersContentState extends State<MembersContent> {
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadMembers();
     });
@@ -75,6 +87,7 @@ class _MembersContentState extends State<MembersContent> {
     _searchDebounce?.cancel();
     _dataChangedSub?.cancel();
     _searchController.dispose();
+    _animationController.dispose();
     DashboardScreen.shortcutEvent.removeListener(_onShortcutEvent);
     super.dispose();
   }
@@ -321,18 +334,18 @@ class _MembersContentState extends State<MembersContent> {
   }) {
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: color.withValues(alpha: 0.1),
+      child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: color),
+        onTap: onTap,
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(icon, size: 18, color: color),
         ),
       ),
     );
@@ -347,9 +360,11 @@ class _MembersContentState extends State<MembersContent> {
     final isCompact = screenWidth < 600;
 
     return Scaffold(
-      body: Padding(
-        padding: EdgeInsets.all(isCompact ? 8 : 20),
-        child: Column(
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Padding(
+          padding: EdgeInsets.all(isCompact ? 8 : 20),
+          child: Column(
           children: [
             // Search Bar, Status Filters, and Action buttons - all in one bar
             Container(
@@ -554,8 +569,8 @@ class _MembersContentState extends State<MembersContent> {
                         child: DataTable2(
                         columnSpacing: 6,
                         horizontalMargin: 10,
-                        dataRowHeight: 64,
-                        headingRowHeight: 44,
+                        dataRowHeight: 68,
+                        headingRowHeight: 52,
                         showCheckboxColumn: false,
                         minWidth: 780,
                         scrollController: ScrollController(),
@@ -564,7 +579,7 @@ class _MembersContentState extends State<MembersContent> {
                         ),
                         columns: [
                           DataColumn2(
-                            fixedWidth: 38,
+                            fixedWidth: 42,
                             label: Center(
                               child: Transform.scale(
                                 scale: 0.78,
@@ -594,14 +609,14 @@ class _MembersContentState extends State<MembersContent> {
                               ),
                             ),
                           ),
-                          const DataColumn2(label: Text('Photo'), fixedWidth: 50),
-                          const DataColumn2(label: Text('Name'), size: ColumnSize.L),
-                          const DataColumn2(label: Text('Email'), size: ColumnSize.M),
-                          const DataColumn2(label: Text('Phone'), fixedWidth: 110),
-                          const DataColumn2(label: Text('Type'), fixedWidth: 115),
-                          const DataColumn2(label: Text('Borrowed'), fixedWidth: 80),
-                          const DataColumn2(label: Text('Status'), fixedWidth: 85),
-                          const DataColumn2(label: Text('Actions'), fixedWidth: 110),
+                          const DataColumn2(label: Text('Photo', style: TextStyle(fontWeight: FontWeight.w600)), fixedWidth: 56),
+                          const DataColumn2(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w600)), size: ColumnSize.L),
+                          const DataColumn2(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w600)), size: ColumnSize.M),
+                          const DataColumn2(label: Text('Phone', style: TextStyle(fontWeight: FontWeight.w600)), fixedWidth: 115),
+                          const DataColumn2(label: Text('Type', style: TextStyle(fontWeight: FontWeight.w600)), fixedWidth: 120),
+                          const DataColumn2(label: Text('Borrowed', style: TextStyle(fontWeight: FontWeight.w600)), fixedWidth: 82),
+                          const DataColumn2(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600)), fixedWidth: 90),
+                          const DataColumn2(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600)), fixedWidth: 112),
                         ],
                         rows: filteredMembers
                             .asMap()
@@ -649,85 +664,68 @@ class _MembersContentState extends State<MembersContent> {
                                   DataCell(_buildPhotoCell(member)),
                                   DataCell(
                                     Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           normalizeHindiForDisplay(member.name),
                                           style: _textStyleForHindi(
-                                            normalizeHindiForDisplay(
-                                              member.name,
-                                            ),
-                                            const TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                            normalizeHindiForDisplay(member.name),
+                                            const TextStyle(fontWeight: FontWeight.w600),
                                           ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        if (member.address != null &&
-                                            member.address!.isNotEmpty)
+                                        if (member.address != null && member.address!.isNotEmpty)
                                           Text(
-                                            normalizeHindiForDisplay(
-                                              member.address!,
-                                            ),
+                                            normalizeHindiForDisplay(member.address!),
                                             style: _textStyleForHindi(
-                                              normalizeHindiForDisplay(
-                                                member.address!,
-                                              ),
-                                              TextStyle(
-                                                fontSize: 11,
-                                                color: Theme.of(
-                                                  context,
-                                                ).textTheme.bodySmall?.color,
-                                              ),
+                                              normalizeHindiForDisplay(member.address!),
+                                              TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color),
                                             ),
                                             overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                       ],
                                     ),
                                   ),
                                   DataCell(
                                     Text(
-                                      (member.email ?? '').isEmpty
-                                          ? '-'
-                                          : member.email!,
+                                      (member.email ?? '').isEmpty ? '-' : member.email!,
+                                      style: TextStyle(fontSize: 12),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   DataCell(
                                     Text(
-                                      (member.phone ?? '').isEmpty
-                                          ? '-'
-                                          : member.phone!,
+                                      (member.phone ?? '-'),
+                                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                                     ),
                                   ),
                                   DataCell(_buildTypeChip(member.memberType)),
                                   DataCell(_buildBorrowCountBadge(member)),
-                                  DataCell(_buildStatusChip(member.isActive)),
+                                  DataCell(_buildStatusBadge(member.isActive)),
                                   DataCell(
                                     SizedBox(
-                                      width: 105,
+                                      width: 108,
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.end,
                                         children: [
                                           _buildActionButton(
                                             icon: Icons.history_rounded,
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: Colors.blue.shade700,
                                             tooltip: 'View History',
                                             onTap: () => _showMemberHistory(member),
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 5),
                                           _buildActionButton(
-                                            icon: Icons.edit_outlined,
+                                            icon: Icons.edit_rounded,
                                             color: Colors.amber.shade700,
                                             tooltip: 'Edit',
                                             onTap: () => _showMemberDialog(member: member),
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 5),
                                           _buildActionButton(
-                                            icon: Icons.delete_outline,
+                                            icon: Icons.delete_rounded,
                                             color: Colors.red.shade400,
                                             tooltip: 'Delete',
                                             onTap: () => _deleteMember(member.id),
@@ -806,7 +804,8 @@ class _MembersContentState extends State<MembersContent> {
                   ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -835,15 +834,29 @@ class _MembersContentState extends State<MembersContent> {
 
   Widget _buildPhotoCell(Member member) {
     return Container(
-      width: 42,
-      height: 42,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            member.isActive ? Colors.green.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.15),
+            member.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.05),
+          ],
+        ),
         border: Border.all(
           color: member.isActive ? Colors.green.withValues(alpha: 0.5) : Colors.grey.withValues(alpha: 0.4),
           width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: (member.isActive ? Colors.green : Colors.grey).withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: member.profilePhoto != null && member.profilePhoto!.isNotEmpty
@@ -851,10 +864,9 @@ class _MembersContentState extends State<MembersContent> {
               child: Image.network(
                 ApiService.resolvePublicUrl(member.profilePhoto!),
                 fit: BoxFit.cover,
-                width: 42,
-                height: 42,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPhotoPlaceholder(),
+                width: 44,
+                height: 44,
+                errorBuilder: (context, error, stackTrace) => _buildPhotoPlaceholder(),
               ),
             )
           : _buildPhotoPlaceholder(),
@@ -867,6 +879,38 @@ class _MembersContentState extends State<MembersContent> {
         Icons.person,
         size: 22,
         color: Theme.of(context).colorScheme.outline,
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(bool isActive) {
+    final color = isActive ? Colors.green : Colors.red;
+    final label = isActive ? 'Active' : 'Inactive';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4)],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
       ),
     );
   }
@@ -926,36 +970,38 @@ class _MembersContentState extends State<MembersContent> {
         icon = Icons.menu_book;
         label = 'Student';
     }
-    return Tooltip(
-      message: label,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        constraints: const BoxConstraints(maxWidth: 110),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      constraints: const BoxConstraints(maxWidth: 115),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
             ),
-            const SizedBox(width: 3),
-            Icon(icon, size: 12, color: color),
-          ],
-        ),
+            child: Icon(icon, size: 12, color: color),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -967,50 +1013,45 @@ class _MembersContentState extends State<MembersContent> {
     final isNearLimit = count >= maxBooks - 1;
 
     Color badgeColor;
+    IconData badgeIcon;
     if (isAtLimit) {
       badgeColor = Colors.red;
+      badgeIcon = Icons.block;
     } else if (isNearLimit) {
       badgeColor = Colors.orange;
+      badgeIcon = Icons.warning_amber_rounded;
     } else if (count > 0) {
       badgeColor = Colors.blue;
+      badgeIcon = Icons.auto_stories;
     } else {
       badgeColor = Colors.grey;
+      badgeIcon = Icons.menu_book;
     }
 
-    return Tooltip(
-      message: count > 0
-          ? 'Click to view borrowed books ($count/$maxBooks)'
-          : 'No books borrowed (0/$maxBooks)',
-      child: InkWell(
-        onTap: count > 0 ? () => _showBorrowedBooks(member) : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          constraints: const BoxConstraints(maxWidth: 75),
-          decoration: BoxDecoration(
-            color: badgeColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.menu_book, size: 11, color: badgeColor),
-              const SizedBox(width: 3),
-              Flexible(
-                child: Text(
-                  '$count/$maxBooks',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: badgeColor,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+    return InkWell(
+      onTap: count > 0 ? () => _showBorrowedBooks(member) : null,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        constraints: const BoxConstraints(maxWidth: 78),
+        decoration: BoxDecoration(
+          color: badgeColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: badgeColor.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(badgeIcon, size: 12, color: badgeColor),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                '$count/$maxBooks',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: badgeColor),
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1023,49 +1064,6 @@ class _MembersContentState extends State<MembersContent> {
         memberId: member.id,
         memberName: member.name,
         borrowCount: member.borrowCount,
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(bool isActive) {
-    final color = isActive ? Colors.green : Colors.red;
-    final label = isActive ? 'Active' : 'Inactive';
-    return Tooltip(
-      message: label,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        constraints: const BoxConstraints(maxWidth: 80),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color,
-              ),
-            ),
-            const SizedBox(width: 3),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1179,6 +1177,8 @@ class _MembersContentState extends State<MembersContent> {
               Navigator.of(ctx).pop();
               try {
                 await memberProvider.deleteMember(id);
+                // Reload members to reflect deletion in UI
+                await memberProvider.loadMembers();
                 await issueProvider.loadStats();
                 if (mounted) {
                   messenger?.clearSnackBars();
