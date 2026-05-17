@@ -534,6 +534,37 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
     final boldFont = HindiPdfHelper.boldFont;
     final logoBytes = await loadPdfLogo();
 
+    final List<List<String>> transactionRows = [
+      ['Issue ID', (issue['issue_id'] ?? slip['issue_id'] ?? 'N/A').toString()],
+      ['Issue Date', _formatDate(issue['issue_date'] ?? '')],
+      ['Due Date', _formatDate(issue['due_date'] ?? '')],
+      ['Status', _capitalize(issue['status'] ?? 'N/A').toString()],
+    ];
+    final List<List<String>> borrowerRows = [
+      ['Name', _normalizeText(issue['member_name'] ?? 'N/A').toString()],
+      ['Member ID', (issue['member_id'] ?? 'N/A').toString()],
+      ['Type', _capitalize(issue['member_type'] ?? 'N/A').toString()],
+      ['Phone', (issue['member_phone'] ?? 'N/A').toString()],
+      ['Email', (issue['member_email'] ?? 'N/A').toString()],
+    ];
+    final List<List<String>> bookRows = [
+      ['Title', _normalizeText(issue['book_title'] ?? 'N/A').toString()],
+      ['Author', _normalizeText(issue['book_author'] ?? 'N/A').toString()],
+      ['ISBN', (issue['isbn'] ?? 'N/A').toString()],
+      ['Category', _normalizeText(issue['book_category'] ?? 'N/A').toString()],
+      ['Rack #', (issue['rack_number'] ?? 'N/A').toString()],
+    ];
+    final hindiCache = await HindiPdfHelper.preRenderHindiTexts(
+      [
+        ...transactionRows.map((row) => row[1]),
+        ...borrowerRows.map((row) => row[1]),
+        ...bookRows.map((row) => row[1]),
+      ],
+      fontSize: 9,
+      fontWeight: pw.FontWeight.normal,
+      color: PdfColors.black,
+    );
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -652,14 +683,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
               _buildPdfSection(
                 'Transaction Details',
                 PdfColors.blue,
-                [
-                  ['Issue ID', (issue['issue_id'] ?? slip['issue_id'] ?? 'N/A').toString()],
-                  ['Issue Date', _formatDate(issue['issue_date'] ?? '')],
-                  ['Due Date', _formatDate(issue['due_date'] ?? '')],
-                  ['Status', _capitalize(issue['status'] ?? 'N/A')],
-                ],
+                transactionRows,
                 boldFont,
                 baseFont,
+                hindiCache,
               ),
               pw.SizedBox(height: 8),
 
@@ -667,15 +694,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
               _buildPdfSection(
                 'Borrower Details',
                 PdfColors.green800,
-                [
-                  ['Name', _normalizeText(issue['member_name'] ?? 'N/A')],
-                  ['Member ID', (issue['member_id'] ?? 'N/A').toString()],
-                  ['Type', _capitalize(issue['member_type'] ?? 'N/A')],
-                  ['Phone', issue['member_phone'] ?? 'N/A'],
-                  ['Email', issue['member_email'] ?? 'N/A'],
-                ],
+                borrowerRows,
                 boldFont,
                 baseFont,
+                hindiCache,
               ),
               pw.SizedBox(height: 8),
 
@@ -683,15 +705,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
               _buildPdfSection(
                 'Book Details',
                 PdfColors.purple800,
-                [
-                  ['Title', _normalizeText(issue['book_title'] ?? 'N/A')],
-                  ['Author', _normalizeText(issue['book_author'] ?? 'N/A')],
-                  ['ISBN', issue['isbn'] ?? 'N/A'],
-                  ['Category', _normalizeText(issue['book_category'] ?? 'N/A')],
-                  ['Rack #', issue['rack_number'] ?? 'N/A'],
-                ],
+                bookRows,
                 boldFont,
                 baseFont,
+                hindiCache,
               ),
               pw.SizedBox(height: 12),
 
@@ -905,6 +922,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
     List<List<String>> rows,
     pw.Font boldFont,
     pw.Font baseFont,
+    Map<String, HindiRasterText> hindiCache,
   ) {
     return pw.Container(
       decoration: pw.BoxDecoration(
@@ -954,27 +972,32 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                 0: const pw.FixedColumnWidth(100),
                 1: const pw.FlexColumnWidth(1),
               },
-              children: rows.map((row) => pw.TableRow(
-                children: [
-                  pw.Text(
-                    row[0],
-                    style: pw.TextStyle(
-                      font: baseFont,
-                      fontSize: 9,
-                      color: PdfColors.grey600,
-                      fontFallback: HindiPdfHelper.baseFontFallback,
+              children: rows.map((row) {
+                final valueStyle = pw.TextStyle(
+                  font: baseFont,
+                  fontSize: 9,
+                  fontFallback: HindiPdfHelper.baseFontFallback,
+                );
+
+                return pw.TableRow(
+                  children: [
+                    pw.Text(
+                      row[0],
+                      style: pw.TextStyle(
+                        font: baseFont,
+                        fontSize: 9,
+                        color: PdfColors.grey600,
+                        fontFallback: HindiPdfHelper.baseFontFallback,
+                      ),
                     ),
-                  ),
-                  pw.Text(
-                    row[1],
-                    style: pw.TextStyle(
-                      font: baseFont,
-                      fontSize: 9,
-                      fontFallback: HindiPdfHelper.baseFontFallback,
+                    HindiPdfHelper.buildCachedText(
+                      row[1],
+                      style: valueStyle,
+                      cache: hindiCache,
                     ),
-                  ),
-                ],
-              )).toList(),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         ],

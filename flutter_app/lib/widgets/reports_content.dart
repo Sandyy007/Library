@@ -1628,33 +1628,42 @@ class _ReportsContentState extends State<ReportsContent>
       headers = ['Message'];
     }
 
-    // Use Hindi-aware text styles for all cells
-    pw.TextStyle headerStyleFn(int columnIndex) {
-      return pw.TextStyle(
-        font: HindiPdfHelper.boldFont,
-        fontWeight: pw.FontWeight.bold,
-        fontSize: 10,
-        fontFallback: HindiPdfHelper.boldFontFallback,
-      );
-    }
+    final headerStyle = pw.TextStyle(
+      font: HindiPdfHelper.boldFont,
+      fontWeight: pw.FontWeight.bold,
+      fontSize: 10,
+      fontFallback: HindiPdfHelper.boldFontFallback,
+    );
 
-    pw.TextStyle cellStyleFn(int rowIndex, int columnIndex) {
-      return pw.TextStyle(
-        font: HindiPdfHelper.baseFont,
-        fontSize: 10,
-        fontFallback: HindiPdfHelper.baseFontFallback,
-      );
-    }
+    final cellStyle = pw.TextStyle(
+      font: HindiPdfHelper.baseFont,
+      fontSize: 10,
+      fontFallback: HindiPdfHelper.baseFontFallback,
+    );
+
+    final hindiCache = await HindiPdfHelper.preRenderHindiTexts(
+      rows.expand((row) => row),
+      fontSize: 10,
+      fontWeight: pw.FontWeight.normal,
+      color: PdfColors.black,
+    );
 
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: rows,
-      headerStyle: headerStyleFn(0),
+      headerStyle: headerStyle,
       headerDecoration: const pw.BoxDecoration(),
       cellAlignment: pw.Alignment.centerLeft,
-      cellStyle: cellStyleFn(0, 0),
-      headerHeight: 24,
-      cellHeight: 20,
+      cellStyle: cellStyle,
+      cellBuilder: (index, data, rowNum) {
+        return HindiPdfHelper.buildCachedText(
+          data.toString(),
+          style: cellStyle,
+          cache: hindiCache,
+        );
+      },
+      headerHeight: 26,
+      cellHeight: 22,
       cellAlignments: {
         for (int i = 0; i < headers.length; i++) i: pw.Alignment.centerLeft,
       },

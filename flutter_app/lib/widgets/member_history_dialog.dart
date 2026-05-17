@@ -289,6 +289,34 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
       final baseFont = HindiPdfHelper.baseFont;
       final boldFont = HindiPdfHelper.boldFont;
 
+      final memberLine =
+          'Member: ${HindiPdfHelper.normalizeForPdf(widget.memberName)}';
+      final memberCache = await HindiPdfHelper.preRenderHindiTexts(
+        [memberLine],
+        fontSize: 12,
+        fontWeight: pw.FontWeight.normal,
+        color: PdfColors.black,
+      );
+
+      final tableRows = _history.map((issue) {
+        return [
+          HindiPdfHelper.normalizeForPdf(issue.bookTitle),
+          HindiPdfHelper.normalizeForPdf(issue.bookAuthor),
+          DateFormatter.formatDateIndian(issue.issueDate),
+          DateFormatter.formatDateIndian(issue.dueDate),
+          issue.returnDate != null
+              ? DateFormatter.formatDateIndian(issue.returnDate!)
+              : '-',
+          issue.status[0].toUpperCase() + issue.status.substring(1),
+        ];
+      }).toList();
+      final hindiCache = await HindiPdfHelper.preRenderHindiTexts(
+        tableRows.expand((row) => row),
+        fontSize: 9,
+        fontWeight: pw.FontWeight.normal,
+        color: PdfColors.black,
+      );
+
       // Load organization logo
       final logoBytes = await _loadPdfLogo();
 
@@ -299,6 +327,18 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
           pageFormat: PdfPageFormat.a4,
           theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
           build: (context) {
+            final cellStyle = pw.TextStyle(
+              font: baseFont,
+              fontSize: 9,
+              fontFallback: HindiPdfHelper.baseFontFallback,
+            );
+            final headerStyle = pw.TextStyle(
+              font: boldFont,
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+              fontFallback: HindiPdfHelper.boldFontFallback,
+            );
+
             return [
               // Organization Header
               _buildOrgHeader(logoBytes, boldFont, baseFont),
@@ -325,13 +365,14 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                 ),
               ),
               pw.SizedBox(height: 8),
-              pw.Text(
-                'Member: ${HindiPdfHelper.normalizeForPdf(widget.memberName)}',
+              HindiPdfHelper.buildCachedText(
+                memberLine,
                 style: pw.TextStyle(
                   font: baseFont,
                   fontSize: 12,
                   fontFallback: HindiPdfHelper.baseFontFallback,
                 ),
+                cache: memberCache,
               ),
               pw.Text(
                 'Generated: ${DateFormatter.formatDateTimeIndian(DateTime.now().toIso8601String())}',
@@ -473,30 +514,19 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
               pw.SizedBox(height: 16),
               pw.TableHelper.fromTextArray(
                 headers: ['Book Title', 'Author', 'Issue Date', 'Due Date', 'Return Date', 'Status'],
-                data: _history.map((issue) {
-                  return [
-                    HindiPdfHelper.normalizeForPdf(issue.bookTitle),
-                    HindiPdfHelper.normalizeForPdf(issue.bookAuthor),
-                    DateFormatter.formatDateIndian(issue.issueDate),
-                    DateFormatter.formatDateIndian(issue.dueDate),
-                    issue.returnDate != null ? DateFormatter.formatDateIndian(issue.returnDate!) : '-',
-                    issue.status[0].toUpperCase() + issue.status.substring(1),
-                  ];
-                }).toList(),
+                data: tableRows,
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-                headerStyle: pw.TextStyle(
-                  font: boldFont,
-                  fontSize: 10,
-                  fontWeight: pw.FontWeight.bold,
-                  fontFallback: HindiPdfHelper.boldFontFallback,
-                ),
-                cellStyle: pw.TextStyle(
-                  font: baseFont,
-                  fontSize: 9,
-                  fontFallback: HindiPdfHelper.baseFontFallback,
-                ),
+                headerStyle: headerStyle,
+                cellStyle: cellStyle,
+                cellBuilder: (index, data, rowNum) {
+                  return HindiPdfHelper.buildCachedText(
+                    data.toString(),
+                    style: cellStyle,
+                    cache: hindiCache,
+                  );
+                },
                 cellAlignment: pw.Alignment.centerLeft,
-                cellHeight: 18,
+                cellHeight: 20,
                 headerHeight: 22,
               ),
             ];

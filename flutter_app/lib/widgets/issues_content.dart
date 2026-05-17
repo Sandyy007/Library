@@ -324,6 +324,61 @@ class _IssuesContentState extends State<IssuesContent> {
     );
   }
 
+  Widget _buildToolbarButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    Color? color,
+    bool filled = false,
+    bool compact = false,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final effectiveColor = color ?? cs.primary;
+
+    if (compact) {
+      return Tooltip(
+        message: label,
+        child: IconButton(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 18),
+          color: effectiveColor,
+          style: IconButton.styleFrom(
+            backgroundColor: cs.surfaceContainerHighest,
+            shape: const StadiumBorder(),
+          ),
+        ),
+      );
+    }
+
+    if (filled) {
+      return FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: effectiveColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: const StadiumBorder(),
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: effectiveColor,
+        side: BorderSide(color: effectiveColor.withValues(alpha: 0.35)),
+        backgroundColor: effectiveColor.withValues(alpha: 0.06),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: const StadiumBorder(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final issueProvider = Provider.of<IssueProvider>(context);
@@ -331,86 +386,150 @@ class _IssuesContentState extends State<IssuesContent> {
     final memberProvider = Provider.of<MemberProvider>(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 600;
+    final cs = Theme.of(context).colorScheme;
+
+    final filteredIssues = getFilteredIssues(
+      issueProvider.issues,
+      bookProvider.books,
+      memberProvider.members,
+    );
 
     return Scaffold(
       body: Padding(
         padding: EdgeInsets.all(isCompact ? 12 : 20),
         child: Column(
           children: [
-            // Search Bar and Action buttons - all in one bar
+            // Search Bar and Action buttons
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(14),
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.15),
+                  color: cs.outlineVariant.withValues(alpha: 0.2),
                 ),
-              ),
-              child: Row(
-                children: [
-                  // Search field
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search issues...',
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        isDense: true,
-                      ),
-                      onChanged: (value) => _filterIssues(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Export PDF
-                  IconButton(
-                    tooltip: 'Export PDF',
-                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
-                    onPressed: () => _exportIssuesPdf(context),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  // Export CSV
-                  IconButton(
-                    tooltip: 'Export CSV',
-                    icon: const Icon(Icons.table_view_rounded, size: 20),
-                    onPressed: () => _exportIssuesCsv(context),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    onPressed: _loadAllData,
-                    icon: const Icon(Icons.refresh, size: 20),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
-                  // Issue Book button
-                  ElevatedButton.icon(
-                    onPressed: () => _showIssueDialog(
-                      context,
-                      bookProvider.books,
-                      memberProvider.members,
-                    ),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(isCompact ? 'Issue' : 'Issue Book'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
                   ),
                 ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final useColumn = constraints.maxWidth < 860;
+                  final actionButtons = Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      _buildToolbarButton(
+                        context: context,
+                        icon: Icons.picture_as_pdf_rounded,
+                        label: 'Export PDF',
+                        onPressed: () => _exportIssuesPdf(context),
+                        color: Colors.red.shade700,
+                        compact: isCompact,
+                      ),
+                      _buildToolbarButton(
+                        context: context,
+                        icon: Icons.table_view_rounded,
+                        label: 'Export CSV',
+                        onPressed: () => _exportIssuesCsv(context),
+                        color: cs.tertiary,
+                        compact: isCompact,
+                      ),
+                      _buildToolbarButton(
+                        context: context,
+                        icon: Icons.refresh_rounded,
+                        label: 'Refresh',
+                        onPressed: _loadAllData,
+                        color: cs.primary,
+                        compact: isCompact,
+                      ),
+                      _buildToolbarButton(
+                        context: context,
+                        icon: Icons.add_rounded,
+                        label: isCompact ? 'Issue' : 'Issue Book',
+                        onPressed: () => _showIssueDialog(
+                          context,
+                          bookProvider.books,
+                          memberProvider.members,
+                        ),
+                        color: cs.primary,
+                        filled: true,
+                      ),
+                    ],
+                  );
+
+                  final searchField = TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search issues by book, member, or status...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _searchController.text.trim().isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterIssues();
+                                setState(() {});
+                              },
+                            ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: cs.outlineVariant.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: cs.outlineVariant.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: cs.primary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: cs.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      isDense: true,
+                    ),
+                    onChanged: (value) => _filterIssues(),
+                  );
+
+                  if (useColumn) {
+                    return Column(
+                      children: [
+                        searchField,
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: actionButtons,
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: searchField),
+                      const SizedBox(width: 12),
+                      actionButtons,
+                    ],
+                  );
+                },
               ),
             ),
             Expanded(
@@ -419,7 +538,7 @@ class _IssuesContentState extends State<IssuesContent> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                    color: cs.outlineVariant.withValues(alpha: 0.2),
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -484,13 +603,21 @@ class _IssuesContentState extends State<IssuesContent> {
                         onAction: _loadAllData,
                       )
                     : DataTable2(
-                        columnSpacing: 12,
-                        horizontalMargin: 12,
-                        dataRowHeight: 72,
-                        minWidth: 850,
+                        columnSpacing: 16,
+                        horizontalMargin: 16,
+                        dataRowHeight: 70,
+                        headingRowHeight: 52,
+                        minWidth: 920,
                         headingRowColor: WidgetStateProperty.all(
-                          Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2),
+                          cs.surfaceContainerHighest.withValues(alpha: 0.7),
                         ),
+                        headingTextStyle: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
                         columns: const [
                           DataColumn2(label: Text('Book'), size: ColumnSize.L),
                           DataColumn2(label: Text('Member'), size: ColumnSize.M),
@@ -498,14 +625,15 @@ class _IssuesContentState extends State<IssuesContent> {
                           DataColumn2(label: Text('Due Date'), size: ColumnSize.S),
                           DataColumn2(label: Text('Return'), size: ColumnSize.S),
                           DataColumn2(label: Text('Status'), fixedWidth: 105),
-                          DataColumn2(label: Text('Actions'), fixedWidth: 240),
+                          DataColumn2(
+                            label: Align(
+                              alignment: Alignment.center,
+                              child: Text('Actions'),
+                            ),
+                            fixedWidth: 240,
+                          ),
                         ],
-                        rows:
-                            getFilteredIssues(
-                              issueProvider.issues,
-                              bookProvider.books,
-                              memberProvider.members,
-                            ).toList().asMap().entries.map((entry) {
+                        rows: filteredIssues.toList().asMap().entries.map((entry) {
                               final idx = entry.key;
                               final issue = entry.value;
                               final statusColor = issue.status == 'returned'
@@ -633,42 +761,45 @@ class _IssuesContentState extends State<IssuesContent> {
                                     ),
                                   ),
                                   DataCell(
-                                    SizedBox(
-                                      width: 220,
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
-                                        children: [
-                                          _buildActionButton(
-                                            icon: Icons.description_outlined,
-                                            color: Colors.blue.shade700,
-                                            tooltip: 'Generate Slip',
-                                            onTap: () => _generateBorrowSlip(context, issue),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          _buildActionButton(
-                                            icon: Icons.edit_outlined,
-                                            color: Colors.amber.shade700,
-                                            tooltip: 'Edit Issue',
-                                            onTap: () => _showEditIssueDialog(
-                                              context,
-                                              issue,
+                                    Center(
+                                      child: SizedBox(
+                                        width: 220,
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            _buildActionButton(
+                                              icon: Icons.description_outlined,
+                                              color: Colors.blue.shade700,
+                                              tooltip: 'Generate Slip',
+                                              onTap: () => _generateBorrowSlip(context, issue),
                                             ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          _buildActionButton(
-                                            icon: Icons.delete_outline,
-                                            color: Colors.red.shade700,
-                                            tooltip: 'Delete Issue',
-                                            onTap: () => _showDeleteIssueDialog(
-                                              context,
-                                              issue,
+                                            const SizedBox(width: 4),
+                                            _buildActionButton(
+                                              icon: Icons.edit_outlined,
+                                              color: Colors.amber.shade700,
+                                              tooltip: 'Edit Issue',
+                                              onTap: () => _showEditIssueDialog(
+                                                context,
+                                                issue,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          issue.status == 'issued' || issue.status == 'overdue'
-                                              ? _buildReturnButtonFor(issue.id)
-                                              : const SizedBox(width: 0),
-                                        ],
+                                            const SizedBox(width: 4),
+                                            _buildActionButton(
+                                              icon: Icons.delete_outline,
+                                              color: Colors.red.shade700,
+                                              tooltip: 'Delete Issue',
+                                              onTap: () => _showDeleteIssueDialog(
+                                                context,
+                                                issue,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            issue.status == 'issued' ||
+                                                    issue.status == 'overdue'
+                                                ? _buildReturnButtonFor(issue.id)
+                                                : const SizedBox(width: 0),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -687,14 +818,14 @@ class _IssuesContentState extends State<IssuesContent> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: cs.surface,
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
                   border: Border(
                     top: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                      color: cs.outlineVariant.withValues(alpha: 0.2),
                     ),
                   ),
                 ),
@@ -702,7 +833,7 @@ class _IssuesContentState extends State<IssuesContent> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Showing ${issueProvider.issues.length} of ${issueProvider.totalIssues} issues',
+                      'Showing ${filteredIssues.length} of ${issueProvider.totalIssues} issues',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     Row(
@@ -1182,11 +1313,30 @@ class _IssuesContentState extends State<IssuesContent> {
       i.status,
     ]).toList();
 
+    final hindiCache = await HindiPdfHelper.preRenderHindiTexts(
+      normalizedIssues.expand((row) => row),
+      fontSize: 9,
+      fontWeight: pw.FontWeight.normal,
+      color: PdfColors.black,
+    );
+
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
         build: (context) {
+          final cellStyle = pw.TextStyle(
+            font: baseFont,
+            fontSize: 9,
+            fontFallback: HindiPdfHelper.baseFontFallback,
+          );
+          final headerStyle = pw.TextStyle(
+            font: boldFont,
+            fontSize: 10,
+            fontWeight: pw.FontWeight.bold,
+            fontFallback: HindiPdfHelper.boldFontFallback,
+          );
+
           return [
             // Organization Header
             _buildOrgHeader(logoBytes, boldFont, baseFont),
@@ -1234,19 +1384,19 @@ class _IssuesContentState extends State<IssuesContent> {
                 'Status',
               ],
               data: normalizedIssues,
-              cellStyle: pw.TextStyle(
-                font: baseFont,
-                fontSize: 9,
-                fontFallback: HindiPdfHelper.baseFontFallback,
-              ),
-              headerStyle: pw.TextStyle(
-                font: boldFont,
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-                fontFallback: HindiPdfHelper.boldFontFallback,
-              ),
+              cellStyle: cellStyle,
+              cellBuilder: (index, data, rowNum) {
+                return HindiPdfHelper.buildCachedText(
+                  data.toString(),
+                  style: cellStyle,
+                  cache: hindiCache,
+                );
+              },
+              headerStyle: headerStyle,
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
               cellAlignment: pw.Alignment.centerLeft,
+              headerHeight: 22,
+              cellHeight: 20,
             ),
           ];
         },

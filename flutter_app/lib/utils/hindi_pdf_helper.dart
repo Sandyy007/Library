@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' as painting;
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,39 +17,47 @@ class HindiPdfHelper {
   static pw.Font? _latinFont;
   static pw.Font? _latinBoldFont;
   static bool _initialized = false;
-  static bool _fontLoadFailed = false;
+  static bool _usingFallbackFonts = false;
+  static final Map<String, HindiRasterText> _rasterCache = {};
+  static const double _minRasterScale = 3.0; // Higher scale for sharper Hindi text
+  static final Uint8List _transparentPng = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
+  );
 
   /// Initialize Hindi fonts for PDF. Uses bundled fonts with fallbacks.
   /// Works offline in all Flutter platforms.
-  static Future<void> initialize() async {
-    if (_initialized) return;
+  static Future<void> initialize({bool forceReload = false}) async {
+    if (_initialized && !_usingFallbackFonts && !forceReload) return;
+
+    bool loadedHindiFonts = false;
 
     // Try loading bundled Noto Sans Devanagari fonts from assets
-    if (!_fontLoadFailed) {
-      try {
-        final baseData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Regular.ttf');
-        final boldData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Bold.ttf');
-        _baseFont = pw.Font.ttf(baseData);
-        _boldFont = pw.Font.ttf(boldData);
-        if (kDebugMode) debugPrint('HindiPdfHelper: Hindi fonts loaded successfully');
-      } catch (e) {
-        _fontLoadFailed = true;
-        if (kDebugMode) debugPrint('HindiPdfHelper: Bundled Hindi font loading failed: $e');
-      }
+    try {
+      final baseData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Regular.ttf');
+      final boldData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Bold.ttf');
+      _baseFont = pw.Font.ttf(baseData);
+      _boldFont = pw.Font.ttf(boldData);
+      loadedHindiFonts = true;
+      if (kDebugMode) debugPrint('HindiPdfHelper: Hindi fonts loaded successfully');
+    } catch (e) {
+      if (kDebugMode) debugPrint('HindiPdfHelper: Bundled Hindi font loading failed: $e');
     }
 
     // Fallback to Helvetica (always available in PDF package)
-    if (_baseFont == null || _boldFont == null) {
+    if (!loadedHindiFonts) {
+      _usingFallbackFonts = true;
       try {
-        _baseFont = pw.Font.helvetica();
-        _boldFont = pw.Font.helveticaBold();
+        _baseFont ??= pw.Font.helvetica();
+        _boldFont ??= pw.Font.helveticaBold();
         if (kDebugMode) debugPrint('HindiPdfHelper: Using Helvetica fonts');
       } catch (e) {
         // Last resort - use Times
-        _baseFont = pw.Font.times();
-        _boldFont = pw.Font.timesBold();
+        _baseFont ??= pw.Font.times();
+        _boldFont ??= pw.Font.timesBold();
         if (kDebugMode) debugPrint('HindiPdfHelper: Using Times fonts');
       }
+    } else {
+      _usingFallbackFonts = false;
     }
 
     _initLatinFallback();
@@ -71,6 +84,9 @@ class HindiPdfHelper {
   static pw.Font get boldFont {
     return _boldFont ??= pw.Font.helveticaBold();
   }
+
+  /// Whether the helper had to fall back to non-Hindi fonts.
+  static bool get usingFallbackFonts => _usingFallbackFonts;
 
   /// Get the PDF theme with Hindi fonts
   static pw.ThemeData get theme => pw.ThemeData.withFont(
@@ -101,18 +117,193 @@ class HindiPdfHelper {
     return normalizeHindiForPdf(text);
   }
 
+  static String _rasterKey(
+    String text,
+    double fontSize,
+    pw.FontWeight fontWeight,
+    PdfColor? color,
+  ) {
+    final c = color ?? PdfColors.black;
+    final weight = fontWeight == pw.FontWeight.bold ? 'bold' : 'normal';
+    final rgb = '${(c.red * 255).round()}-${(c.green * 255).round()}-${(c.blue * 255).round()}';
+    return '$weight|${fontSize.toStringAsFixed(2)}|$rgb|$text';
+  }
+
+  static double _devicePixelRatio() {
+    final views = ui.PlatformDispatcher.instance.views;
+    if (views.isEmpty) return 1.0;
+    return views.first.devicePixelRatio;
+  }
+
+  static ui.Color _toFlutterColor(PdfColor? color) {
+    final c = color ?? PdfColors.black;
+    return ui.Color.fromARGB(
+      255,
+      (c.red * 255).round(),
+      (c.green * 255).round(),
+      (c.blue * 255).round(),
+    );
+  }
+
+  static painting.FontWeight _toFlutterFontWeight(pw.FontWeight weight) {
+    return weight == pw.FontWeight.bold
+      ? painting.FontWeight.w800  // Bolder for sharper PDF rendering
+      : painting.FontWeight.w600;
+  }
+
+  static Future<HindiRasterText> _rasterizeHindiText(
+    String text, {
+    required double fontSize,
+    required pw.FontWeight fontWeight,
+    PdfColor? color,
+  }) async {
+    final key = _rasterKey(text, fontSize, fontWeight, color);
+    final cached = _rasterCache[key];
+    if (cached != null) return cached;
+
+    final dpr = _devicePixelRatio();
+    final scale = math.max(dpr, _minRasterScale);
+    final painter = painting.TextPainter(
+      text: painting.TextSpan(
+        text: text,
+        style: painting.TextStyle(
+          fontFamily: 'NotoSansDevanagari',
+          fontSize: fontSize,
+          fontWeight: _toFlutterFontWeight(fontWeight),
+          color: _toFlutterColor(color),
+        ),
+      ),
+      textDirection: painting.TextDirection.ltr,
+    );
+
+    painter.layout();
+    final width = painter.width <= 0 ? 1.0 : painter.width;
+    final height = painter.height <= 0 ? 1.0 : painter.height;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.scale(scale, scale);
+    painter.paint(canvas, ui.Offset.zero);
+    final picture = recorder.endRecording();
+
+    final image = await picture.toImage(
+      (width * scale).ceil().clamp(1, 4096),
+      (height * scale).ceil().clamp(1, 4096),
+    );
+
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (bytes == null) {
+      final fallback = HindiRasterText(
+        image: pw.MemoryImage(_transparentPng),
+        width: width,
+        height: height,
+      );
+      _rasterCache[key] = fallback;
+      return fallback;
+    }
+
+    final raster = HindiRasterText(
+      image: pw.MemoryImage(bytes.buffer.asUint8List()),
+      width: width,
+      height: height,
+    );
+    _rasterCache[key] = raster;
+    return raster;
+  }
+
+  /// Pre-render Hindi text into images for reliable PDF output.
+  static Future<Map<String, HindiRasterText>> preRenderHindiTexts(
+    Iterable<String> texts, {
+    double fontSize = 10,
+    pw.FontWeight fontWeight = pw.FontWeight.normal,
+    PdfColor? color,
+  }) async {
+    final unique = <String>{};
+    for (final text in texts) {
+      final normalized = normalizeForPdf(text);
+      if (normalized.isEmpty) continue;
+      if (!containsDevanagari(normalized)) continue;
+      unique.add(normalized);
+    }
+
+    final results = <String, HindiRasterText>{};
+    for (final text in unique) {
+      results[text] = await _rasterizeHindiText(
+        text,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    }
+    return results;
+  }
+
+  /// Adjust text style to avoid clipping Hindi diacritics in PDFs.
+  static pw.TextStyle applyHindiMetrics(String text, pw.TextStyle style) {
+    if (!containsDevanagari(text)) return style;
+
+    final baseHeight = style.height ?? 1.0;
+    final height = baseHeight < 1.15 ? 1.15 : baseHeight;
+    return style.copyWith(height: height);
+  }
+
   /// Create a pw.Text widget with Hindi support.
   static pw.Text text(
     String text, {
     pw.TextStyle? style,
     pw.TextAlign textAlign = pw.TextAlign.left,
   }) {
-    final effectiveStyle = style ?? baseStyle();
+    final normalized = normalizeForPdf(text);
+    final effectiveStyle = applyHindiMetrics(normalized, style ?? baseStyle());
     return pw.Text(
-      normalizeForPdf(text),
+      normalized,
       style: effectiveStyle,
       textAlign: textAlign,
     );
+  }
+
+  /// Build a PDF widget using a pre-rendered Hindi cache if available.
+  /// Uses higher contrast color for sharper appearance.
+  static pw.Widget buildCachedText(
+    String text, {
+    required pw.TextStyle style,
+    Map<String, HindiRasterText>? cache,
+    pw.TextAlign textAlign = pw.TextAlign.left,
+  }) {
+    final normalized = normalizeForPdf(text);
+
+    // Use cached rasterized image if available
+    if (cache != null && cache.containsKey(normalized)) {
+      final raster = cache[normalized]!;
+      return pw.Image(
+        raster.image,
+        width: raster.width,
+        height: raster.height,
+      );
+    }
+
+    // Fallback to direct text rendering with high contrast
+    final effectiveStyle = applyHindiMetrics(
+      normalized,
+      style.copyWith(
+        color: _ensureHighContrastColor(style.color),
+      ),
+    );
+    return pw.Text(
+      normalized,
+      style: effectiveStyle,
+      textAlign: textAlign,
+    );
+  }
+
+  /// Ensure color has high contrast for better visibility
+  static PdfColor? _ensureHighContrastColor(PdfColor? color) {
+    if (color == null) return PdfColors.grey900;
+    // If color is very light, use darker version
+    if (color.red > 0.7 && color.green > 0.7 && color.blue > 0.7) {
+      return PdfColors.grey900;
+    }
+    return color;
   }
 
   /// Create a pw.Text widget with Hindi support and custom styling.
@@ -124,15 +315,18 @@ class HindiPdfHelper {
     pw.TextAlign textAlign = pw.TextAlign.left,
   }) {
     final isBold = fontWeight == pw.FontWeight.bold;
+    final normalized = normalizeForPdf(text);
+    final baseStyle = pw.TextStyle(
+      font: isBold ? boldFont : baseFont,
+      fontSize: fontSize,
+      color: color,
+      fontWeight: fontWeight,
+      fontFallback: isBold ? boldFontFallback : baseFontFallback,
+    );
+    final effectiveStyle = applyHindiMetrics(normalized, baseStyle);
     return pw.Text(
-      normalizeForPdf(text),
-      style: pw.TextStyle(
-        font: isBold ? boldFont : baseFont,
-        fontSize: fontSize,
-        color: color,
-        fontWeight: fontWeight,
-        fontFallback: isBold ? boldFontFallback : baseFontFallback,
-      ),
+      normalized,
+      style: effectiveStyle,
       textAlign: textAlign,
     );
   }
@@ -195,6 +389,18 @@ class HindiPdfHelper {
     fontWeight: pw.FontWeight.bold,
     fontFallback: boldFontFallback,
   );
+}
+
+class HindiRasterText {
+  const HindiRasterText({
+    required this.image,
+    required this.width,
+    required this.height,
+  });
+
+  final pw.MemoryImage image;
+  final double width;
+  final double height;
 }
 
 /// Extension for easier text normalization in PDF generation

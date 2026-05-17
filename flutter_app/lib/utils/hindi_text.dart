@@ -107,7 +107,14 @@ String normalizeHindiForDisplay(String text) {
 /// from book titles. We still convert legacy Hindi to Unicode and strip
 /// leading junk symbols, but we do not remove content using garbled patterns.
 String normalizeHindiForPdf(String text) {
-  return normalizeHindiForDisplay(text);
+  // Convert legacy Hindi to Unicode if needed, but avoid aggressive
+  // garbled-pattern cleanup for PDFs so book titles stay intact.
+  String result = normalizeLegacyHindiToUnicode(text);
+
+  // Strip only leading junk symbols; keep the rest as-is.
+  result = _stripLeadingSymbols(result);
+
+  return result.trim();
 }
 
 TextStyle hindiAwareTextStyle(
