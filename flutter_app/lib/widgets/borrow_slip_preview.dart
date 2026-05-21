@@ -18,16 +18,15 @@ class BorrowSlipPreview extends StatefulWidget {
 }
 
 class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
-  bool _isDarkMode = false;
-
   @override
   Widget build(BuildContext context) {
     final slip = widget.slipData;
     final issue = _extractIssueDataFromSlip(slip);
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Dialog(
-      backgroundColor: _isDarkMode ? Colors.grey[900] : Colors.white,
+      backgroundColor: colorScheme.surface,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width < 600
@@ -42,18 +41,14 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: _isDarkMode
-                    ? Colors.grey[850]
-                    : theme.colorScheme.primaryContainer,
+                color: colorScheme.primaryContainer,
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.receipt_long,
                     size: 24,
-                    color: _isDarkMode
-                        ? Colors.white
-                        : theme.colorScheme.primary,
+                    color: colorScheme.primary,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -65,16 +60,14 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: _isDarkMode ? Colors.white : Colors.black87,
+                            color: colorScheme.onPrimaryContainer,
                           ),
                         ),
                         Text(
                           'Slip #: ${slip['slip_number'] ?? 'N/A'}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: _isDarkMode
-                                ? Colors.grey[400]
-                                : Colors.black54,
+                            color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -82,16 +75,8 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                   ),
                   IconButton(
                     icon: Icon(
-                      _isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                      color: _isDarkMode ? Colors.white : Colors.black54,
-                    ),
-                    onPressed: () => setState(() => _isDarkMode = !_isDarkMode),
-                    tooltip: _isDarkMode ? 'Light Mode' : 'Dark Mode',
-                  ),
-                  IconButton(
-                    icon: Icon(
                       Icons.close,
-                      color: _isDarkMode ? Colors.white : Colors.black54,
+                      color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -110,7 +95,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                color: colorScheme.surfaceContainerHighest,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -136,10 +121,12 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
   }
 
   Widget _buildSlipContent(Map<String, dynamic> issue) {
-    final cardBg = _isDarkMode ? Colors.grey[800] : Colors.grey[50];
-    final dividerColor = _isDarkMode ? Colors.grey[700]! : Colors.grey[300]!;
-    final textColor = _isDarkMode ? Colors.white : Colors.black87;
-    final subTextColor = _isDarkMode ? Colors.grey[400]! : Colors.grey[600]!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final cardBg = colorScheme.surfaceContainerHighest;
+    final dividerColor = colorScheme.outlineVariant;
+    final textColor = colorScheme.onSurface;
+    final subTextColor = colorScheme.onSurface.withValues(alpha: 0.6);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,13 +136,14 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: _isDarkMode
-                  ? [Colors.blueGrey[800]!, Colors.blueGrey[900]!]
-                  : [Colors.blue[50]!, Colors.blue[100]!],
+              colors: [
+                colorScheme.primaryContainer,
+                colorScheme.primaryContainer.withValues(alpha: 0.7),
+              ],
             ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: _isDarkMode ? Colors.blueGrey[600]! : Colors.blue[200]!,
+              color: colorScheme.primary.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -164,15 +152,13 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: _isDarkMode
-                      ? Colors.blueGrey[700]
-                      : Colors.blue.withValues(alpha: 0.15),
+                  color: colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.local_library,
                   size: 40,
-                  color: _isDarkMode ? Colors.blue[200] : Colors.blue[700],
+                  color: colorScheme.primary,
                 ),
               ),
               const SizedBox(width: 16),
@@ -185,7 +171,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.blue[200] : Colors.blue[700],
+                        color: colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -209,7 +195,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             decoration: BoxDecoration(
-              color: _isDarkMode ? Colors.blue[700] : Colors.blue[800],
+              color: colorScheme.primary,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -235,7 +221,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
         _buildSection(
           title: 'Transaction Details',
           icon: Icons.swap_horiz,
-          color: Colors.blue,
+          color: colorScheme.primary,
           children: [
             _buildInfoRow('Issue ID', (issue['issue_id'] ?? widget.slipData['issue_id'] ?? 'N/A').toString(), textColor, subTextColor),
             _buildInfoRow('Issue Date', _formatDate(issue['issue_date'] ?? ''), textColor, subTextColor),
@@ -251,7 +237,9 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
         _buildSection(
           title: 'Borrower Details',
           icon: Icons.person,
-          color: Colors.green,
+          color: theme.brightness == Brightness.dark
+              ? colorScheme.tertiary
+              : colorScheme.primary,
           children: [
             _buildInfoRow('Name', _normalizeText(issue['member_name'] ?? 'N/A'), textColor, subTextColor),
             _buildInfoRow('Member ID', (issue['member_id'] ?? 'N/A').toString(), textColor, subTextColor),
@@ -268,7 +256,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
         _buildSection(
           title: 'Book Details',
           icon: Icons.menu_book,
-          color: Colors.purple,
+          color: colorScheme.secondary,
           children: [
             _buildInfoRow('Title', _normalizeText(issue['book_title'] ?? 'N/A'), textColor, subTextColor),
             _buildInfoRow('Author', _normalizeText(issue['book_author'] ?? 'N/A'), textColor, subTextColor),
@@ -286,7 +274,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: _isDarkMode ? [Colors.grey[800]!, Colors.grey[850]!] : [Colors.grey[50]!, Colors.grey[100]!],
+              colors: [colorScheme.surfaceContainerHighest, colorScheme.surfaceContainerHighest.withValues(alpha: 0.7)],
             ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: dividerColor),
@@ -307,9 +295,9 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildSignatureBox('Borrower', Colors.blue, dividerColor, textColor, subTextColor)),
+                  Expanded(child: _buildSignatureBox('Borrower', colorScheme.primary, dividerColor, textColor, subTextColor)),
                   const SizedBox(width: 24),
-                  Expanded(child: _buildSignatureBox('Librarian', Colors.green, dividerColor, textColor, subTextColor)),
+                  Expanded(child: _buildSignatureBox('Librarian', theme.brightness == Brightness.dark ? colorScheme.tertiary : colorScheme.primary, dividerColor, textColor, subTextColor)),
                 ],
               ),
             ],
@@ -321,18 +309,18 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _isDarkMode ? Colors.orange[900]!.withValues(alpha: 0.3) : Colors.orange.withValues(alpha: 0.1),
+            color: colorScheme.errorContainer.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
-              Icon(Icons.info_outline, size: 16, color: _isDarkMode ? Colors.orange[300] : Colors.orange[700]),
+              Icon(Icons.info_outline, size: 16, color: colorScheme.error),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Please return the book on or before the due date. Late returns may incur fines.',
-                  style: TextStyle(fontSize: 11, color: _isDarkMode ? Colors.orange[200] : Colors.orange[800]),
-                ),
+                  child: Text(
+                    'Please return the book on or before the due date. Late returns may incur fines.',
+                    style: TextStyle(fontSize: 11, color: colorScheme.onErrorContainer.withValues(alpha: 0.8)),
+                  ),
               ),
             ],
           ),

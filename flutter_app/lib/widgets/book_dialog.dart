@@ -88,12 +88,18 @@ class _BookDialogState extends State<BookDialog> {
     final isEditing = widget.book != null;
     final colorScheme = Theme.of(context).colorScheme;
     final screenSize = MediaQuery.of(context).size;
+    final isVerySmallScreen = screenSize.width < 480;
     final isSmallScreen = screenSize.width < 700;
-    final maxWidth = (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
+    final maxWidth = isVerySmallScreen
+        ? screenSize.width * 0.95
+        : (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
     final maxHeight = screenSize.height * 0.92;
 
     return Dialog(
-      insetPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8 : 24, vertical: 16),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isVerySmallScreen ? 4 : (isSmallScreen ? 8 : 24),
+        vertical: isVerySmallScreen ? 8 : 16,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
         child: Container(
@@ -114,11 +120,13 @@ class _BookDialogState extends State<BookDialog> {
               _buildHeader(colorScheme, isEditing),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme),
-                  ),
+                  padding: EdgeInsets.all(isVerySmallScreen ? 16 : 24),
+                    child: Form(
+                      key: _formKey,
+                      child: isVerySmallScreen
+                          ? _buildCompactLayout(colorScheme, veryCompact: true)
+                          : (isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme)),
+                    ),
                 ),
               ),
               _buildFooter(colorScheme, isEditing),
@@ -130,8 +138,14 @@ class _BookDialogState extends State<BookDialog> {
   }
 
   Widget _buildHeader(ColorScheme colorScheme, bool isEditing) {
+    final isVerySmallScreen = MediaQuery.of(context).size.width < 480;
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+      padding: EdgeInsets.fromLTRB(
+        isVerySmallScreen ? 16 : 24,
+        isVerySmallScreen ? 14 : 20,
+        isVerySmallScreen ? 8 : 16,
+        isVerySmallScreen ? 14 : 20,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -146,54 +160,57 @@ class _BookDialogState extends State<BookDialog> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isVerySmallScreen ? 8 : 12),
             decoration: BoxDecoration(
               color: colorScheme.primary,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
             ),
-            child: Icon(isEditing ? Icons.edit_square : Icons.library_add, color: colorScheme.onPrimary, size: 24),
+            child: Icon(isEditing ? Icons.edit_square : Icons.library_add, color: colorScheme.onPrimary, size: isVerySmallScreen ? 20 : 24),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isVerySmallScreen ? 10 : 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   isEditing ? 'Edit Book' : 'Add New Book',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer, fontSize: isVerySmallScreen ? 16 : null),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  isEditing ? 'Update book information and details' : 'Fill in the details to add a new book',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
-                ),
+                if (!isVerySmallScreen) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    isEditing ? 'Update book information and details' : 'Fill in the details to add a new book',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
+                  ),
+                ],
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: colorScheme.surface.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+          if (!isVerySmallScreen)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.surface.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_stories, size: 16, color: colorScheme.onPrimaryContainer),
+                  const SizedBox(width: 6),
+                  Text('Library', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colorScheme.onPrimaryContainer)),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.auto_stories, size: 16, color: colorScheme.onPrimaryContainer),
-                const SizedBox(width: 6),
-                Text('Library', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colorScheme.onPrimaryContainer)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
+          SizedBox(width: isVerySmallScreen ? 4 : 8),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: Container(
-              padding: const EdgeInsets.all(6),
+              padding: EdgeInsets.all(isVerySmallScreen ? 4 : 6),
               decoration: BoxDecoration(color: colorScheme.surface.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
-              child: Icon(Icons.close, size: 20, color: colorScheme.onPrimaryContainer),
+              child: Icon(Icons.close, size: isVerySmallScreen ? 18 : 20, color: colorScheme.onPrimaryContainer),
             ),
           ),
         ],
@@ -206,7 +223,7 @@ class _BookDialogState extends State<BookDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 200,
+          width: 210,
           child: Column(
             children: [
               _buildCoverCard(colorScheme),
@@ -221,19 +238,34 @@ class _BookDialogState extends State<BookDialog> {
     );
   }
 
-  Widget _buildCompactLayout(ColorScheme colorScheme) {
+  Widget _buildCompactLayout(ColorScheme colorScheme, {bool veryCompact = false}) {
     return Column(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCoverCard(colorScheme, compact: true),
-            const SizedBox(width: 20),
-            Expanded(child: _buildFormSection(colorScheme, compact: true)),
-          ],
-        ),
-        const SizedBox(height: 24),
-        if (_isInitialized) _buildCopiesCard(colorScheme),
+        if (veryCompact)
+          Column(
+            children: [
+              Center(child: _buildCoverCard(colorScheme, compact: true)),
+              const SizedBox(height: 16),
+              if (_isInitialized) _buildCopiesCard(colorScheme),
+              const SizedBox(height: 16),
+              _buildFormSection(colorScheme, compact: true),
+            ],
+          )
+        else
+          Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCoverCard(colorScheme, compact: true),
+                  const SizedBox(width: 20),
+                  Expanded(child: _buildFormSection(colorScheme, compact: true)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (_isInitialized) _buildCopiesCard(colorScheme),
+            ],
+          ),
       ],
     );
   }
@@ -251,8 +283,8 @@ class _BookDialogState extends State<BookDialog> {
           Stack(
             children: [
               Container(
-                width: compact ? 100 : 160,
-                height: compact ? 140 : 200,
+                width: compact ? 110 : 170,
+                height: compact ? 150 : 220,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   gradient: LinearGradient(
@@ -262,7 +294,7 @@ class _BookDialogState extends State<BookDialog> {
                   ),
                   border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 2),
                 ),
-                child: ClipRRect(borderRadius: BorderRadius.circular(14), child: _buildImagePreview()),
+                child: ClipRRect(borderRadius: BorderRadius.circular(14), child: _buildImagePreview(compact: compact)),
               ),
               Positioned(
                 bottom: 8,
@@ -367,49 +399,51 @@ class _BookDialogState extends State<BookDialog> {
 
   Widget _buildFormSection(ColorScheme colorScheme, {bool compact = false}) {
     final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
+    final sp = compact ? 12.0 : 16.0;
+    final sectionSp = compact ? 24.0 : 32.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle('Book Information', Icons.book_outlined),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _titleController, label: 'Title', hint: 'Enter book title', icon: Icons.book_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Title is required' : null, style: hindiAwareTextStyle(context, text: _titleController.text, base: baseFieldStyle))),
             if (!compact) ...[
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
               Expanded(flex: 2, child: _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code)),
             ],
           ],
         ),
         if (compact) ...[
-          const SizedBox(height: 16),
+          SizedBox(height: sp),
           _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code),
         ],
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 2, child: _buildTextField(controller: _authorController, label: 'Author', hint: 'Enter author name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Author is required' : null, style: hindiAwareTextStyle(context, text: _authorController.text, base: baseFieldStyle))),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(child: _buildTextField(controller: _rackNumberController, label: 'Rack No.', hint: 'A-12', icon: Icons.location_on_outlined)),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         Row(
           children: [
             Expanded(flex: 2, child: _buildTextField(controller: _publisherController, label: 'Publisher', hint: 'Enter publisher', icon: Icons.business, style: hindiAwareTextStyle(context, text: _publisherController.text, base: baseFieldStyle))),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(child: _buildTextField(controller: _yearController, label: 'Year', hint: '2024', icon: Icons.calendar_today, keyboardType: TextInputType.number)),
           ],
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: sectionSp),
         _buildSectionTitle('Classification', Icons.category_outlined),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         if (!_categoriesLoading) _buildCategorySelector(colorScheme) else const LinearProgressIndicator(),
-        const SizedBox(height: 28),
+        SizedBox(height: sectionSp),
         _buildSectionTitle('Additional Details', Icons.description_outlined),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         _buildTextField(controller: _descriptionController, label: 'Description', hint: 'Enter book description', icon: Icons.description, maxLines: 3, style: hindiAwareTextStyle(context, text: _descriptionController.text, base: baseFieldStyle)),
       ],
     );
@@ -420,11 +454,19 @@ class _BookDialogState extends State<BookDialog> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: colorScheme.primaryContainer.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colorScheme.primaryContainer,
+                colorScheme.primaryContainer.withValues(alpha: 0.5),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
           child: Icon(icon, size: 18, color: colorScheme.primary),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
       ],
     );
@@ -496,39 +538,11 @@ class _BookDialogState extends State<BookDialog> {
             style: TextStyle(fontSize: 11, color: colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 6),
-          SizedBox(
-            height: 32,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: allCategories.length + 1,
-              separatorBuilder: (_, _) => const SizedBox(width: 6),
-              itemBuilder: (context, index) {
-                if (index == allCategories.length) {
-                  // Add new category button
-                  return GestureDetector(
-                    onTap: () => _showAddCategoryDialog(colorScheme),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: colorScheme.primary, style: BorderStyle.solid),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, size: 14, color: colorScheme.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            'New',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.primary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                final category = allCategories[index];
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              ...allCategories.map((category) {
                 final isSelected = _selectedCategory == category;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedCategory = category),
@@ -551,8 +565,30 @@ class _BookDialogState extends State<BookDialog> {
                     ),
                   ),
                 );
-              },
-            ),
+              }),
+              GestureDetector(
+                onTap: () => _showAddCategoryDialog(colorScheme),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: colorScheme.primary, style: BorderStyle.solid),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 14, color: colorScheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'New',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ],
@@ -611,8 +647,14 @@ class _BookDialogState extends State<BookDialog> {
   }
 
   Widget _buildFooter(ColorScheme colorScheme, bool isEditing) {
+    final isVerySmallScreen = MediaQuery.of(context).size.width < 480;
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      padding: EdgeInsets.fromLTRB(
+        isVerySmallScreen ? 16 : 24,
+        isVerySmallScreen ? 14 : 20,
+        isVerySmallScreen ? 16 : 24,
+        isVerySmallScreen ? 14 : 20,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
@@ -638,10 +680,12 @@ class _BookDialogState extends State<BookDialog> {
     );
   }
 
-  Widget _buildImagePreview() {
-    if (_selectedImageBytes != null) return Image.memory(_selectedImageBytes!, fit: BoxFit.cover, width: 160, height: 200);
+  Widget _buildImagePreview({bool compact = false}) {
+    final width = compact ? 110.0 : 170.0;
+    final height = compact ? 150.0 : 220.0;
+    if (_selectedImageBytes != null) return Image.memory(_selectedImageBytes!, fit: BoxFit.cover, width: width, height: height);
     if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
-      return Image.network(ApiService.resolvePublicUrl(_coverImageUrl!), fit: BoxFit.cover, width: 160, height: 200, loadingBuilder: (context, child, loadingProgress) {
+      return Image.network(ApiService.resolvePublicUrl(_coverImageUrl!), fit: BoxFit.cover, width: width, height: height, loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return Center(child: CircularProgressIndicator(value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null, strokeWidth: 2));
       }, errorBuilder: (context, error, stackTrace) => _buildPlaceholder());

@@ -91,16 +91,11 @@ class _DashboardContentState extends State<DashboardContent>
     // Delay animation start to avoid timing issues with hot reload
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Use microtask to defer animation start outside device update cycle
-      Future.microtask(() {
-        if (mounted && !_floatController.isDismissed) {
-          try {
-            _floatController.repeat();
-          } catch (e) {
-            debugPrint('Float animation error: $e');
-          }
-        }
-      });
+      try {
+        _floatController.repeat();
+      } catch (e) {
+        debugPrint('Float animation error: $e');
+      }
       _refreshAll(showLoading: true, includeStats: true);
 
       // Periodic refresh for realtime-ish updates (other clients).
@@ -1166,6 +1161,7 @@ class _DashboardContentState extends State<DashboardContent>
   }
 
   Widget _buildAlertsCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final alerts = _alerts;
     final kpis = (alerts?['kpis'] as Map?)?.cast<String, dynamic>() ?? {};
     final densityMode = _resolveDensityMode(context);
@@ -1180,7 +1176,7 @@ class _DashboardContentState extends State<DashboardContent>
             context,
             title: 'Overdue',
             icon: Icons.warning_rounded,
-            color: Colors.red,
+            color: const Color(0xFFEF4444),
             section: alerts['overdue'],
             actions: const ['remind', 'return'],
           ),
@@ -1192,7 +1188,7 @@ class _DashboardContentState extends State<DashboardContent>
             context,
             title: 'Due today',
             icon: Icons.today_rounded,
-            color: Colors.orange,
+            color: const Color(0xFFF59E0B),
             section: alerts['dueToday'],
             actions: const ['remind', 'return'],
           ),
@@ -1204,7 +1200,7 @@ class _DashboardContentState extends State<DashboardContent>
             context,
             title: 'Due tomorrow',
             icon: Icons.event_rounded,
-            color: Colors.amber,
+            color: const Color(0xFFD97706),
             section: alerts['dueTomorrow'],
             actions: const [],
           ),
@@ -1223,10 +1219,7 @@ class _DashboardContentState extends State<DashboardContent>
         sections.add(_buildMostIssuedBooksSection(context, alerts['mostIssuedBooks']));
       }
     }
-    return _buildFloatingCard(
-      context,
-      offsetSeed: 0.12,
-      child: ClipRRect(
+    return ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Card(
           elevation: 12,
@@ -1244,20 +1237,20 @@ class _DashboardContentState extends State<DashboardContent>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.amber.shade600,
-                            Colors.amber.shade400,
+                            colorScheme.error,
+                            colorScheme.error.withValues(alpha: 0.7),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.amber.shade300.withValues(alpha: 0.5),
+                          color: colorScheme.error.withValues(alpha: 0.5),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.amber.shade400.withValues(alpha: 0.35),
+                            color: colorScheme.error.withValues(alpha: 0.35),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -1266,7 +1259,7 @@ class _DashboardContentState extends State<DashboardContent>
                       child: Icon(
                         Icons.notification_important_rounded,
                         size: 20,
-                        color: Colors.white,
+                        color: colorScheme.onError,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1380,11 +1373,11 @@ class _DashboardContentState extends State<DashboardContent>
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildActivityCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final densityMode = _resolveDensityMode(context);
     final filteredActivity = _activity.where((item) {
       final type = item['type']?.toString() ?? '';
@@ -1412,43 +1405,43 @@ class _DashboardContentState extends State<DashboardContent>
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.teal.shade600,
-                          Colors.teal.shade400,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.teal.shade300.withValues(alpha: 0.5),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.teal.shade400.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            colorScheme.primary,
+                            colorScheme.primary.withValues(alpha: 0.7),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.history_rounded,
+                        size: 20,
+                        color: colorScheme.onPrimary,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.history_rounded,
-                      size: 20,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recent Activity',
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Recent Activity',
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
@@ -1767,8 +1760,7 @@ class _DashboardContentState extends State<DashboardContent>
     required Widget child,
     double offsetSeed = 0,
   }) {
-    // Return card without floating animation to avoid mouse tracker assertion issues on desktop
-    return RepaintBoundary(child: child);
+    return child;
   }
 
   Widget _buildPaginationButton({
@@ -2256,6 +2248,7 @@ class _DashboardContentState extends State<DashboardContent>
   }) async {
     if (!mounted) return;
     final rootContext = ctx;
+    final colorScheme = Theme.of(rootContext).colorScheme;
     final int popupPageSize = 10;
     int currentPage = 1;
     int totalPages = items.isNotEmpty ? ((items.length + popupPageSize - 1) ~/ popupPageSize) : 1;
@@ -2495,6 +2488,7 @@ class _DashboardContentState extends State<DashboardContent>
   }
 
   Future<void> _showAllLowStockPopup(BuildContext ctx, int totalCount) async {
+    final colorScheme = Theme.of(ctx).colorScheme;
     int currentPage = 1;
     int resolvedTotalCount = totalCount;
     int totalPages = totalCount > 0
@@ -2586,7 +2580,7 @@ class _DashboardContentState extends State<DashboardContent>
             return AlertDialog(
               title: Row(
                 children: [
-                  const Icon(Icons.inventory_2_rounded, color: Colors.blueGrey),
+                  Icon(Icons.inventory_2_rounded, color: colorScheme.outline),
                   const SizedBox(width: 12),
                   Expanded(child: Text('Low Stock Books ($resolvedTotalCount)')),
                 ],
@@ -2626,7 +2620,7 @@ class _DashboardContentState extends State<DashboardContent>
                                   dialogContext,
                                   item,
                                   'lowstock',
-                                  Colors.blueGrey,
+                                  colorScheme.outline,
                                   const [],
                                 );
                               },
@@ -2759,13 +2753,14 @@ class _DashboardContentState extends State<DashboardContent>
       final issueDateText = DateFormatter.formatDateIndian(issueDate);
       final isOverdue = daysOverdue.isNotEmpty && int.tryParse(daysOverdue) != null && int.parse(daysOverdue) > 0;
 
+      final overdueColor = const Color(0xFFEF4444);
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: isOverdue ? Colors.red.withValues(alpha: 0.05) : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: isOverdue ? overdueColor.withValues(alpha: 0.05) : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isOverdue ? Colors.red.withValues(alpha: 0.2) : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+            color: isOverdue ? overdueColor.withValues(alpha: 0.2) : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
           ),
           boxShadow: [
             BoxShadow(
@@ -2784,7 +2779,7 @@ class _DashboardContentState extends State<DashboardContent>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    isOverdue ? Colors.red.withValues(alpha: 0.1) : color.withValues(alpha: 0.1),
+                    isOverdue ? overdueColor.withValues(alpha: 0.1) : color.withValues(alpha: 0.1),
                     Colors.transparent,
                   ],
                 ),
@@ -2796,12 +2791,12 @@ class _DashboardContentState extends State<DashboardContent>
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isOverdue ? Colors.red.withValues(alpha: 0.15) : color.withValues(alpha: 0.15),
+                      color: isOverdue ? overdueColor.withValues(alpha: 0.15) : color.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       Icons.menu_book_rounded,
-                      color: isOverdue ? Colors.red : color,
+                      color: isOverdue ? overdueColor : color,
                       size: 24,
                     ),
                   ),
@@ -2838,19 +2833,19 @@ class _DashboardContentState extends State<DashboardContent>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.15),
+                        color: overdueColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                        border: Border.all(color: overdueColor.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.warning_rounded, size: 14, color: Colors.red),
+                          Icon(Icons.warning_rounded, size: 14, color: overdueColor),
                           const SizedBox(width: 4),
                           Text(
                             '$daysOverdue days',
                             style: TextStyle(
-                              color: Colors.red,
+                              color: overdueColor,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -2891,7 +2886,7 @@ class _DashboardContentState extends State<DashboardContent>
                     icon: Icons.event_rounded,
                     label: 'Due Date',
                     value: dueDateText.isEmpty ? '-' : dueDateText,
-                    color: isOverdue ? Colors.red : color,
+                    color: isOverdue ? overdueColor : color,
                     isHighlighted: isOverdue,
                   ),
                   // Overdue warning
@@ -2900,18 +2895,18 @@ class _DashboardContentState extends State<DashboardContent>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
+                        color: overdueColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, size: 16, color: Colors.red.shade700),
+                          Icon(Icons.info_outline_rounded, size: 16, color: overdueColor),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'This book is overdue by $daysOverdue days',
                               style: TextStyle(
-                                color: Colors.red.shade700,
+                                color: overdueColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -3033,7 +3028,7 @@ class _DashboardContentState extends State<DashboardContent>
         Icon(
           icon,
           size: 18,
-          color: isHighlighted ? Colors.red : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+          color: isHighlighted ? const Color(0xFFEF4444) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
         ),
         const SizedBox(width: 10),
         SizedBox(
@@ -3052,7 +3047,7 @@ class _DashboardContentState extends State<DashboardContent>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isHighlighted ? Colors.red : Theme.of(context).colorScheme.onSurface,
+              color: isHighlighted ? const Color(0xFFEF4444) : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -3083,9 +3078,9 @@ class _DashboardContentState extends State<DashboardContent>
                   width: 120,
                   child: Text(
                     _formatKey(e.key),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -3157,7 +3152,7 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
-    const color = Colors.blueGrey;
+    const color = Color(0xFF6B7280);
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -3298,14 +3293,14 @@ class _DashboardContentState extends State<DashboardContent>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$available left',
-                      style: TextStyle(
-                        color: Colors.orange.shade700,
-                        fontSize: 11,
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$available left',
+                    style: TextStyle(
+                      color: const Color(0xFFF59E0B),
+                      fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -3325,7 +3320,7 @@ class _DashboardContentState extends State<DashboardContent>
     final returnedToday = (section is Map ? section['returned_today'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
-    const color = Colors.green;
+    const color = Color(0xFF10B981);
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -3412,8 +3407,8 @@ class _DashboardContentState extends State<DashboardContent>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildStatChip('Issued', issuedToday, Colors.blue),
-              _buildStatChip('Returned', returnedToday, Colors.green),
+              _buildStatChip('Issued', issuedToday, const Color(0xFF3B82F6)),
+              _buildStatChip('Returned', returnedToday, const Color(0xFF10B981)),
             ],
           ),
         ),
@@ -3441,13 +3436,13 @@ class _DashboardContentState extends State<DashboardContent>
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: status == 'returned'
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.blue.withValues(alpha: 0.12),
+                          ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                          : const Color(0xFF3B82F6).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       status == 'returned' ? Icons.assignment_return_rounded : Icons.assignment_rounded,
-                      color: status == 'returned' ? Colors.green : Colors.blue,
+                      color: status == 'returned' ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
                       size: 16,
                     ),
                   ),
@@ -3480,14 +3475,14 @@ class _DashboardContentState extends State<DashboardContent>
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: status == 'returned'
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.blue.withValues(alpha: 0.12),
+                          ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                          : const Color(0xFF3B82F6).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       status == 'returned' ? 'Returned' : 'Issued',
                       style: TextStyle(
-                        color: status == 'returned' ? Colors.green.shade700 : Colors.blue.shade700,
+                        color: status == 'returned' ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -3506,7 +3501,7 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
-    const color = Colors.amber;
+    const color = Color(0xFFD97706);
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -3672,7 +3667,7 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
-    const color = Colors.purple;
+    const color = Color(0xFF8B5CF6);
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -3909,7 +3904,7 @@ class _DashboardContentState extends State<DashboardContent>
       messenger.showSnackBar(
         SnackBar(
           content: Text(getOperationErrorMessage('Action', e)),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFEF4444),
         ),
       );
     }

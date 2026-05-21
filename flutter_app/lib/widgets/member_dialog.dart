@@ -89,12 +89,18 @@ class _MemberDialogState extends State<MemberDialog> {
     final isEditing = widget.member != null;
     final colorScheme = Theme.of(context).colorScheme;
     final screenSize = MediaQuery.of(context).size;
+    final isVerySmallScreen = screenSize.width < 480;
     final isSmallScreen = screenSize.width < 700;
-    final maxWidth = (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
+    final maxWidth = isVerySmallScreen
+        ? screenSize.width * 0.95
+        : (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
     final maxHeight = screenSize.height * 0.92;
 
     return Dialog(
-      insetPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8 : 24, vertical: 16),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isVerySmallScreen ? 4 : (isSmallScreen ? 8 : 24),
+        vertical: isVerySmallScreen ? 8 : 16,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
         child: Container(
@@ -108,8 +114,10 @@ class _MemberDialogState extends State<MemberDialog> {
             children: [
               _buildHeader(colorScheme, isEditing),
               Expanded(child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme),
+                padding: EdgeInsets.all(isVerySmallScreen ? 16 : 24),
+                child: isVerySmallScreen
+                    ? _buildCompactLayout(colorScheme, veryCompact: true)
+                    : (isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme)),
               )),
               _buildFooter(colorScheme, isEditing),
             ],
@@ -120,8 +128,14 @@ class _MemberDialogState extends State<MemberDialog> {
   }
 
   Widget _buildHeader(ColorScheme colorScheme, bool isEditing) {
+    final isVerySmallScreen = MediaQuery.of(context).size.width < 480;
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+      padding: EdgeInsets.fromLTRB(
+        isVerySmallScreen ? 16 : 24,
+        isVerySmallScreen ? 14 : 20,
+        isVerySmallScreen ? 8 : 16,
+        isVerySmallScreen ? 14 : 20,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -129,56 +143,97 @@ class _MemberDialogState extends State<MemberDialog> {
           colors: [colorScheme.primaryContainer, colorScheme.primaryContainer.withValues(alpha: 0.7)],
         ),
         borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(color: colorScheme.primary.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isVerySmallScreen ? 10 : 14),
             decoration: BoxDecoration(
               color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: colorScheme.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
+              ],
             ),
-            child: Icon(isEditing ? Icons.edit_square : Icons.person_add, color: colorScheme.onPrimary, size: 24),
+            child: Icon(isEditing ? Icons.edit_square : Icons.person_add, color: colorScheme.onPrimary, size: isVerySmallScreen ? 20 : 26),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isVerySmallScreen ? 10 : 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isEditing ? 'Edit Member' : 'Add New Member', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer)),
-                const SizedBox(height: 2),
-                Text(isEditing ? 'Update member information and privileges' : 'Fill in the details to register a new member', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
+                Text(
+                  isEditing ? 'Edit Member' : 'Add New Member',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onPrimaryContainer,
+                    fontSize: isVerySmallScreen ? 16 : null,
+                  ),
+                ),
+                if (!isVerySmallScreen) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    isEditing ? 'Update member information and privileges' : 'Fill in the details to register a new member',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
+                  ),
+                ],
               ],
             ),
           ),
           if (isEditing) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _isActive ? Colors.green.withValues(alpha: 0.15) : colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _isActive ? Colors.green.withValues(alpha: 0.3) : colorScheme.error.withValues(alpha: 0.3)),
+            if (isVerySmallScreen)
+              Transform.scale(
+                scale: 0.75,
+                child: Switch(value: _isActive, onChanged: (value) => setState(() => _isActive = value)),
+              )
+            else ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _isActive ? Colors.green.withValues(alpha: 0.15) : colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: _isActive ? Colors.green.withValues(alpha: 0.4) : colorScheme.error.withValues(alpha: 0.4)),
+                  boxShadow: [
+                    BoxShadow(color: (_isActive ? Colors.green : colorScheme.error).withValues(alpha: 0.1), blurRadius: 8),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isActive ? Colors.green : colorScheme.error,
+                        boxShadow: [BoxShadow(color: (_isActive ? Colors.green : colorScheme.error).withValues(alpha: 0.6), blurRadius: 6)],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(_isActive ? 'Active' : 'Inactive', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _isActive ? Colors.green : colorScheme.error)),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_isActive ? Icons.check_circle : Icons.cancel, size: 16, color: _isActive ? Colors.green : colorScheme.error),
-                  const SizedBox(width: 6),
-                  Text(_isActive ? 'Active' : 'Inactive', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _isActive ? Colors.green : colorScheme.error)),
-                ],
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Switch(value: _isActive, onChanged: (value) => setState(() => _isActive = value)),
               ),
-            ),
-            const SizedBox(width: 4),
-            Switch(value: _isActive, onChanged: (value) => setState(() => _isActive = value)),
+            ],
           ],
-          const SizedBox(width: 8),
+          SizedBox(width: isVerySmallScreen ? 4 : 12),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: colorScheme.surface.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
-              child: Icon(Icons.close, size: 20, color: colorScheme.onPrimaryContainer),
+              padding: EdgeInsets.all(isVerySmallScreen ? 6 : 8),
+              decoration: BoxDecoration(color: colorScheme.surface.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.close, size: isVerySmallScreen ? 18 : 22, color: colorScheme.onPrimaryContainer),
             ),
           ),
         ],
@@ -190,53 +245,72 @@ class _MemberDialogState extends State<MemberDialog> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 200, child: Column(children: [
+        SizedBox(width: 220, child: Column(children: [
           _buildProfileCard(colorScheme),
           const SizedBox(height: 20),
           if (_selectedType != null) _buildMemberTypeCard(colorScheme),
         ])),
-        const SizedBox(width: 32),
+        const SizedBox(width: 36),
         Expanded(child: _buildFormSection(colorScheme)),
       ],
     );
   }
 
-  Widget _buildCompactLayout(ColorScheme colorScheme) {
+  Widget _buildCompactLayout(ColorScheme colorScheme, {bool veryCompact = false}) {
     return Column(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfileCard(colorScheme, compact: true),
-            const SizedBox(width: 20),
-            Expanded(child: _buildFormSection(colorScheme, compact: true)),
-          ],
-        ),
-        const SizedBox(height: 24),
-        if (_selectedType != null) _buildMemberTypeCard(colorScheme),
+        if (veryCompact)
+          Column(
+            children: [
+              Center(child: _buildProfileCard(colorScheme, compact: true)),
+              const SizedBox(height: 16),
+              if (_selectedType != null) _buildMemberTypeCard(colorScheme),
+              const SizedBox(height: 16),
+              _buildFormSection(colorScheme, compact: true),
+            ],
+          )
+        else
+          Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildProfileCard(colorScheme, compact: true),
+                  const SizedBox(width: 20),
+                  Expanded(child: _buildFormSection(colorScheme, compact: true)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (_selectedType != null) _buildMemberTypeCard(colorScheme),
+            ],
+          ),
       ],
     );
   }
 
   Widget _buildProfileCard(ColorScheme colorScheme, {bool compact = false}) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(color: colorScheme.shadow.withValues(alpha: 0.05), blurRadius: 16, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         children: [
           Stack(
             children: [
               Container(
-                width: compact ? 90 : 120,
-                height: compact ? 90 : 120,
+                width: compact ? 100 : 130,
+                height: compact ? 100 : 130,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [colorScheme.primary.withValues(alpha: 0.1), colorScheme.tertiary.withValues(alpha: 0.1)]),
-                  border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 3),
+                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [colorScheme.primary.withValues(alpha: 0.12), colorScheme.tertiary.withValues(alpha: 0.12)]),
+                  border: Border.all(color: colorScheme.primary.withValues(alpha: 0.35), width: 3),
+                  boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 4))],
                 ),
                 child: ClipOval(child: _buildPhotoPreview()),
               ),
@@ -245,21 +319,21 @@ class _MemberDialogState extends State<MemberDialog> {
                 child: GestureDetector(
                   onTap: _pickPhoto,
                   child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle, boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))]),
-                    child: Icon(_profilePhotoUrl != null || _selectedPhotoBytes != null ? Icons.edit : Icons.add_a_photo, color: colorScheme.onPrimary, size: compact ? 16 : 20),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle, boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 3))]),
+                    child: Icon(_profilePhotoUrl != null || _selectedPhotoBytes != null ? Icons.edit : Icons.add_a_photo, color: colorScheme.onPrimary, size: compact ? 18 : 22),
                   ),
                 ),
               ),
             ],
           ),
           if ((_profilePhotoUrl != null || _selectedPhotoBytes != null) && !compact) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextButton.icon(
               onPressed: () => setState(() { _profilePhotoUrl = null; _selectedPhotoBytes = null; _selectedPhotoName = null; }),
               icon: Icon(Icons.delete_outline, size: 16, color: colorScheme.error),
               label: Text('Remove', style: TextStyle(color: colorScheme.error, fontSize: 12)),
-              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
             ),
           ],
         ],
@@ -309,38 +383,40 @@ class _MemberDialogState extends State<MemberDialog> {
 
   Widget _buildFormSection(ColorScheme colorScheme, {bool compact = false}) {
     final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
+    final sp = compact ? 14.0 : 18.0;
+    final sectionSp = compact ? 24.0 : 32.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle('Personal Information', Icons.person_outline),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _nameController, label: 'Full Name', hint: 'Enter member name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Name is required' : null, style: hindiAwareTextStyle(context, text: _nameController.text, base: baseFieldStyle))),
             if (!compact) ...[
-              const SizedBox(width: 16),
+              const SizedBox(width: 20),
               Expanded(flex: 2, child: _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'Enter phone number', icon: Icons.phone_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Phone is required' : null)),
             ],
           ],
         ),
         if (compact) ...[
-          const SizedBox(height: 16),
+          SizedBox(height: sp),
           _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'Enter phone number', icon: Icons.phone_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Phone is required' : null),
         ],
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         _buildTextField(controller: _emailController, label: 'Email Address', hint: 'Enter email address', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         _buildTextField(controller: _addressController, label: 'Address', hint: 'Enter address', icon: Icons.location_on_outlined, maxLines: 2, style: hindiAwareTextStyle(context, text: _addressController.text, base: baseFieldStyle)),
-        const SizedBox(height: 28),
+        SizedBox(height: sectionSp),
         _buildSectionTitle('Membership Details', Icons.badge_outlined),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         _buildMemberTypeSelector(colorScheme),
-        const SizedBox(height: 16),
+        SizedBox(height: sp),
         Row(
           children: [
             Expanded(child: _buildDateField(_membershipDateController, 'Membership Date', Icons.calendar_today)),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(child: _buildDateField(_expiryDateController, 'Expiry Date', Icons.event_busy)),
           ],
         ),
@@ -352,8 +428,20 @@ class _MemberDialogState extends State<MemberDialog> {
     final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: colorScheme.primaryContainer.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 18, color: colorScheme.primary)),
-        const SizedBox(width: 12),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colorScheme.primaryContainer,
+                colorScheme.primaryContainer.withValues(alpha: 0.5),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: colorScheme.primary),
+        ),
+        const SizedBox(width: 14),
         Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
       ],
     );
@@ -413,8 +501,14 @@ class _MemberDialogState extends State<MemberDialog> {
   }
 
   Widget _buildFooter(ColorScheme colorScheme, bool isEditing) {
+    final isVerySmallScreen = MediaQuery.of(context).size.width < 480;
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      padding: EdgeInsets.fromLTRB(
+        isVerySmallScreen ? 16 : 24,
+        isVerySmallScreen ? 14 : 20,
+        isVerySmallScreen ? 16 : 24,
+        isVerySmallScreen ? 14 : 20,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),

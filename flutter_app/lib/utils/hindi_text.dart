@@ -125,41 +125,45 @@ TextStyle hindiAwareTextStyle(
   final defaultSize = DefaultTextStyle.of(context).style.fontSize ?? 14;
   final effectiveSize = base.fontSize ?? defaultSize;
 
-  // Unicode Hindi: help Windows pick a good Devanagari font.
   if (containsDevanagari(text)) {
     return base.copyWith(
-      // Devanagari often looks optically smaller at the same point size.
-      fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
+      fontSize: (effectiveSize * 1.15).clamp(10, 30).toDouble(),
+      letterSpacing: 0.5,
+      height: 1.5,
       fontFamilyFallback: const [
-        'NotoSansDevanagari', // Bundled font
-        'Nirmala UI', // Windows system font
-        'Mangal', // Windows system font
-        'Noto Sans Devanagari', // Android/Linux system font
+        'NotoSansDevanagari',
+        'Nirmala UI',
+        'Mangal',
+        'Noto Sans Devanagari',
+        'Kruti Dev 010',
+        'DevLys',
       ],
     );
   }
 
-  // Legacy (KrutiDev-style) Hindi: render correctly if the font is installed.
   if (looksLikeLegacyHindi(text)) {
     return base.copyWith(
-      fontSize: (effectiveSize * 1.10).clamp(10, 30).toDouble(),
-      fontFamily: 'KrutiDev', // Bundled font
+      fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
+      letterSpacing: 0.3,
+      height: 1.4,
+      fontFamily: 'KrutiDev',
       fontFamilyFallback: const [
-        'KrutiDev', // Bundled font
-        'Kruti Dev 010', // Alternate name / system font
-        'Nirmala UI', // Windows fallback
-        'Mangal', // Windows fallback
+        'KrutiDev',
+        'Kruti Dev 010',
+        'NotoSansDevanagari',
+        'Nirmala UI',
+        'Mangal',
+        'DevLys',
       ],
     );
   }
 
-  // Default: still provide Devanagari fallback so mixed strings display.
   return base.copyWith(
     fontFamilyFallback: const [
-      'NotoSansDevanagari', // Bundled font
-      'Nirmala UI', // Windows system font
-      'Mangal', // Windows system font
-      'Noto Sans Devanagari', // Android/Linux system font
+      'NotoSansDevanagari',
+      'Nirmala UI',
+      'Mangal',
+      'Noto Sans Devanagari',
     ],
   );
 }

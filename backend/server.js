@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -486,12 +486,12 @@ const runMigrations = async () => {
         if (err && !err.message.includes('Duplicate') && !err.message.includes('already exists')) {
           console.warn('Migration warning:', err.message.substring(0, 120));
         }
-        resolve(); // always resolve – migrations are best-effort
+        resolve(); // always resolve ΓÇô migrations are best-effort
       });
     });
 
   const migrations = [
-    // ── Character-set conversions ───────────────────────────────────────
+    // ΓöÇΓöÇ Character-set conversions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     `ALTER DATABASE \`${dbName}\` CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci`,
     "ALTER TABLE books CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
     "ALTER TABLE members CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
@@ -502,7 +502,7 @@ const runMigrations = async () => {
     "ALTER TABLE book_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
     "ALTER TABLE dashboard_settings CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
 
-    // ── Schema additions (books) ────────────────────────────────────────
+    // ΓöÇΓöÇ Schema additions (books) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     "ALTER TABLE books MODIFY COLUMN isbn VARCHAR(20) NULL",
     "ALTER TABLE books ADD COLUMN cover_image TEXT",
     "ALTER TABLE books ADD COLUMN total_copies INT DEFAULT 1",
@@ -510,7 +510,7 @@ const runMigrations = async () => {
     "ALTER TABLE books ADD COLUMN description TEXT",
     "ALTER TABLE books ADD COLUMN rack_number VARCHAR(50)",
 
-    // ── Schema additions (members) ──────────────────────────────────────
+    // ΓöÇΓöÇ Schema additions (members) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     // Support the expanded member type set while remaining backward compatible with existing 'student' values.
     "ALTER TABLE members MODIFY COLUMN member_type ENUM('student', 'guest', 'faculty', 'staff', 'additional_director', 'joint_director', 'deputy_director', 'assistant_commissioner', 'state_tax_officer', 'assistant') NOT NULL DEFAULT 'guest'",
     "UPDATE members SET member_type = 'guest' WHERE member_type = 'student'",
@@ -519,21 +519,21 @@ const runMigrations = async () => {
     "ALTER TABLE members ADD COLUMN expiry_date DATE",
     "ALTER TABLE members ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
 
-    // ── Schema additions (issues) ───────────────────────────────────────
+    // ΓöÇΓöÇ Schema additions (issues) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     "ALTER TABLE issues ADD COLUMN notes TEXT",
     // Activity timestamps (enable truly realtime Recent Activity + reliable per-user Clear cutoff).
     "ALTER TABLE issues ADD COLUMN issued_at DATETIME NULL",
     "ALTER TABLE issues ADD COLUMN returned_at DATETIME NULL",
 
-    // ── Schema additions (members – timestamps) ─────────────────────────
+    // ΓöÇΓöÇ Schema additions (members ΓÇô timestamps) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     "ALTER TABLE members ADD COLUMN created_at DATETIME NULL",
 
-    // ── Best-effort backfill (safe to ignore if columns don't exist yet) ─
+    // ΓöÇΓöÇ Best-effort backfill (safe to ignore if columns don't exist yet) ΓöÇ
     "UPDATE issues SET issued_at = CAST(issue_date AS DATETIME) WHERE issued_at IS NULL",
     "UPDATE issues SET returned_at = CAST(return_date AS DATETIME) WHERE returned_at IS NULL AND return_date IS NOT NULL",
     "UPDATE members SET created_at = CAST(membership_date AS DATETIME) WHERE created_at IS NULL",
 
-    // ── New tables ──────────────────────────────────────────────────────
+    // ΓöÇΓöÇ New tables ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     `CREATE TABLE IF NOT EXISTS member_categories (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(50) UNIQUE NOT NULL,
@@ -578,7 +578,7 @@ const runMigrations = async () => {
       INDEX idx_type (type)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-    // ── Seed data ───────────────────────────────────────────────────────
+    // ΓöÇΓöÇ Seed data ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
       ('student', 3, 14)`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
@@ -587,8 +587,8 @@ const runMigrations = async () => {
       ('staff', 5, 21)`,
     "UPDATE books SET total_copies = 1, available_copies = CASE WHEN status = 'available' THEN 1 ELSE 0 END WHERE total_copies IS NULL",
 
-    // ── Indexes for large-database performance ──────────────────────────
-    // (no IF NOT EXISTS – unsupported before MySQL 8.0.29; duplicate-key
+    // ΓöÇΓöÇ Indexes for large-database performance ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // (no IF NOT EXISTS ΓÇô unsupported before MySQL 8.0.29; duplicate-key
     //  errors are silently ignored by the run() helper above)
     "CREATE INDEX idx_books_title ON books(title(100))",
     "CREATE INDEX idx_books_author ON books(author(100))",
@@ -603,7 +603,7 @@ const runMigrations = async () => {
     "CREATE INDEX idx_issues_status ON issues(status)",
     "CREATE INDEX idx_issues_issue_date ON issues(issue_date)",
 
-    // ── Borrow Slips table ─────────────────────────────────────────────────
+    // ΓöÇΓöÇ Borrow Slips table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     `CREATE TABLE IF NOT EXISTS borrow_slips (
       id INT AUTO_INCREMENT PRIMARY KEY,
       issue_id INT NOT NULL,

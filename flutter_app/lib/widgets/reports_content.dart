@@ -144,21 +144,21 @@ class _ReportsContentState extends State<ReportsContent>
                     padding: EdgeInsets.zero,
                     splashRadius: 20,
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'pdf',
                         child: Row(
                           children: [
-                            Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
+                            Icon(Icons.picture_as_pdf, color: const Color(0xFFEF4444), size: 18),
                             SizedBox(width: 8),
                             Text('Export to PDF'),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'excel',
                         child: Row(
                           children: [
-                            Icon(Icons.table_chart, color: Colors.green, size: 18),
+                            Icon(Icons.table_chart, color: const Color(0xFF10B981), size: 18),
                             SizedBox(width: 8),
                             Text('Export to CSV'),
                           ],
@@ -266,11 +266,11 @@ class _ReportsContentState extends State<ReportsContent>
   Widget _buildPopularBookTile(PopularBook book, int rank) {
     Color rankColor;
     if (rank == 1) {
-      rankColor = Colors.amber;
+      rankColor = const Color(0xFFD97706);
     } else if (rank == 2) {
-      rankColor = Colors.grey;
+      rankColor = const Color(0xFF6B7280);
     } else if (rank == 3) {
-      rankColor = Colors.brown;
+      rankColor = const Color(0xFF8D6E63);
     } else {
       rankColor = Theme.of(context).colorScheme.primary;
     }
@@ -433,10 +433,10 @@ class _ReportsContentState extends State<ReportsContent>
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: rank == 1
-                      ? Colors.amber
+                      ? const Color(0xFFD97706)
                       : rank == 2
-                      ? Colors.grey
-                      : Colors.brown,
+                      ? const Color(0xFF6B7280)
+                      : const Color(0xFF8D6E63),
                   shape: BoxShape.circle,
                 ),
                 child: Text(
@@ -493,43 +493,43 @@ class _ReportsContentState extends State<ReportsContent>
     String label;
     switch (type.toLowerCase()) {
       case 'additional_director':
-        color = Colors.purple;
+        color = const Color(0xFF7C3AED);
         label = 'Additional Director';
         break;
       case 'joint_director':
-        color = Colors.deepPurple;
+        color = const Color(0xFF6D28D9);
         label = 'Joint Director';
         break;
       case 'deputy_director':
-        color = Colors.indigo;
+        color = const Color(0xFF4F46E5);
         label = 'Deputy Director';
         break;
       case 'assistant_commissioner':
-        color = Colors.teal;
+        color = const Color(0xFF0D9488);
         label = 'Assistant Commissioner';
         break;
       case 'state_tax_officer':
-        color = Colors.green;
+        color = const Color(0xFF10B981);
         label = 'State Tax Officer';
         break;
       case 'assistant':
-        color = Colors.blueGrey;
+        color = const Color(0xFF6B7280);
         label = 'Assistant';
         break;
       case 'faculty':
-        color = Colors.purple;
+        color = const Color(0xFF8B5CF6);
         label = 'Faculty';
         break;
       case 'staff':
-        color = Colors.green;
+        color = const Color(0xFF059669);
         label = 'Staff';
         break;
       case 'guest':
-        color = Colors.orange;
+        color = const Color(0xFFF59E0B);
         label = 'Guest';
         break;
       default:
-        color = Colors.blue;
+        color = const Color(0xFF3B82F6);
         label = 'Student';
     }
     return Container(
@@ -594,7 +594,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .fold(0, (sum, s) => sum + s.issues)
                               .toString(),
                           Icons.arrow_upward,
-                          Colors.blue,
+                          const Color(0xFF3B82F6),
                         ),
                         const SizedBox(height: 12),
                         _buildSummaryCard(
@@ -603,7 +603,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .fold(0, (sum, s) => sum + s.returns)
                               .toString(),
                           Icons.arrow_downward,
-                          Colors.green,
+                          const Color(0xFF10B981),
                         ),
                         const SizedBox(height: 12),
                         _buildSummaryCard(
@@ -615,7 +615,7 @@ class _ReportsContentState extends State<ReportsContent>
                                   provider.monthlyStats.length)
                               .toString(),
                           Icons.trending_up,
-                          Colors.orange,
+                          const Color(0xFFF59E0B),
                         ),
                       ],
                     );
@@ -629,7 +629,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .fold(0, (sum, s) => sum + s.issues)
                               .toString(),
                           Icons.arrow_upward,
-                          Colors.blue,
+                          const Color(0xFF3B82F6),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -640,7 +640,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .fold(0, (sum, s) => sum + s.returns)
                               .toString(),
                           Icons.arrow_downward,
-                          Colors.green,
+                          const Color(0xFF10B981),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -654,7 +654,7 @@ class _ReportsContentState extends State<ReportsContent>
                                   provider.monthlyStats.length)
                               .toString(),
                           Icons.trending_up,
-                          Colors.orange,
+                          const Color(0xFFF59E0B),
                         ),
                       ),
                     ],
@@ -822,7 +822,7 @@ class _ReportsContentState extends State<ReportsContent>
           horizontalInterval: 5,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: Colors.grey.withValues(alpha: 0.2),
+              color: const Color(0xFF9CA3AF).withValues(alpha: 0.2),
               strokeWidth: 1,
             );
           },
@@ -836,7 +836,7 @@ class _ReportsContentState extends State<ReportsContent>
             barRods: [
               BarChartRodData(
                 toY: stat.issues.toDouble(),
-                color: Colors.blue,
+                color: const Color(0xFF3B82F6),
                 width: 12,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(4),
@@ -845,7 +845,7 @@ class _ReportsContentState extends State<ReportsContent>
               ),
               BarChartRodData(
                 toY: stat.returns.toDouble(),
-                color: Colors.green,
+                color: const Color(0xFF10B981),
                 width: 12,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(4),
@@ -876,10 +876,38 @@ class _ReportsContentState extends State<ReportsContent>
           0,
           (sum, s) => sum + s.bookCount,
         );
+        final totalBorrows = provider.categoryStats.fold(
+          0,
+          (sum, s) => sum + s.borrowCount,
+        );
 
         // Sort categories by book count for better visibility
         final sortedStats = List<CategoryStats>.from(provider.categoryStats)
           ..sort((a, b) => b.bookCount.compareTo(a.bookCount));
+
+        // Group tiny categories (< 3%) into "Other" if there are 6+ categories
+        final displayStats = <CategoryStats>[];
+        int otherBookCount = 0;
+        int otherBorrowCount = 0;
+        int otherCount = 0;
+        const double groupingThreshold = 3.0;
+        for (final stat in sortedStats) {
+          final pct = (stat.bookCount / total) * 100;
+          if (pct < groupingThreshold && sortedStats.length >= 6) {
+            otherBookCount += stat.bookCount;
+            otherBorrowCount += stat.borrowCount;
+            otherCount++;
+          } else {
+            displayStats.add(stat);
+          }
+        }
+        if (otherCount > 1) {
+          displayStats.add(CategoryStats(
+            category: 'Other ($otherCount)',
+            bookCount: otherBookCount,
+            borrowCount: otherBorrowCount,
+          ));
+        }
 
         return Padding(
           padding: const EdgeInsets.all(24),
@@ -918,7 +946,7 @@ class _ReportsContentState extends State<ReportsContent>
                                       ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 Text(
-                                  '${sortedStats.length} categories \u2022 $total total books',
+                                  '${displayStats.length} categories \u2022 $total books \u2022 $totalBorrows borrows',
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                                   ),
@@ -930,7 +958,7 @@ class _ReportsContentState extends State<ReportsContent>
                       ),
                       const SizedBox(height: 20),
                       // Tooltip for hovered/touched segment
-                      if (_touchedCategoryIndex >= 0 && _touchedCategoryIndex < sortedStats.length)
+                      if (_touchedCategoryIndex >= 0 && _touchedCategoryIndex < displayStats.length)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -949,9 +977,10 @@ class _ReportsContentState extends State<ReportsContent>
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '${sortedStats[_touchedCategoryIndex].category}: '
-                                '${sortedStats[_touchedCategoryIndex].bookCount} books '
-                                '(${total > 0 ? ((sortedStats[_touchedCategoryIndex].bookCount / total) * 100).toStringAsFixed(1) : "0"}%)',
+                                '${displayStats[_touchedCategoryIndex].category}: '
+                                '${displayStats[_touchedCategoryIndex].bookCount} books, '
+                                '${displayStats[_touchedCategoryIndex].borrowCount} borrows '
+                                '(${total > 0 ? ((displayStats[_touchedCategoryIndex].bookCount / total) * 100).toStringAsFixed(1) : "0"}%)',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: _getCategoryColor(_touchedCategoryIndex),
@@ -965,7 +994,7 @@ class _ReportsContentState extends State<ReportsContent>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           child: Text(
-                            'Hover over a segment for details',
+                            'Tap or hover over a segment for details',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                               fontStyle: FontStyle.italic,
@@ -976,7 +1005,7 @@ class _ReportsContentState extends State<ReportsContent>
                       Expanded(
                         child: PieChart(
                           PieChartData(
-                            sections: sortedStats.asMap().entries.map((
+                            sections: displayStats.asMap().entries.map((
                               entry,
                             ) {
                               final index = entry.key;
@@ -985,50 +1014,51 @@ class _ReportsContentState extends State<ReportsContent>
                                   ? (stat.bookCount / total) * 100 
                                   : 0.0;
                               final isTouched = index == _touchedCategoryIndex;
+                              final color = _getCategoryColor(index);
+                              final luminance = color.computeLuminance();
+                              final labelColor = luminance > 0.5 ? Colors.black87 : Colors.white;
                               
-                              // Determine label based on segment size
                               String title;
-                              if (percentage >= 15) {
-                                // Large segment: show name + count
-                                final name = stat.category.length > 10
-                                    ? '${stat.category.substring(0, 9)}\u2026'
+                              if (percentage >= 12) {
+                                final name = stat.category.length > 12
+                                    ? '${stat.category.substring(0, 11)}\u2026'
                                     : stat.category;
                                 title = '$name\n${stat.bookCount}';
-                              } else if (percentage >= 7) {
-                                // Medium segment: show abbreviated name
-                                final name = stat.category.length > 7
-                                    ? '${stat.category.substring(0, 6)}\u2026'
+                              } else if (percentage >= 6) {
+                                final name = stat.category.length > 8
+                                    ? '${stat.category.substring(0, 7)}\u2026'
                                     : stat.category;
                                 title = name;
-                              } else if (percentage >= 4) {
-                                // Small segment: show count only
+                              } else if (percentage >= 3) {
                                 title = '${stat.bookCount}';
                               } else {
-                                // Tiny segment: no label
                                 title = '';
                               }
                               
                               return PieChartSectionData(
                                 value: stat.bookCount.toDouble(),
                                 title: title,
-                                color: _getCategoryColor(index),
+                                color: color,
                                 radius: isTouched ? 115 : 100,
                                 titleStyle: TextStyle(
                                   fontSize: isTouched ? 13 : 11,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  shadows: const [
-                                    Shadow(color: Colors.black54, blurRadius: 4),
-                                  ],
+                                  color: labelColor,
+                                  shadows: luminance <= 0.5
+                                      ? const [Shadow(color: Colors.black54, blurRadius: 4)]
+                                      : null,
                                 ),
                                 titlePositionPercentageOffset: 0.55,
                                 borderSide: isTouched
-                                    ? const BorderSide(color: Colors.white, width: 2)
-                                    : BorderSide.none,
+                                    ? BorderSide(color: labelColor, width: 2.5)
+                                    : BorderSide(
+                                        color: Theme.of(context).colorScheme.surface,
+                                        width: 1.5,
+                                      ),
                               );
                             }).toList(),
-                            sectionsSpace: 2,
-                            centerSpaceRadius: 45,
+                            sectionsSpace: 1,
+                            centerSpaceRadius: 50,
                             pieTouchData: PieTouchData(
                               enabled: _enableChartTouch,
                               touchCallback: (event, response) {
@@ -1084,9 +1114,9 @@ class _ReportsContentState extends State<ReportsContent>
                       const SizedBox(height: 16),
                       Expanded(
                         child: ListView.builder(
-                          itemCount: sortedStats.length,
+                          itemCount: displayStats.length,
                           itemBuilder: (context, index) {
-                            final stat = sortedStats[index];
+                            final stat = displayStats[index];
                             final percentage = total > 0 
                                 ? (stat.bookCount / total) * 100 
                                 : 0.0;
@@ -1110,40 +1140,55 @@ class _ReportsContentState extends State<ReportsContent>
                                     _touchedCategoryIndex = _touchedCategoryIndex == index ? -1 : index;
                                   });
                                 },
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      width: 14,
-                                      height: 14,
-                                      decoration: BoxDecoration(
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 14,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: _getCategoryColor(index),
+                                            borderRadius: BorderRadius.circular(3),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            stat.category,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _getCategoryColor(index).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '${stat.bookCount} (${percentage.toStringAsFixed(1)}%)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                              color: _getCategoryColor(index),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(2),
+                                      child: LinearProgressIndicator(
+                                        value: percentage / 100,
+                                        backgroundColor: _getCategoryColor(index).withValues(alpha: 0.1),
                                         color: _getCategoryColor(index),
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        stat.category,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: _getCategoryColor(index).withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        '${stat.bookCount} (${percentage.toStringAsFixed(1)}%)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                          color: _getCategoryColor(index),
-                                        ),
+                                        minHeight: 3,
                                       ),
                                     ),
                                   ],
@@ -1251,19 +1296,19 @@ class _ReportsContentState extends State<ReportsContent>
                         const SizedBox(height: 8),
                         Text(
                           '${overdueList.length} books need attention',
-                          style: TextStyle(color: Colors.red[700]),
+                          style: TextStyle(color: const Color(0xFFEF4444)),
                         ),
                       ],
                     ),
                   ),
                   Chip(
-                    avatar: const Icon(
+                    avatar: Icon(
                       Icons.warning,
-                      color: Colors.red,
+                      color: const Color(0xFFEF4444),
                       size: 18,
                     ),
                     label: Text('${overdueList.length} Overdue'),
-                    backgroundColor: Colors.red.withValues(alpha: 0.1),
+                    backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.1),
                   ),
                 ],
               ),
@@ -1309,10 +1354,10 @@ class _ReportsContentState extends State<ReportsContent>
       leading: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.1),
+          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.warning, color: Colors.red),
+        child: const Icon(Icons.warning, color: Color(0xFFEF4444)),
       ),
       title: Builder(
         builder: (context) => Text(
@@ -1338,7 +1383,7 @@ class _ReportsContentState extends State<ReportsContent>
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: const Color(0xFFEF4444),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -1464,7 +1509,7 @@ class _ReportsContentState extends State<ReportsContent>
             content: Text(
               'Report exported as ${type.toUpperCase()} successfully',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(0xFF10B981),
           ),
         );
       }
@@ -1473,7 +1518,7 @@ class _ReportsContentState extends State<ReportsContent>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(getOperationErrorMessage('Export report', e)),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFEF4444),
           ),
         );
       }

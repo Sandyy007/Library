@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/book_provider.dart';
 import '../providers/issue_provider.dart';
 import '../models/book.dart';
@@ -14,6 +15,7 @@ import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/color_extensions.dart';
+import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/dashboard_screen.dart';
 
@@ -24,13 +26,20 @@ class BooksContent extends StatefulWidget {
   State<BooksContent> createState() => _BooksContentState();
 }
 
-class _BooksContentState extends State<BooksContent> {
+class _BooksContentState extends State<BooksContent>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCategory;
   final Set<int> _selectedBookIds = <int>{};
   StreamSubscription<void>? _dataChangedSub;
   Timer? _searchDebounce;
   List<String> _apiCategories = [];
+  int? _hoveredRowIndex;
+  late final AnimationController _statusPulseController;
+  late final Animation<double> _statusPulse;
+
+  static const Duration _hoverDuration = Duration(milliseconds: 150);
+  static const Duration _pulseDuration = Duration(seconds: 2);
 
   bool _containsDevanagari(String text) {
     return RegExp(r'[\u0900-\u097F]').hasMatch(text);
@@ -55,10 +64,13 @@ class _BooksContentState extends State<BooksContent> {
 
     // If the content is already Unicode Hindi, just help Windows pick a good font.
     if (_containsDevanagari(text)) {
-      return base.copyWith(
-        // Devanagari often looks optically smaller at the same point size.
-        fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
+      final devanagariBase = GoogleFonts.notoSansDevanagari(textStyle: base);
+      return devanagariBase.copyWith(
+        fontSize: (effectiveSize * 1.15).clamp(10, 30).toDouble(),
+        letterSpacing: 0.5,
+        height: 1.5,
         fontFamilyFallback: const [
+          'NotoSansDevanagari',
           'Nirmala UI',
           'Mangal',
           'Noto Sans Devanagari',
@@ -66,12 +78,12 @@ class _BooksContentState extends State<BooksContent> {
       );
     }
 
-    // If it looks like legacy Hindi (KrutiDev-style), try to render it using the bundled font
-    // with fallback to system fonts when not available.
     if (_looksLikeLegacyHindi(text)) {
       return base.copyWith(
-        fontSize: (effectiveSize * 1.10).clamp(10, 30).toDouble(),
-        fontFamily: 'KrutiDev', // Bundled font
+        fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
+        letterSpacing: 0.3,
+        height: 1.4,
+        fontFamily: 'KrutiDev',
         fontFamilyFallback: const [
           'KrutiDev',
           'Kruti Dev 010',
@@ -82,12 +94,27 @@ class _BooksContentState extends State<BooksContent> {
       );
     }
 
-    return base;
+    return base.copyWith(
+      fontFamilyFallback: const [
+        'NotoSansDevanagari',
+        'Nirmala UI',
+        'Mangal',
+        'Noto Sans Devanagari',
+      ],
+    );
   }
 
   @override
   void initState() {
     super.initState();
+    _statusPulseController = AnimationController(
+      vsync: this,
+      duration: _pulseDuration,
+    )..repeat(reverse: true);
+    _statusPulse = CurvedAnimation(
+      parent: _statusPulseController,
+      curve: Curves.easeInOut,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadBooks();
       _loadApiCategories();
@@ -165,365 +192,311 @@ class _BooksContentState extends State<BooksContent> {
     return ['All Categories', ...allCategories];
   }
 
+  Widget _buildHeaderLabel(String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark
+        ? Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
+        : const Color(0xFF6B7280);
+    return Text(
+      label.toUpperCase(),
+      style: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.6,
+        color: color,
+      ),
+    );
+  }
+
+  Widget _wrapRowCell(int rowIndex, Widget child, {bool showAccent = false}) {
+    final isHovered = _hoveredRowIndex == rowIndex;
+    return MouseRegion(
+      onEnter: (_) {
+        if (_hoveredRowIndex != rowIndex) {
+          setState(() => _hoveredRowIndex = rowIndex);
+        }
+      },
+      child: AnimatedContainer(
+        duration: _hoverDuration,
+        padding: EdgeInsets.only(left: showAccent ? 6 : 0),
+        decoration: showAccent
+            ? BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color:
+                        isHovered ? const Color(0xFF1D9E75) : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+              )
+            : null,
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildPagerIconButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+    required Color borderColor,
+    required Color iconColor,
+    required Color hoverFill,
+    required Color disabledIconColor,
+  }) {
+    final enabled = onPressed != null;
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      style: ButtonStyle(
+        padding: WidgetStateProperty.all(EdgeInsets.zero),
+        fixedSize: WidgetStateProperty.all(const Size(32, 32)),
+        minimumSize: WidgetStateProperty.all(const Size(32, 32)),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        side: WidgetStateProperty.resolveWith(
+          (states) => BorderSide(
+            color: enabled
+                ? borderColor
+                : borderColor.withValues(alpha: 0.45),
+          ),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (!enabled) return Colors.transparent;
+          if (states.contains(WidgetState.hovered)) return hoverFill;
+          return Colors.transparent;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (!enabled) return disabledIconColor;
+          return iconColor;
+        }),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookProvider = Provider.of<BookProvider>(context);
     final selectedCount = _selectedBookIds.length;
     final filteredBooks = getFilteredBooks(bookProvider.books);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 800;
+    final r = Responsive(context);
+    final screenWidth = r.width;
     final isVeryCompact = screenWidth < 600;
+    final isMedium = screenWidth >= 600 && screenWidth < 900;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    const accentTeal = Color(0xFF1D9E75);
+    final headerAccent = isDark
+      ? colorScheme.primary.withValues(alpha: 0.45)
+      : const Color(0xFFBFE9E3);
+    final rowHoverColor = isDark
+      ? colorScheme.primary.withValues(alpha: 0.12)
+      : const Color(0xFFF0FAF7);
+    final zebraColor = isDark
+      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.18)
+      : const Color(0xFFFAFAFA);
+    final tableBorderColor = isDark
+      ? colorScheme.outlineVariant.withValues(alpha: 0.55)
+      : const Color(0xFFE5E7EB);
+    final tableShadowColor = isDark
+      ? Colors.black.withValues(alpha: 0.32)
+      : Colors.black.withValues(alpha: 0.06);
+    final headerBackground = isDark
+      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.65)
+      : Colors.white.withValues(alpha: 0.9);
+    final mutedText = isDark
+      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
+      : const Color(0xFF6B7280);
+    final titleTextColor =
+      isDark ? colorScheme.onSurface : const Color(0xFF1A1A2E);
+    final authorTextColor = isDark
+      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.85)
+      : const Color(0xFF666666);
+    final categoryTextColor = isDark
+      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
+      : const Color(0xFF777777);
+    final isbnTextColor = isDark
+      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.75)
+      : const Color(0xFF888888);
+    final searchFill = isDark
+      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
+      : const Color(0xFFF7FAFB);
+    final showIsbn = screenWidth >= 980;
+    final showAuthor = screenWidth >= 840;
+    final showRack = screenWidth >= 900;
+    final showCategory = screenWidth >= 1050;
+    const showCopies = true;
+    final columnWidths = <double>[
+      46,
+      64,
+      if (showIsbn) 130,
+      screenWidth >= 1200 ? 280 : (screenWidth >= 900 ? 240 : 200),
+      if (showAuthor) 180,
+      if (showRack) 70,
+      if (showCategory) 120,
+      if (showCopies) 90,
+      120,
+      110,
+    ];
+    final minTableWidth =
+      columnWidths.fold(0.0, (sum, width) => sum + width);
+    const headingRowHeight = 54.0;
 
     return Scaffold(
       body: Padding(
-        padding: EdgeInsets.all(isVeryCompact ? 8 : (isCompact ? 14 : 20)),
+        padding: EdgeInsets.all(r.pagePadding),
         child: Column(
           children: [
             // Search, Filter, and Action buttons - all in one bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.12),
-                ),
-              ),
-              child: isVeryCompact
-                // ── Compact layout (<600px): search on top, actions below ──
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search books...',
-                          prefixIcon: const Icon(Icons.search, size: 20),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear, size: 18),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _filterBooks();
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          isDense: true,
-                        ),
-                        onChanged: (value) {
-                          _searchDebounce?.cancel();
-                          _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
-                          setState(() {}); // Update clear button visibility
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildCategoryFilterPopup(bookProvider),
-                            const SizedBox(width: 4),
-                            if (selectedCount > 0) ...[
-                              _buildToolbarIconButton(
-                                icon: Icons.delete_forever,
-                                tooltip: 'Delete ($selectedCount)',
-                                onPressed: _deleteSelectedBooks,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                              _buildToolbarIconButton(
-                                icon: Icons.clear,
-                                tooltip: 'Clear selection',
-                                onPressed: () => setState(_selectedBookIds.clear),
-                              ),
-                            ],
-                            _buildToolbarDivider(context),
-                            _buildToolbarIconButton(
-                              icon: Icons.category,
-                              tooltip: 'Manage Categories',
-                              onPressed: _showCategoryManagement,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            _buildToolbarIconButton(
-                              icon: Icons.upload_file,
-                              tooltip: 'Import CSV/Excel',
-                              onPressed: _importBooks,
-                            ),
-                            _buildToolbarIconButton(
-                              icon: Icons.download,
-                              tooltip: 'Export CSV',
-                              onPressed: _exportBooksCsv,
-                            ),
-                            _buildToolbarIconButton(
-                              icon: Icons.refresh,
-                              tooltip: 'Refresh',
-                              onPressed: _loadBooks,
-                            ),
-                            const SizedBox(width: 8),
-                            FilledButton.icon(
-                              onPressed: () => _showBookDialog(),
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Add'),
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                // ── Wide layout (>=600px): everything in a single row ──
-                : Row(
-                    children: [
-                      // Search field – takes remaining space
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search books...',
-                            prefixIcon: const Icon(Icons.search, size: 20),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      _filterBooks();
-                                      setState(() {}); // Update clear button visibility
-                                    },
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            isDense: true,
-                          ),
-                          onChanged: (value) {
-                            _searchDebounce?.cancel();
-                            _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
-                            setState(() {}); // Update clear button visibility
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      _buildCategoryFilterPopup(bookProvider),
-                      if (selectedCount > 0) ...[
-                        _buildToolbarDivider(context),
-                        _buildToolbarIconButton(
-                          icon: Icons.delete_forever,
-                          tooltip: 'Delete ($selectedCount)',
-                          onPressed: _deleteSelectedBooks,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                        _buildToolbarIconButton(
-                          icon: Icons.clear,
-                          tooltip: 'Clear selection',
-                          onPressed: () => setState(_selectedBookIds.clear),
-                        ),
-                      ],
-                      _buildToolbarDivider(context),
-                      _buildToolbarIconButton(
-                        icon: Icons.category,
-                        tooltip: 'Manage Categories',
-                        onPressed: _showCategoryManagement,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      _buildToolbarIconButton(
-                        icon: Icons.upload_file,
-                        tooltip: 'Import CSV/Excel',
-                        onPressed: _importBooks,
-                      ),
-                      _buildToolbarIconButton(
-                        icon: Icons.download,
-                        tooltip: 'Export CSV',
-                        onPressed: _exportBooksCsv,
-                      ),
-                      _buildToolbarIconButton(
-                        icon: Icons.refresh,
-                        tooltip: 'Refresh',
-                        onPressed: _loadBooks,
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: () => _showBookDialog(),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: Text(isCompact ? 'Add' : 'Add Book'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ],
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: tableBorderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: tableShadowColor,
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
                   ),
+                ],
+              ),
+              child: _buildToolbar(
+                bookProvider: bookProvider,
+                selectedCount: selectedCount,
+                screenWidth: screenWidth,
+                isVeryCompact: isVeryCompact,
+                isMedium: isMedium,
+                accentTeal: accentTeal,
+                tableBorderColor: tableBorderColor,
+                searchFill: searchFill,
+                mutedText: mutedText,
+                colorScheme: colorScheme,
+              ),
             ),
 
             Expanded(
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  ),
+                  border: Border.all(color: tableBorderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tableShadowColor,
+                      blurRadius: 24,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: bookProvider.isLoading
-                    ? const ShimmerTable(rows: 8, columns: 6)
-                    : bookProvider.books.isEmpty
-                    ? EmptyStateWidget(
-                        icon: Icons.library_books_outlined,
-                        title: 'No books found',
-                        subtitle: 'Click "Add Book" to create a new book',
-                        actionLabel: 'Retry',
-                        onAction: _loadBooks,
-                      )
-                    : Theme(
-                        data: Theme.of(context).copyWith(
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          checkboxTheme: Theme.of(context).checkboxTheme
-                              .copyWith(
-                                visualDensity: VisualDensity.compact,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                        ),
-                        child: DataTable2(
-                          columnSpacing: 6,
-                          horizontalMargin: 10,
-                          dataRowHeight: 68,
-                          headingRowHeight: 52,
-                          showCheckboxColumn: false,
-                          minWidth: 850,
-                          headingRowColor: WidgetStateProperty.all(
-                            Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                          ),
-                          columns: [
-                            DataColumn2(
-                              fixedWidth: 42,
-                              label: Center(
-                                child: Transform.scale(
-                                  scale: 0.78,
-                                  child: Checkbox(
-                                    tristate: true,
-                                    value: filteredBooks.isEmpty
-                                        ? false
-                                        : filteredBooks.every(
-                                            (b) =>
-                                                _selectedBookIds.contains(b.id),
-                                          )
-                                        ? true
-                                        : filteredBooks.any(
-                                            (b) =>
-                                                _selectedBookIds.contains(b.id),
-                                          )
-                                        ? null
-                                        : false,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        if (value == true) {
-                                          for (final b in filteredBooks) {
-                                            _selectedBookIds.add(b.id);
-                                          }
-                                        } else {
-                                          for (final b in filteredBooks) {
-                                            _selectedBookIds.remove(b.id);
-                                          }
-                                        }
-                                      });
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: bookProvider.isLoading
+                      ? const ShimmerTable(rows: 8, columns: 6)
+                      : bookProvider.books.isEmpty
+                      ? EmptyStateWidget(
+                          icon: Icons.library_books_outlined,
+                          title: 'No books found',
+                          subtitle: 'Click "Add Book" to create a new book',
+                          actionLabel: 'Retry',
+                          onAction: _loadBooks,
+                        )
+                      : Theme(
+                          data: Theme.of(context).copyWith(
+                            dividerColor: isDark
+                                ? colorScheme.outlineVariant
+                                    .withValues(alpha: 0.35)
+                                : const Color(0xFFF0F0F0),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            checkboxTheme: Theme.of(context)
+                                .checkboxTheme
+                                .copyWith(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  side: BorderSide(
+                                    color: tableBorderColor,
+                                    width: 1,
+                                  ),
+                                  fillColor:
+                                      WidgetStateProperty.resolveWith(
+                                    (states) {
+                                      if (states
+                                          .contains(WidgetState.selected)) {
+                                        return accentTeal;
+                                      }
+                                      return Colors.transparent;
                                     },
                                   ),
+                                  checkColor: WidgetStateProperty.all(
+                                    Colors.white,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
-                              ),
-                            ),
-                            const DataColumn2(
-                              label: Text('Cover', style: TextStyle(fontWeight: FontWeight.w600)),
-                              fixedWidth: 56,
-                            ),
-                            const DataColumn2(
-                              label: Text('ISBN', style: TextStyle(fontWeight: FontWeight.w600)),
-                              size: ColumnSize.S,
-                            ),
-                            const DataColumn2(
-                              label: Text('Title', style: TextStyle(fontWeight: FontWeight.w600)),
-                              size: ColumnSize.L,
-                            ),
-                            const DataColumn2(
-                              label: Text('Author', style: TextStyle(fontWeight: FontWeight.w600)),
-                              size: ColumnSize.M,
-                            ),
-                            const DataColumn2(
-                              label: Text('Rack', style: TextStyle(fontWeight: FontWeight.w600)),
-                              size: ColumnSize.S,
-                            ),
-                            const DataColumn2(
-                              label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
-                              size: ColumnSize.S,
-                            ),
-                            const DataColumn2(
-                              label: Text('Copies', style: TextStyle(fontWeight: FontWeight.w600)),
-                              fixedWidth: 70,
-                            ),
-                            const DataColumn2(
-                              label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600)),
-                              fixedWidth: 105,
-                            ),
-                            const DataColumn2(
-                              label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w600)),
-                              fixedWidth: 105,
-                            ),
-                          ],
-                          rows: filteredBooks
-                              .asMap()
-                              .entries
-                              .map(
-                                (entry) {
-                                  final idx = entry.key;
-                                  final book = entry.value;
-                                  return DataRow(
-                                  color: idx.isEven
-                                      ? WidgetStateProperty.all(
-                                          Theme.of(context).colorScheme.zebraStripe)
-                                      : null,
-                                  selected: _selectedBookIds.contains(book.id),
-                                  onSelectChanged: (selected) {
-                                    if (selected == null) return;
-                                    setState(() {
-                                      if (selected) {
-                                        _selectedBookIds.add(book.id);
-                                      } else {
-                                        _selectedBookIds.remove(book.id);
-                                      }
-                                    });
-                                  },
-                                  cells: [
-                                    DataCell(
-                                      Center(
+                          ),
+                          child: MouseRegion(
+                            onExit: (_) {
+                              if (_hoveredRowIndex != null) {
+                                setState(() => _hoveredRowIndex = null);
+                              }
+                            },
+                            child: Stack(
+                              children: [
+                                DataTable2(
+                                  columnSpacing: 12,
+                                  horizontalMargin: 12,
+                                  dataRowHeight: 72,
+                                  headingRowHeight: headingRowHeight,
+                                  showCheckboxColumn: false,
+                                  minWidth: minTableWidth,
+                                  fixedTopRows: 1,
+                                  headingRowColor: WidgetStateProperty.all(
+                                    headerBackground,
+                                  ),
+                                  dividerThickness: 0.5,
+                                  columns: [
+                                    DataColumn2(
+                                      fixedWidth: 46,
+                                      label: Center(
                                         child: Transform.scale(
-                                          scale: 0.82,
+                                          scale: 0.85,
                                           child: Checkbox(
-                                            value: _selectedBookIds.contains(
-                                              book.id,
-                                            ),
-                                            onChanged: (checked) {
+                                            tristate: true,
+                                            value: filteredBooks.isEmpty
+                                                ? false
+                                                : filteredBooks.every(
+                                                    (b) => _selectedBookIds
+                                                        .contains(b.id),
+                                                  )
+                                                ? true
+                                                : filteredBooks.any(
+                                                    (b) => _selectedBookIds
+                                                        .contains(b.id),
+                                                  )
+                                                ? null
+                                                : false,
+                                            onChanged: (value) {
                                               setState(() {
-                                                if (checked == true) {
-                                                  _selectedBookIds.add(book.id);
+                                                if (value == true) {
+                                                  for (final b in
+                                                      filteredBooks) {
+                                                    _selectedBookIds
+                                                        .add(b.id);
+                                                  }
                                                 } else {
-                                                  _selectedBookIds.remove(
-                                                    book.id,
-                                                  );
+                                                  for (final b in
+                                                      filteredBooks) {
+                                                    _selectedBookIds
+                                                        .remove(b.id);
+                                                  }
                                                 }
                                               });
                                             },
@@ -531,160 +504,461 @@ class _BooksContentState extends State<BooksContent> {
                                         ),
                                       ),
                                     ),
-                                    DataCell(_buildCoverCell(book)),
-                                    DataCell(
-                                      Text(book.isbn.isEmpty ? '-' : book.isbn, style: const TextStyle(fontSize: 12)),
+                                    DataColumn2(
+                                      label: _buildHeaderLabel('Cover'),
+                                      fixedWidth: 64,
                                     ),
-                                    DataCell(
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            normalizeHindiForDisplay(
-                                              book.title,
-                                            ),
-                                            style: _textStyleForHindi(
-                                              normalizeHindiForDisplay(
-                                                book.title,
-                                              ),
-                                              const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (book.description != null &&
-                                              book.description!.isNotEmpty)
-                                            Text(
-                                              normalizeHindiForDisplay(
-                                                book.description!,
-                                              ),
-                                              style: _textStyleForHindi(
-                                                normalizeHindiForDisplay(
-                                                  book.description!,
-                                                ),
-                                                TextStyle(
-                                                  fontSize: 10,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).textTheme.bodySmall?.color,
-                                                ),
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                            ),
-                                        ],
+                                    if (showIsbn)
+                                      DataColumn2(
+                                        label: _buildHeaderLabel('ISBN'),
+                                        fixedWidth: 130,
                                       ),
+                                    DataColumn2(
+                                      label: _buildHeaderLabel('Title'),
+                                      fixedWidth: 240,
                                     ),
-                                    DataCell(
-                                      Text(
-                                        normalizeHindiForDisplay(book.author),
-                                        style: _textStyleForHindi(
-                                          normalizeHindiForDisplay(book.author),
-                                          const TextStyle(),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                    if (showAuthor)
+                                      DataColumn2(
+                                        label: _buildHeaderLabel('Author'),
+                                        fixedWidth: 180,
                                       ),
+                                    if (showRack)
+                                      DataColumn2(
+                                        label: _buildHeaderLabel('Rack'),
+                                        fixedWidth: 70,
+                                      ),
+                                    if (showCategory)
+                                      DataColumn2(
+                                        label: _buildHeaderLabel('Category'),
+                                        fixedWidth: 120,
+                                      ),
+                                    if (showCopies)
+                                      DataColumn2(
+                                        label: _buildHeaderLabel('Copies'),
+                                        fixedWidth: 90,
+                                      ),
+                                    DataColumn2(
+                                      label: _buildHeaderLabel('Status'),
+                                      fixedWidth: 120,
                                     ),
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          (book.rackNumber ?? '-'),
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.primary),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.4),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          (book.category ?? '-'),
-                                          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSecondaryContainer),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: book.availableCopies > 0
-                                              ? Colors.green.withValues(alpha: 0.08)
-                                              : Colors.orange.withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: book.availableCopies > 0
-                                                ? Colors.green.withValues(alpha: 0.2)
-                                                : Colors.orange.withValues(alpha: 0.2),
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              '${book.availableCopies}/${book.totalCopies}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: book.availableCopies > 0
-                                                    ? Colors.green.shade700
-                                                    : Colors.orange.shade700,
-                                              ),
-                                            ),
-                                            Text(
-                                              'avail.',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                color: Theme.of(context).textTheme.bodySmall?.color,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(_buildStatusBadge(book)),
-                                    DataCell(
-                                      SizedBox(
-                                        width: 100,
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            _buildActionButton(
-                                              icon: Icons.edit_rounded,
-                                              color: Colors.amber.shade700,
-                                              tooltip: 'Edit',
-                                              onTap: () => _showBookDialog(book: book),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            _buildActionButton(
-                                              icon: Icons.delete_rounded,
-                                              color: Colors.red.shade400,
-                                              tooltip: 'Delete',
-                                              onTap: () => _deleteBook(book.id),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    DataColumn2(
+                                      label: _buildHeaderLabel('Actions'),
+                                      fixedWidth: 110,
                                     ),
                                   ],
-                                );
-                                },
-                              )
-                              .toList(),
+                                  rows: filteredBooks
+                                      .asMap()
+                                      .entries
+                                      .map(
+                                        (entry) {
+                                          final idx = entry.key;
+                                          final book = entry.value;
+                                          final baseRowColor = idx.isEven
+                                              ? colorScheme.surface
+                                              : zebraColor;
+                                          final normalizedTitle =
+                                              normalizeHindiForDisplay(
+                                            book.title,
+                                          );
+                                          final normalizedAuthor =
+                                              normalizeHindiForDisplay(
+                                            book.author,
+                                          );
+                                          final normalizedDescription =
+                                              normalizeHindiForDisplay(
+                                            book.description ?? '',
+                                          );
+                                          final isbnValue =
+                                              book.isbn.isEmpty ? '-' : book.isbn;
+                                          final hasAuthor =
+                                              normalizedAuthor.trim().isNotEmpty;
+                                          final hasIsbn = isbnValue != '-';
+                                          String? secondaryText;
+                                          bool secondaryIsMono = false;
+                                          if (!showAuthor && !showIsbn) {
+                                            final parts = <String>[];
+                                            if (hasAuthor) parts.add(normalizedAuthor);
+                                            if (hasIsbn) parts.add(isbnValue);
+                                            if (parts.isNotEmpty) {
+                                              secondaryText = parts.join(' • ');
+                                            }
+                                          } else if (!showAuthor && hasAuthor) {
+                                            secondaryText = normalizedAuthor;
+                                          } else if (!showIsbn && hasIsbn) {
+                                            secondaryText = isbnValue;
+                                            secondaryIsMono = true;
+                                          } else if (normalizedDescription.isNotEmpty) {
+                                            secondaryText = normalizedDescription;
+                                          }
+                                          return DataRow(
+                                            color:
+                                                WidgetStateProperty.resolveWith(
+                                              (states) {
+                                                if (states.contains(
+                                                  WidgetState.hovered,
+                                                )) {
+                                                  return rowHoverColor;
+                                                }
+                                                if (states.contains(
+                                                  WidgetState.selected,
+                                                )) {
+                                                  return rowHoverColor
+                                                      .withValues(alpha: 0.6);
+                                                }
+                                                return baseRowColor;
+                                              },
+                                            ),
+                                            selected: _selectedBookIds
+                                                .contains(book.id),
+                                            onSelectChanged: (selected) {
+                                              if (selected == null) return;
+                                              setState(() {
+                                                if (selected) {
+                                                  _selectedBookIds
+                                                      .add(book.id);
+                                                } else {
+                                                  _selectedBookIds
+                                                      .remove(book.id);
+                                                }
+                                              });
+                                            },
+                                            cells: [
+                                              DataCell(
+                                                _wrapRowCell(
+                                                  idx,
+                                                  Center(
+                                                    child: Transform.scale(
+                                                      scale: 0.9,
+                                                      child: Checkbox(
+                                                        value:
+                                                            _selectedBookIds
+                                                                .contains(
+                                                          book.id,
+                                                        ),
+                                                        onChanged: (checked) {
+                                                          setState(() {
+                                                            if (checked ==
+                                                                true) {
+                                                              _selectedBookIds
+                                                                  .add(book
+                                                                      .id);
+                                                            } else {
+                                                              _selectedBookIds
+                                                                  .remove(book
+                                                                      .id);
+                                                            }
+                                                          });
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  showAccent: true,
+                                                ),
+                                              ),
+                                              DataCell(
+                                                _wrapRowCell(
+                                                  idx,
+                                                  _buildCoverCell(book),
+                                                ),
+                                              ),
+                                              if (showIsbn)
+                                                DataCell(
+                                                  _wrapRowCell(
+                                                    idx,
+                                                    Text(
+                                                      isbnValue,
+                                                      style: GoogleFonts
+                                                          .robotoMono(
+                                                        fontSize: 12,
+                                                        color: isbnTextColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              DataCell(
+                                                _wrapRowCell(
+                                                  idx,
+                                                  Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        normalizedTitle,
+                                                        style: _textStyleForHindi(
+                                                          normalizedTitle,
+                                                          GoogleFonts.inter(
+                                                            fontSize: 15,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: titleTextColor,
+                                                          ),
+                                                        ),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                      if (secondaryText != null)
+                                                        Text(
+                                                          secondaryText!,
+                                                          style: secondaryIsMono
+                                                              ? GoogleFonts
+                                                                  .robotoMono(
+                                                                  fontSize: 11,
+                                                                  color:
+                                                                      mutedText,
+                                                                )
+                                                              : _textStyleForHindi(
+                                                                  secondaryText!,
+                                                                  GoogleFonts
+                                                                      .inter(
+                                                                    fontSize:
+                                                                        11,
+                                                                    color:
+                                                                        mutedText,
+                                                                  ),
+                                                                ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              if (showAuthor)
+                                                DataCell(
+                                                  _wrapRowCell(
+                                                    idx,
+                                                    Text(
+                                                      normalizedAuthor,
+                                                      style: _textStyleForHindi(
+                                                        normalizedAuthor,
+                                                        GoogleFonts.inter(
+                                                          fontSize: 13,
+                                                          color:
+                                                              authorTextColor,
+                                                        ),
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ),
+                                              if (showRack)
+                                                DataCell(
+                                                  _wrapRowCell(
+                                                    idx,
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                          0xFFEEF2FF,
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(999),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                            0xFFC7D2FE,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        (book.rackNumber ?? '-'),
+                                                        style: GoogleFonts
+                                                            .inter(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: const Color(
+                                                            0xFF4338CA,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              if (showCategory)
+                                                DataCell(
+                                                  _wrapRowCell(
+                                                    idx,
+                                                    Text(
+                                                      normalizeHindiForDisplay(
+                                                        book.category ?? '-',
+                                                      ),
+                                                      style: _textStyleForHindi(
+                                                        normalizeHindiForDisplay(
+                                                          book.category ?? '-',
+                                                        ),
+                                                        GoogleFonts.inter(
+                                                          fontSize: 13,
+                                                          color:
+                                                              categoryTextColor,
+                                                        ),
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ),
+                                              if (showCopies)
+                                                DataCell(
+                                                  _wrapRowCell(
+                                                    idx,
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                          0xFFD1FAE5,
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(6),
+                                                      ),
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            '${book.availableCopies}/${book.totalCopies}',
+                                                            style: GoogleFonts
+                                                                .inter(
+                                                              fontSize: 13,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color:
+                                                                  const Color(
+                                                                0xFF065F46,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 2,
+                                                          ),
+                                                          Text(
+                                                            'avail.',
+                                                            style: GoogleFonts
+                                                                .inter(
+                                                              fontSize: 10,
+                                                              color: const Color(
+                                                                0xFF3F8F72,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              DataCell(
+                                                _wrapRowCell(
+                                                  idx,
+                                                  _buildStatusBadge(book),
+                                                ),
+                                              ),
+                                              DataCell(
+                                                _wrapRowCell(
+                                                  idx,
+                                                  SizedBox(
+                                                    width: 100,
+                                                    child: Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .end,
+                                                      children: [
+                                                        _buildActionButton(
+                                                          icon:
+                                                              Icons.edit_rounded,
+                                                          tooltip: 'Edit book',
+                                                          onTap: () =>
+                                                              _showBookDialog(
+                                                            book: book,
+                                                          ),
+                                                          backgroundColor:
+                                                              const Color(
+                                                            0xFFFFF7ED,
+                                                          ),
+                                                          hoverColor:
+                                                              const Color(
+                                                            0xFFFEF3C7,
+                                                          ),
+                                                          borderColor:
+                                                              const Color(
+                                                            0xFFFDE68A,
+                                                          ),
+                                                          iconColor:
+                                                              const Color(
+                                                            0xFFD97706,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                        _buildActionButton(
+                                                          icon:
+                                                              Icons.delete_rounded,
+                                                          tooltip:
+                                                              'Delete book',
+                                                          onTap: () =>
+                                                              _deleteBook(
+                                                            book.id,
+                                                          ),
+                                                          backgroundColor:
+                                                              const Color(
+                                                            0xFFFFF1F2,
+                                                          ),
+                                                          hoverColor:
+                                                              const Color(
+                                                            0xFFFFE4E6,
+                                                          ),
+                                                          borderColor:
+                                                              const Color(
+                                                            0xFFFECDD3,
+                                                          ),
+                                                          iconColor:
+                                                              const Color(
+                                                            0xFFE11D48,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      )
+                                      .toList(),
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  top: headingRowHeight - 1,
+                                  child: Container(
+                                    height: 1,
+                                    color: headerAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
 
@@ -692,60 +966,179 @@ class _BooksContentState extends State<BooksContent> {
             if (!bookProvider.isLoading && bookProvider.books.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                  horizontal: 18,
+                  vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: colorScheme.surface,
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
                   border: Border(
                     top: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                      color: tableBorderColor,
                     ),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Showing ${bookProvider.books.length} of ${bookProvider.totalBooks} books',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          'Page ${bookProvider.currentPage} of ${bookProvider.totalPages}',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 760;
+                    final footerTextStyle = GoogleFonts.inter(
+                      fontSize: 13,
+                      color: mutedText,
+                    );
+                    final pagePill = Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentTeal,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${bookProvider.currentPage}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 16),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left),
+                      ),
+                    );
+                    final pageIndicator = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Page', style: footerTextStyle),
+                        const SizedBox(width: 6),
+                        pagePill,
+                        const SizedBox(width: 6),
+                        Text(
+                          'of ${bookProvider.totalPages}',
+                          style: footerTextStyle,
+                        ),
+                      ],
+                    );
+                    final loadMoreButton = OutlinedButton(
+                      onPressed: bookProvider.hasMore
+                          ? () => bookProvider.loadMoreBooks()
+                          : null,
+                      style: ButtonStyle(
+                        padding: WidgetStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                        ),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        side: WidgetStateProperty.all(
+                          const BorderSide(color: accentTeal),
+                        ),
+                        backgroundColor:
+                            WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return accentTeal;
+                          }
+                          return Colors.transparent;
+                        }),
+                        foregroundColor:
+                            WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return Colors.white;
+                          }
+                          return accentTeal;
+                        }),
+                        textStyle: WidgetStateProperty.all(
+                          GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      child: const Text('+ Load More'),
+                    );
+                    final pagerButtons = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildPagerIconButton(
+                          icon: Icons.chevron_left,
                           onPressed: bookProvider.currentPage > 1
                               ? () => bookProvider.loadPage(
-                                  bookProvider.currentPage - 1,
-                                )
+                                    bookProvider.currentPage - 1,
+                                  )
                               : null,
+                          borderColor: tableBorderColor,
+                          iconColor: const Color(0xFF475569),
+                          hoverFill: rowHoverColor,
+                          disabledIconColor: const Color(0xFF94A3B8),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right),
+                        const SizedBox(width: 8),
+                        _buildPagerIconButton(
+                          icon: Icons.chevron_right,
                           onPressed: bookProvider.hasMore
                               ? () => bookProvider.loadPage(
-                                  bookProvider.currentPage + 1,
-                                )
+                                    bookProvider.currentPage + 1,
+                                  )
                               : null,
+                          borderColor: tableBorderColor,
+                          iconColor: const Color(0xFF475569),
+                          hoverFill: rowHoverColor,
+                          disabledIconColor: const Color(0xFF94A3B8),
                         ),
-                        if (bookProvider.hasMore)
-                          TextButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text('Load More'),
-                            onPressed: () => bookProvider.loadMoreBooks(),
-                          ),
                       ],
-                    ),
-                  ],
+                    );
+
+                    if (isNarrow) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Showing ${bookProvider.books.length} of ${bookProvider.totalBooks} books',
+                            style: footerTextStyle,
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [pageIndicator, pagerButtons],
+                          ),
+                          if (bookProvider.hasMore) ...[
+                            const SizedBox(height: 10),
+                            loadMoreButton,
+                          ],
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Showing ${bookProvider.books.length} of ${bookProvider.totalBooks} books',
+                            style: footerTextStyle,
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(child: pageIndicator),
+                        ),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              pagerButtons,
+                              if (bookProvider.hasMore) ...[
+                                const SizedBox(width: 12),
+                                loadMoreButton,
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
           ],
@@ -793,26 +1186,278 @@ class _BooksContentState extends State<BooksContent> {
   /// Table action button with consistent styling
   Widget _buildActionButton({
     required IconData icon,
-    required Color color,
     required String tooltip,
     required VoidCallback onTap,
+    required Color backgroundColor,
+    required Color hoverColor,
+    required Color borderColor,
+    required Color iconColor,
   }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 18, color: color),
+    return _ActionIconButton(
+      icon: icon,
+      tooltip: tooltip,
+      onTap: onTap,
+      backgroundColor: backgroundColor,
+      hoverColor: hoverColor,
+      borderColor: borderColor,
+      iconColor: iconColor,
+    );
+  }
+
+  /// Shared search field used across all toolbar layouts.
+  Widget _buildSearchField({
+    required TextEditingController controller,
+    required Color tableBorderColor,
+    required Color searchFill,
+    required Color mutedText,
+    required Color accentTeal,
+    String hintText = 'Search books...',
+  }) {
+    return TextField(
+      controller: controller,
+      style: GoogleFonts.inter(fontSize: 14),
+      cursorColor: accentTeal,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: const Icon(Icons.search, size: 20),
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: () {
+                  controller.clear();
+                  _filterBooks();
+                  setState(() {});
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: tableBorderColor),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: tableBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: accentTeal, width: 1.2),
+        ),
+        filled: true,
+        fillColor: searchFill,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        isDense: true,
+        hintStyle: GoogleFonts.inter(fontSize: 13, color: mutedText),
       ),
+      onChanged: (value) {
+        _searchDebounce?.cancel();
+        _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
+        setState(() {});
+      },
+    );
+  }
+
+  /// Shared toolbar action buttons row used in compact and medium layouts.
+  Widget _buildToolbarActions({
+    required BookProvider bookProvider,
+    required int selectedCount,
+    required Color accentTeal,
+    required ColorScheme colorScheme,
+    bool compactLabels = false,
+  }) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildCategoryFilterPopup(bookProvider),
+          const SizedBox(width: 4),
+          if (selectedCount > 0) ...[
+            _buildToolbarIconButton(
+              icon: Icons.delete_forever,
+              tooltip: 'Delete ($selectedCount)',
+              onPressed: _deleteSelectedBooks,
+              color: colorScheme.error,
+            ),
+            _buildToolbarIconButton(
+              icon: Icons.clear,
+              tooltip: 'Clear selection',
+              onPressed: () => setState(_selectedBookIds.clear),
+            ),
+          ],
+          _buildToolbarDivider(context),
+          _buildToolbarIconButton(
+            icon: Icons.category,
+            tooltip: 'Manage Categories',
+            onPressed: _showCategoryManagement,
+            color: colorScheme.primary,
+          ),
+          _buildToolbarIconButton(
+            icon: Icons.upload_file,
+            tooltip: 'Import CSV/Excel',
+            onPressed: _importBooks,
+          ),
+          _buildToolbarIconButton(
+            icon: Icons.download,
+            tooltip: 'Export CSV',
+            onPressed: _exportBooksCsv,
+          ),
+          _buildToolbarIconButton(
+            icon: Icons.refresh,
+            tooltip: 'Refresh',
+            onPressed: _loadBooks,
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: () => _showBookDialog(),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(compactLabels ? 'Add' : 'Add Book'),
+            style: ButtonStyle(
+              padding: WidgetStateProperty.all(
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
+                if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
+                return accentTeal;
+              }),
+              foregroundColor: WidgetStateProperty.all(Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbar({
+    required BookProvider bookProvider,
+    required int selectedCount,
+    required double screenWidth,
+    required bool isVeryCompact,
+    required bool isMedium,
+    required Color accentTeal,
+    required Color tableBorderColor,
+    required Color searchFill,
+    required Color mutedText,
+    required ColorScheme colorScheme,
+  }) {
+    if (isVeryCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSearchField(
+            controller: _searchController,
+            tableBorderColor: tableBorderColor,
+            searchFill: searchFill,
+            mutedText: mutedText,
+            accentTeal: accentTeal,
+          ),
+          const SizedBox(height: 10),
+          _buildToolbarActions(
+            bookProvider: bookProvider,
+            selectedCount: selectedCount,
+            accentTeal: accentTeal,
+            colorScheme: colorScheme,
+            compactLabels: true,
+          ),
+        ],
+      );
+    }
+
+    if (isMedium) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSearchField(
+            controller: _searchController,
+            tableBorderColor: tableBorderColor,
+            searchFill: searchFill,
+            mutedText: mutedText,
+            accentTeal: accentTeal,
+          ),
+          const SizedBox(height: 10),
+          _buildToolbarActions(
+            bookProvider: bookProvider,
+            selectedCount: selectedCount,
+            accentTeal: accentTeal,
+            colorScheme: colorScheme,
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: _buildSearchField(
+            controller: _searchController,
+            tableBorderColor: tableBorderColor,
+            searchFill: searchFill,
+            mutedText: mutedText,
+            accentTeal: accentTeal,
+          ),
+        ),
+        const SizedBox(width: 10),
+        _buildCategoryFilterPopup(bookProvider),
+        if (selectedCount > 0) ...[
+          _buildToolbarDivider(context),
+          _buildToolbarIconButton(
+            icon: Icons.delete_forever,
+            tooltip: 'Delete ($selectedCount)',
+            onPressed: _deleteSelectedBooks,
+            color: colorScheme.error,
+          ),
+          _buildToolbarIconButton(
+            icon: Icons.clear,
+            tooltip: 'Clear selection',
+            onPressed: () => setState(_selectedBookIds.clear),
+          ),
+        ],
+        _buildToolbarDivider(context),
+        _buildToolbarIconButton(
+          icon: Icons.category,
+          tooltip: 'Manage Categories',
+          onPressed: _showCategoryManagement,
+          color: colorScheme.primary,
+        ),
+        _buildToolbarIconButton(
+          icon: Icons.upload_file,
+          tooltip: 'Import CSV/Excel',
+          onPressed: _importBooks,
+        ),
+        _buildToolbarIconButton(
+          icon: Icons.download,
+          tooltip: 'Export CSV',
+          onPressed: _exportBooksCsv,
+        ),
+        _buildToolbarIconButton(
+          icon: Icons.refresh,
+          tooltip: 'Refresh',
+          onPressed: _loadBooks,
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: () => _showBookDialog(),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Add Book'),
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
+              if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
+              return accentTeal;
+            }),
+            foregroundColor: WidgetStateProperty.all(Colors.white),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1305,30 +1950,52 @@ class _BooksContentState extends State<BooksContent> {
 
   Widget _buildStatusBadge(Book book) {
     final isAvailable = book.availableCopies > 0;
-    final color = isAvailable ? Colors.green : Colors.orange;
+    final background =
+        isAvailable ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2);
+    final border =
+        isAvailable ? const Color(0xFF6EE7B7) : const Color(0xFFFECACA);
+    final textColor =
+        isAvailable ? const Color(0xFF059669) : const Color(0xFFEF4444);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4)],
+          AnimatedBuilder(
+            animation: _statusPulse,
+            builder: (context, child) {
+              final scale = 0.85 + (_statusPulse.value * 0.35);
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: textColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: textColor.withValues(alpha: 0.35),
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Text(
-            isAvailable ? 'Available' : 'Borrowed',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+            isAvailable ? 'Available' : 'Unavailable',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: textColor,
+            ),
           ),
         ],
       ),
@@ -1338,20 +2005,30 @@ class _BooksContentState extends State<BooksContent> {
   Widget _buildCoverCell(Book book) {
     return Container(
       width: 40,
-      height: 55,
+      height: 52,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: const Color(0x14000000)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: book.coverImage != null && book.coverImage!.isNotEmpty
-          ? Image.network(
-              ApiService.resolvePublicUrl(book.coverImage!),
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  _buildCoverPlaceholder(book),
-            )
-          : _buildCoverPlaceholder(book),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: book.coverImage != null && book.coverImage!.isNotEmpty
+            ? Image.network(
+                ApiService.resolvePublicUrl(book.coverImage!),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildCoverPlaceholder(book),
+              )
+            : _buildCoverPlaceholder(book),
+      ),
     );
   }
 
@@ -1395,8 +2072,77 @@ class _BooksContentState extends State<BooksContent> {
     _searchDebounce?.cancel();
     _dataChangedSub?.cancel();
     _searchController.dispose();
+    _statusPulseController.dispose();
     DashboardScreen.shortcutEvent.removeListener(_onShortcutEvent);
     super.dispose();
+  }
+}
+
+class _ActionIconButton extends StatefulWidget {
+  const _ActionIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.backgroundColor,
+    required this.hoverColor,
+    required this.borderColor,
+    required this.iconColor,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color backgroundColor;
+  final Color hoverColor;
+  final Color borderColor;
+  final Color iconColor;
+
+  @override
+  State<_ActionIconButton> createState() => _ActionIconButtonState();
+}
+
+class _ActionIconButtonState extends State<_ActionIconButton> {
+  bool _hovered = false;
+  static const _duration = Duration(milliseconds: 150);
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: AnimatedScale(
+          scale: _hovered ? 1.05 : 1.0,
+          duration: _duration,
+          curve: Curves.easeInOut,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: widget.onTap,
+              child: AnimatedContainer(
+                duration: _duration,
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      _hovered ? widget.hoverColor : widget.backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: widget.borderColor),
+                ),
+                child: Icon(
+                  widget.icon,
+                  size: 18,
+                  color: widget.iconColor,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

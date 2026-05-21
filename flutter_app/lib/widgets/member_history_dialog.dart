@@ -149,7 +149,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   'Total Borrowed',
                                   _history.length.toString(),
                                   Icons.book,
-                                  Colors.blue,
+                                  const Color(0xFF3B82F6),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -162,7 +162,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                       .length
                                       .toString(),
                                   Icons.bookmark,
-                                  Colors.orange,
+                                  const Color(0xFFF59E0B),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -175,7 +175,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                       .length
                                       .toString(),
                                   Icons.check_circle,
-                                  Colors.green,
+                                  const Color(0xFF10B981),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -188,7 +188,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                       .length
                                       .toString(),
                                   Icons.warning,
-                                  Colors.red,
+                                  const Color(0xFFEF4444),
                                 ),
                               ),
                             ],
@@ -201,7 +201,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                               'Total Borrowed',
                               _history.length.toString(),
                               Icons.book,
-                              Colors.blue,
+                              const Color(0xFF3B82F6),
                             ),
                             _buildStatItem(
                               'Currently Borrowed',
@@ -210,7 +210,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .length
                                   .toString(),
                               Icons.bookmark,
-                              Colors.orange,
+                              const Color(0xFFF59E0B),
                             ),
                             _buildStatItem(
                               'Returned',
@@ -219,7 +219,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .length
                                   .toString(),
                               Icons.check_circle,
-                              Colors.green,
+                              const Color(0xFF10B981),
                             ),
                             _buildStatItem(
                               'Overdue',
@@ -228,7 +228,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .length
                                   .toString(),
                               Icons.warning,
-                              Colors.red,
+                              const Color(0xFFEF4444),
                             ),
                           ],
                         ),
@@ -541,7 +541,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('PDF exported to: $path'),
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(0xFF10B981),
           ),
         );
       }
@@ -550,7 +550,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error exporting PDF: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFEF4444),
           ),
         );
       }
@@ -603,7 +603,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              Icon(Icons.error_outline, size: 48, color: const Color(0xFFEF4444)),
               const SizedBox(height: 16),
               Text('Error: $_error'),
               const SizedBox(height: 16),
@@ -618,22 +618,23 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
     }
 
     if (_history.isEmpty) {
-      return const Center(
+      final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(40),
+          padding: const EdgeInsets.all(40),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.history_outlined, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              Icon(Icons.history_outlined, size: 64, color: muted),
+              const SizedBox(height: 16),
               Text(
                 'No borrowing history',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(fontSize: 16, color: muted),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'This member hasn\'t borrowed any books yet',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14, color: muted),
               ),
             ],
           ),
@@ -731,20 +732,20 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                     _buildDateChip(
                       'Issued: ${_formatDate(issue.issueDate)}',
                       Icons.calendar_today,
-                      Colors.blue,
+                      const Color(0xFF3B82F6),
                     ),
                     const SizedBox(width: 8),
                     _buildDateChip(
                       'Due: ${_formatDate(issue.dueDate)}',
                       Icons.event,
-                      Colors.orange,
+                      const Color(0xFFF59E0B),
                     ),
                     if (issue.returnDate != null) ...[
                       const SizedBox(width: 8),
                       _buildDateChip(
                         'Returned: ${_formatDate(issue.returnDate!)}',
                         Icons.check,
-                        Colors.green,
+                        const Color(0xFF10B981),
                       ),
                     ],
                   ],
@@ -804,13 +805,13 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'issued':
-        return Colors.blue;
+        return const Color(0xFF3B82F6);
       case 'returned':
-        return Colors.green;
+        return const Color(0xFF10B981);
       case 'overdue':
-        return Colors.red;
+        return const Color(0xFFEF4444);
       default:
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
     }
   }
 

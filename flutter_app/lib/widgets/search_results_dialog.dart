@@ -114,8 +114,8 @@ class SearchResultsDialog extends StatelessWidget {
             trailing: Chip(
               label: Text(book.status),
               backgroundColor: book.status == 'available'
-                  ? Colors.green
-                  : Colors.orange,
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFFF59E0B),
             ),
           ),
         );
@@ -152,10 +152,10 @@ class SearchResultsDialog extends StatelessWidget {
               backgroundColor:
                   (member.memberType == 'student' ||
                       member.memberType == 'guest')
-                  ? Colors.orange
+                  ? const Color(0xFFF59E0B)
                   : member.memberType == 'faculty'
-                  ? Colors.purple
-                  : Colors.green,
+                  ? const Color(0xFF8B5CF6)
+                  : const Color(0xFF10B981),
             ),
           ),
         );
@@ -213,10 +213,10 @@ class SearchResultsDialog extends StatelessWidget {
                         style: const TextStyle(fontSize: 10),
                       ),
                       backgroundColor: issue.status == 'returned'
-                          ? Colors.green
+                          ? const Color(0xFF10B981)
                           : issue.status == 'overdue'
-                          ? Colors.red
-                          : Colors.orange,
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFFF59E0B),
                     ),
                   ),
                   const SizedBox(height: 2),
