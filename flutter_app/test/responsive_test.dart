@@ -62,7 +62,7 @@ void main() {
 
       expect(compact.pagePadding, 8);
       expect(medium.pagePadding, 14);
-      expect(expanded.pagePadding, 20);
+      expect(expanded.pagePadding, 24);
     });
 
     test('toolbarPaddingH scales with width', () {

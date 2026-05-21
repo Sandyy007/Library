@@ -4,11 +4,13 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const helmet = require('helmet');
+const morgan = require('morgan');
+const fs = require('fs');
+const https = require('https');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const path = require('path');
 const multer = require('multer');
-const fs = require('fs');
 const { parse: parseCsv } = require('csv-parse/sync');
 const xlsx = require('xlsx');
 
@@ -56,6 +58,13 @@ app.use(
 const jsonBodyLimit = process.env.JSON_BODY_LIMIT || '2mb';
 app.use(express.json({ limit: jsonBodyLimit }));
 app.use(express.urlencoded({ limit: jsonBodyLimit, extended: true }));
+
+// Structured request logging
+const logFormat = isProduction ? 'combined' : 'dev';
+const logStream = process.env.LOG_FILE
+  ? fs.createWriteStream(path.join(__dirname, process.env.LOG_FILE), { flags: 'a' })
+  : null;
+app.use(morgan(logFormat, logStream ? { stream: logStream } : {}));
 
 // Rate limiting is mainly for public-facing deployments.
 // For local desktop usage (NODE_ENV !== 'production'), it can easily block legitimate UI traffic.
@@ -1357,7 +1366,10 @@ app.get('/api/categories', (req, res) => {
 
 app.post('/api/categories', (req, res) => {
   const { name, description } = req.body;
-  db.query('INSERT INTO book_categories (name, description) VALUES (?, ?)', [name, description], (err, result) => {
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Category name is required' });
+  }
+  db.query('INSERT INTO book_categories (name, description) VALUES (?, ?)', [name.trim(), description], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: result.insertId });
   });
