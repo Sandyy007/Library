@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
-import '../utils/responsive.dart';
 
 class BorrowedBooksDialog extends StatefulWidget {
   final int memberId;
@@ -103,7 +102,6 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final r = Responsive(context);
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 800;
     final isVerySmallScreen = screenSize.width < 480;
@@ -111,7 +109,6 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
     final maxHeight =
         (isSmallScreen ? screenSize.height * 0.9 : 600).toDouble();
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final limitReached = widget.borrowCount >= _maxAllowed;
     final limitWarning = widget.borrowCount >= _maxAllowed - 1;

@@ -108,10 +108,8 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final primaryBlue = _primaryBlue(context);
-    final secondaryBlue = _secondaryBlue(context);
     final cardBg = _cardBg(context);
     final textColor = _textColor(context);
-    final textGrey = _textGrey(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -258,10 +256,6 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     final cardBg = _cardBg(context);
     final primaryBlue = _primaryBlue(context);
     final secondaryBlue = _secondaryBlue(context);
-    final lightAccent = _lightAccent(context);
-    final textColor = _textColor(context);
-    final textGrey = _textGrey(context);
-    final borderColor = _borderColor(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -583,9 +577,7 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
   // ═══════════════════════════════════════════
   Widget _buildCoreFeaturesSection(BuildContext context) {
     final primaryBlue = _primaryBlue(context);
-    final secondaryBlue = _secondaryBlue(context);
     final textColor = _textColor(context);
-    final textGrey = _textGrey(context);
 
     final features = [
       {
@@ -870,17 +862,6 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     final primaryBlue = _primaryBlue(context);
     final textColor = _textColor(context);
 
-    final galleryItems = [
-      'assets/images/Lib1.jpeg',
-      'assets/images/Lib2.jpeg',
-      'assets/images/Lib3.jpeg',
-      'assets/images/Lib4.jpeg',
-      'assets/images/Lib5.jpeg',
-      'assets/images/Lib6.jpeg',
-      'assets/images/Lib7.jpeg',
-      'assets/images/Lib8.jpeg',
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -916,9 +897,6 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
 
   Widget _buildGalleryCard(BuildContext context) {
     final cardBg = _cardBg(context);
-    final lightAccent = _lightAccent(context);
-    final borderColor = _borderColor(context);
-    final textGrey = _textGrey(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final galleryItems = [

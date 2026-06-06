@@ -2248,7 +2248,6 @@ class _DashboardContentState extends State<DashboardContent>
   }) async {
     if (!mounted) return;
     final rootContext = ctx;
-    final colorScheme = Theme.of(rootContext).colorScheme;
     final int popupPageSize = 10;
     int currentPage = 1;
     int totalPages = items.isNotEmpty ? ((items.length + popupPageSize - 1) ~/ popupPageSize) : 1;

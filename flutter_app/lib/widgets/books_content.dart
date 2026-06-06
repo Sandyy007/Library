@@ -14,7 +14,6 @@ import '../widgets/book_dialog.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
-import '../utils/color_extensions.dart';
 import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/dashboard_screen.dart';
@@ -702,7 +701,7 @@ class _BooksContentState extends State<BooksContent>
                                                       ),
                                                       if (secondaryText != null)
                                                         Text(
-                                                          secondaryText!,
+                                                          secondaryText,
                                                           style: secondaryIsMono
                                                               ? GoogleFonts
                                                                   .robotoMono(
@@ -711,7 +710,7 @@ class _BooksContentState extends State<BooksContent>
                                                                       mutedText,
                                                                 )
                                                               : _textStyleForHindi(
-                                                                  secondaryText!,
+                                                                  secondaryText,
                                                                   GoogleFonts
                                                                       .inter(
                                                                     fontSize:

@@ -19,7 +19,6 @@ import '../utils/hindi_text.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
-import '../utils/color_extensions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
@@ -1136,15 +1135,6 @@ class _IssuesContentState extends State<IssuesContent> {
         const SizedBox(width: 10),
         actions,
       ],
-    );
-  }
-
-  Widget _buildToolbarDivider(BuildContext context) {
-    return Container(
-      height: 20,
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
     );
   }
 

@@ -3676,12 +3676,26 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: `Endpoint not found: ${req.method} ${req.path}` });
 });
 
-// Error handling middleware
+// Error handling middleware — must have 4 params.
 app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  // Avoid leaking internal details in production.
-  const message = isProduction ? 'Internal server error' : (err.message || 'Internal server error');
-  res.status(500).json({ error: message });
+  const statusCode = err.status || err.statusCode || 500;
+  const isServerError = statusCode >= 500;
+
+  if (isServerError) {
+    console.error(`[ERROR] ${req.method} ${req.path}:`, err);
+  }
+
+  const body = {
+    success: false,
+    error: isProduction && isServerError ? 'Internal server error' : (err.message || 'Internal server error'),
+    ...(err.payload || {}),
+  };
+
+  if (!isProduction && isServerError && err.stack) {
+    body.stack = err.stack.split('\n').slice(0, 4).join('\n');
+  }
+
+  res.status(statusCode).json(body);
 });
 
 // Start server after all routes are defined.
@@ -3689,9 +3703,24 @@ app.use((err, req, res, next) => {
 let activeServer = null;
 
 const startServer = (port = PORT, host = 'localhost') => {
-  const server = app.listen(port, host, () => {
-    console.log(`Server running on port ${port}`);
-  });
+  // HTTPS support: if SSL_KEY and SSL_CERT env vars are set, create an HTTPS server
+  const sslKeyPath = process.env.SSL_KEY;
+  const sslCertPath = process.env.SSL_CERT;
+  let server;
+
+  if (sslKeyPath && sslCertPath && fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
+    const httpsOptions = {
+      key: fs.readFileSync(sslKeyPath),
+      cert: fs.readFileSync(sslCertPath),
+    };
+    server = https.createServer(httpsOptions, app).listen(port, host, () => {
+      console.log(`HTTPS server running on port ${port}`);
+    });
+  } else {
+    server = app.listen(port, host, () => {
+      console.log(`Server running on port ${port}${sslKeyPath && !fs.existsSync(sslKeyPath) ? ' (SSL cert not found, falling back to HTTP)' : ''}`);
+    });
+  }
 
   activeServer = server;
 

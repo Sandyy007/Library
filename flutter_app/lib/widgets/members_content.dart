@@ -16,7 +16,6 @@ import '../widgets/borrowed_books_dialog.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
-import '../utils/color_extensions.dart';
 import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/dashboard_screen.dart';
@@ -700,10 +699,6 @@ class _MembersContentState extends State<MembersContent>
         ),
       ),
     );
-  }
-
-  Widget _buildHeaderCellAlign(Widget child) {
-    return Align(alignment: Alignment.centerRight, child: child);
   }
 
   Widget _buildActionButton({
