@@ -64,3 +64,6 @@ flutter_app/build_output*.txt
 flutter_app/debug_log.txt
 flutter_app/run_windows.log
 temp_original.dart
+flutter_app/flutter_*.png
+flutter_app/test_output*.txt
+flutter_app/analysis_output*.txt

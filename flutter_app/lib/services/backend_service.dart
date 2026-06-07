@@ -124,17 +124,22 @@ class BackendService {
     }
   }
 
-  /// Ensure .env file exists with default values
+  /// Ensure .env file exists with safe defaults.
+  /// SECURITY: Never auto-write secrets. If the .env is missing the operator
+  /// MUST create it (and supply DB_PASSWORD + JWT_SECRET) before the backend
+  /// can start. We write placeholder values that the backend will reject.
   static Future<void> _ensureEnvFile(String envPath) async {
     final envFile = File(envPath);
     if (!envFile.existsSync()) {
-      debugPrint('Creating default .env file at: $envPath');
+      debugPrint('Creating placeholder .env at $envPath. '
+          'You MUST edit it to set DB_PASSWORD and JWT_SECRET before '
+          'the backend can start.');
       await envFile.writeAsString('''
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=admin
+DB_PASSWORD=CHANGE_ME
 DB_NAME=library_management
-JWT_SECRET=7fc548b2b0e471ff19ed22a8085d6b24634d3295
+JWT_SECRET=CHANGE_ME_GENERATE_WITH_crypto_randomBytes_48
 PORT=3000
 NODE_ENV=production
 ''');

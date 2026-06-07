@@ -6,7 +6,9 @@ import '../services/api_service.dart';
 class AuthProvider with ChangeNotifier {
   User? _user;
   bool _isLoading = false;
+  Duration? _sessionRemaining;
   late final StreamSubscription<void> _unauthorizedSub;
+  late final StreamSubscription<Duration> _sessionExpiringSub;
 
   final Future<User> Function(String username, String password) _loginFn;
   final Future<void> Function() _logoutFn;
@@ -25,6 +27,13 @@ class AuthProvider with ChangeNotifier {
     _unauthorizedSub = ApiService.unauthorizedStream.listen((_) {
       // Token became invalid/expired during runtime.
       _user = null;
+      _sessionRemaining = null;
+      notifyListeners();
+    });
+    _sessionExpiringSub = ApiService.sessionExpiringStream.listen((remaining) {
+      // Token is about to expire; expose the remaining time so the UI can
+      // show a "session expiring in N minutes" banner.
+      _sessionRemaining = remaining;
       notifyListeners();
     });
   }
@@ -32,6 +41,18 @@ class AuthProvider with ChangeNotifier {
   User? get user => _user;
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
+  bool get mustChangePassword => _user?.mustChangePassword ?? false;
+
+  /// How long until the current session expires, or null if we don't know
+  /// (no token, or token was issued by a server that doesn't include exp).
+  Duration? get sessionRemaining => _sessionRemaining;
+
+  void clearSessionRemaining() {
+    if (_sessionRemaining != null) {
+      _sessionRemaining = null;
+      notifyListeners();
+    }
+  }
 
   Future<void> login(String username, String password) async {
     _isLoading = true;
@@ -87,6 +108,7 @@ class AuthProvider with ChangeNotifier {
   @override
   void dispose() {
     _unauthorizedSub.cancel();
+    _sessionExpiringSub.cancel();
     super.dispose();
   }
 }

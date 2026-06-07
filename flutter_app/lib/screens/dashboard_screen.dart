@@ -17,6 +17,7 @@ import '../widgets/reports_content.dart';
 import '../widgets/about_content.dart';
 import '../widgets/search_results_dialog.dart';
 import '../widgets/notification_bell.dart';
+import '../widgets/session_expiring_banner.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
 import 'dart:async';
@@ -191,6 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Expanded(
               child: Column(
                 children: [
+                  const SessionExpiringBanner(),
                   // Modern App Bar
                   Container(
                     height: isVeryCompact ? 80 : 68,

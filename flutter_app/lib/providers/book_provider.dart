@@ -130,10 +130,19 @@ class BookProvider with ChangeNotifier {
   Future<void> addBook(Book book) async {
     try {
       final newBook = await ApiService.addBook(book);
-      _books.insert(0, newBook); // Add to beginning of list
-      _totalBooks++;
+      // Optimistic local insert so the UI reflects the new book immediately.
+      // We don't bump _totalBooks because the next paginated fetch would
+      // get a stale total; refetch the first page to keep the count honest.
+      if (_books.isEmpty) {
+        _books = [newBook];
+      } else {
+        _books = [newBook, ..._books];
+      }
       notifyListeners();
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DEBUG [BookProvider]: Error adding book: $e');
+      }
       rethrow;
     }
   }
@@ -147,6 +156,9 @@ class BookProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DEBUG [BookProvider]: Error updating book: $e');
+      }
       rethrow;
     }
   }
@@ -155,9 +167,12 @@ class BookProvider with ChangeNotifier {
     try {
       await ApiService.deleteBook(id);
       _books.removeWhere((b) => b.id == id);
-      _totalBooks--;
+      if (_totalBooks > 0) _totalBooks--;
       notifyListeners();
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DEBUG [BookProvider]: Error deleting book: $e');
+      }
       rethrow;
     }
   }

@@ -161,15 +161,10 @@ void main() {
       expect(issue.daysOverdue, 0);
     });
 
-    test('fromJson with empty map uses defaults', () {
-      final issue = Issue.fromJson({});
-      expect(issue.id, 0);
-      expect(issue.bookId, 0);
-      expect(issue.memberId, 0);
-      expect(issue.status, 'issued');
-      expect(issue.bookTitle, '');
-      expect(issue.bookAuthor, '');
-      expect(issue.memberName, '');
+    test('fromJson with empty map throws (strict parsing)', () {
+      // The strict parser refuses to silently coerce missing required fields
+      // to defaults; a malformed payload should surface as an exception.
+      expect(() => Issue.fromJson({}), throwsFormatException);
     });
   });
 

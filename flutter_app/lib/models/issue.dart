@@ -29,21 +29,50 @@ class Issue {
     this.notes,
   });
 
+  /// Strict integer parse: throws FormatException if the value is null, missing,
+  /// or not coercible to a non-null int. Use this for fields that the API
+  /// schema guarantees (primary/foreign keys, counts, identifiers) so a
+  /// malformed response surfaces loudly instead of being silently coerced to 0.
+  static int _reqInt(Map<String, dynamic> json, String key) {
+    final v = json[key];
+    if (v == null) {
+      throw FormatException('Issue.fromJson: missing required int field "$key"');
+    }
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final parsed = int.tryParse(v);
+      if (parsed != null) return parsed;
+    }
+    throw FormatException('Issue.fromJson: "$key" is not an int (got ${v.runtimeType})');
+  }
+
+  /// Strict non-null String parse. The API may legitimately return empty
+  /// strings for some fields (e.g. member_name on LEFT JOIN with a deleted
+  /// member), so we accept empty but never null/missing.
+  static String _reqString(Map<String, dynamic> json, String key) {
+    final v = json[key];
+    if (v == null) {
+      throw FormatException('Issue.fromJson: missing required string field "$key"');
+    }
+    return v.toString();
+  }
+
   factory Issue.fromJson(Map<String, dynamic> json) {
     return Issue(
-      id: json['id'] ?? 0,
-      bookId: json['book_id'] ?? 0,
-      memberId: json['member_id'] ?? 0,
-      issueDate: json['issue_date'] ?? '',
-      dueDate: json['due_date'] ?? '',
-      returnDate: json['return_date'],
-      status: json['status'] ?? 'issued',
-      bookTitle: json['title'] ?? '',
-      bookAuthor: json['author'] ?? '',
-      memberName: json['member_name'] ?? '',
-      coverImage: json['cover_image'],
-      memberPhoto: json['member_photo'],
-      notes: json['notes'],
+      id: _reqInt(json, 'id'),
+      bookId: _reqInt(json, 'book_id'),
+      memberId: _reqInt(json, 'member_id'),
+      issueDate: _reqString(json, 'issue_date'),
+      dueDate: _reqString(json, 'due_date'),
+      returnDate: json['return_date']?.toString(),
+      status: _reqString(json, 'status'),
+      bookTitle: _reqString(json, 'title'),
+      bookAuthor: _reqString(json, 'author'),
+      memberName: _reqString(json, 'member_name'),
+      coverImage: json['cover_image']?.toString(),
+      memberPhoto: json['member_photo']?.toString(),
+      notes: json['notes']?.toString(),
     );
   }
 

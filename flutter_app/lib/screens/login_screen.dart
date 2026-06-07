@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -760,6 +761,13 @@ class _LoginScreenState extends State<LoginScreen>
         _usernameController.text.trim(),
         _passwordController.text,
       );
+      if (!mounted) return;
+      // Server may have flagged the account as needing a password change
+      // (e.g. the default seed password 'admin'). Force a change before
+      // the user can navigate anywhere else.
+      if (authProvider.mustChangePassword) {
+        await _showChangePasswordDialog(context);
+      }
     } catch (e) {
       if (mounted) {
         // Parse error message - show user-friendly text
@@ -772,7 +780,7 @@ class _LoginScreenState extends State<LoginScreen>
         } else if (errorStr.contains('Too many')) {
           errorMessage = 'Too many attempts. Please wait.';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -796,6 +804,127 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _showChangePasswordDialog(BuildContext context) async {
+    final currentController = TextEditingController();
+    final newController = TextEditingController();
+    final confirmController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool busy = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('Change your password'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'You must set a new password before continuing.',
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: currentController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Current password',
+                      ),
+                      validator: (v) => (v == null || v.isEmpty)
+                          ? 'Required'
+                          : null,
+                    ),
+                    TextFormField(
+                      controller: newController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'New password',
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Required';
+                        if (v.length < 8) {
+                          return 'At least 8 characters';
+                        }
+                        if (v == currentController.text) {
+                          return 'New password must be different';
+                        }
+                        return null;
+                      },
+                    ),
+                    TextFormField(
+                      controller: confirmController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm new password',
+                      ),
+                      validator: (v) => v != newController.text
+                          ? 'Passwords do not match'
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          // Logging out is the only way out without changing.
+                          await Provider.of<AuthProvider>(
+                            context,
+                            listen: false,
+                          ).logout();
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                  child: const Text('Log out'),
+                ),
+                FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setLocalState(() => busy = true);
+                          try {
+                            await ApiService.changePassword(
+                              currentPassword: currentController.text,
+                              newPassword: newController.text,
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                          } catch (e) {
+                            setLocalState(() => busy = false);
+                            if (dialogContext.mounted) {
+                              ScaffoldMessenger.of(dialogContext)
+                                  .showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed: $e'),
+                                  backgroundColor: Colors.red.shade600,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: Text(busy ? 'Saving…' : 'Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    currentController.dispose();
+    newController.dispose();
+    confirmController.dispose();
   }
 
   @override

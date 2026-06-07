@@ -1762,230 +1762,17 @@ class _IssuesContentState extends State<IssuesContent> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Dialog(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width < 600
-                  ? MediaQuery.of(context).size.width * 0.95
-                  : 500,
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-            ),
-            child: Card(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Edit Issue',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // Content
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Form(
-                        key: formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextFormField(
-                              controller: dueController,
-                              decoration: const InputDecoration(
-                                labelText: 'Due Date',
-                              ),
-                              readOnly: true,
-                              onTap: () async {
-                                DateTime initialDate;
-                                try {
-                                  initialDate = dueDateIso != null
-                                      ? DateTime.parse(dueDateIso!)
-                                      : DateTime.now();
-                                } catch (e) {
-                                  initialDate = DateTime.now();
-                                }
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: initialDate,
-                                  firstDate: DateTime.now().subtract(
-                                    const Duration(days: 365),
-                                  ),
-                                  lastDate: DateTime.now().add(
-                                    const Duration(days: 365),
-                                  ),
-                                );
-                                if (date != null) {
-                                  setState(() {
-                                    dueDateIso = date.toIso8601String().split(
-                                      'T',
-                                    )[0];
-                                    dueController.text =
-                                        DateFormatter.formatDateIndian(
-                                          dueDateIso ?? '',
-                                        );
-                                  });
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            if (selectedStatus == 'returned')
-                              TextFormField(
-                                controller: returnController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Return Date',
-                                ),
-                                readOnly: true,
-                                validator: (value) {
-                                  if (selectedStatus == 'returned' &&
-                                      (value == null || value.isEmpty)) {
-                                    return 'Return date required';
-                                  }
-                                  return null;
-                                },
-                                onTap: () async {
-                                  DateTime initialDate;
-                                  try {
-                                    final r = returnDateIso;
-                                    initialDate = r != null
-                                        ? DateTime.parse(r)
-                                        : DateTime.now();
-                                  } catch (e) {
-                                    initialDate = DateTime.now();
-                                  }
-                                  final date = await showDatePicker(
-                                    context: context,
-                                    initialDate: initialDate,
-                                    firstDate: DateTime.now().subtract(
-                                      const Duration(days: 365),
-                                    ),
-                                    lastDate: DateTime.now(),
-                                  );
-                                  if (date != null) {
-                                    setState(() {
-                                      returnDateIso = date
-                                          .toIso8601String()
-                                          .split('T')[0];
-                                      returnController.text =
-                                          DateFormatter.formatDateIndian(
-                                            returnDateIso ?? '',
-                                          );
-                                    });
-                                  }
-                                },
-                              ),
-                            if (selectedStatus == 'returned')
-                              const SizedBox(height: 16),
-                            DropdownButtonFormField<String>(
-                              initialValue: selectedStatus,
-                              decoration: const InputDecoration(
-                                labelText: 'Status',
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'issued',
-                                  child: Text('Issued'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'returned',
-                                  child: Text('Returned'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'overdue',
-                                  child: Text('Overdue'),
-                                ),
-                              ],
-                              onChanged: (value) => setState(() {
-                                if (value == null) return;
-                                selectedStatus = value;
-                                if (selectedStatus != 'returned') {
-                                  returnDateIso = null;
-                                  returnController.text = '';
-                                }
-                              }),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // Footer
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (formKey.currentState?.validate() ?? true) {
-                              try {
-                                final due = dueDateIso ?? '';
-                                final String? dueToSend = due.isNotEmpty
-                                    ? due
-                                    : null;
-                                final ret = returnDateIso ?? '';
-                                final String? returnToSend = ret.isNotEmpty
-                                    ? ret
-                                    : null;
-                                await ApiService.updateIssue(
-                                  issue.id,
-                                  dueDate: dueToSend,
-                                  returnDate: returnToSend,
-                                  status: selectedStatus,
-                                );
-                                if (mounted) {
-                                  navigator.pop();
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Issue updated successfully',
-                                      ),
-                                    ),
-                                  );
-                                  issueProvider.loadIssues();
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Failed to update issue: $e',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                          child: const Text('Update'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      builder: (dialogContext) => _EditIssueDialog(
+        issue: issue,
+        navigator: navigator,
+        messenger: messenger,
+        issueProvider: issueProvider,
+        initialSelectedStatus: selectedStatus,
+        initialDueDateIso: dueDateIso,
+        initialReturnDateIso: returnDateIso,
+        dueController: dueController,
+        returnController: returnController,
+        formKey: formKey,
       ),
     );
   }
@@ -2188,5 +1975,242 @@ class _IssuesContentState extends State<IssuesContent> {
         ),
       );
     }
+  }
+}
+
+class _EditIssueDialog extends StatefulWidget {
+  const _EditIssueDialog({
+    required this.issue,
+    required this.navigator,
+    required this.messenger,
+    required this.issueProvider,
+    required this.initialSelectedStatus,
+    required this.initialDueDateIso,
+    required this.initialReturnDateIso,
+    required this.dueController,
+    required this.returnController,
+    required this.formKey,
+  });
+
+  final dynamic issue;
+  final NavigatorState navigator;
+  final ScaffoldMessengerState messenger;
+  final IssueProvider issueProvider;
+  final String initialSelectedStatus;
+  final String? initialDueDateIso;
+  final String? initialReturnDateIso;
+  final TextEditingController dueController;
+  final TextEditingController returnController;
+  final GlobalKey<FormState> formKey;
+
+  @override
+  State<_EditIssueDialog> createState() => _EditIssueDialogState();
+}
+
+class _EditIssueDialogState extends State<_EditIssueDialog> {
+  late String selectedStatus;
+  String? dueDateIso;
+  String? returnDateIso;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedStatus = widget.initialSelectedStatus;
+    dueDateIso = widget.initialDueDateIso;
+    returnDateIso = widget.initialReturnDateIso;
+  }
+
+  @override
+  void dispose() {
+    widget.dueController.dispose();
+    widget.returnController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width < 600
+              ? MediaQuery.of(context).size.width * 0.95
+              : 500,
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: Card(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Edit Issue',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Form(
+                    key: widget.formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: widget.dueController,
+                          decoration: const InputDecoration(labelText: 'Due Date'),
+                          readOnly: true,
+                          onTap: () async {
+                            DateTime initialDate;
+                            try {
+                              initialDate = dueDateIso != null
+                                  ? DateTime.parse(dueDateIso!)
+                                  : DateTime.now();
+                            } catch (e) {
+                              initialDate = DateTime.now();
+                            }
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: initialDate,
+                              firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (date != null) {
+                              setState(() {
+                                dueDateIso = date.toIso8601String().split('T')[0];
+                                widget.dueController.text =
+                                    DateFormatter.formatDateIndian(dueDateIso ?? '');
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        if (selectedStatus == 'returned')
+                          TextFormField(
+                            controller: widget.returnController,
+                            decoration: const InputDecoration(labelText: 'Return Date'),
+                            readOnly: true,
+                            validator: (value) {
+                              if (selectedStatus == 'returned' &&
+                                  (value == null || value.isEmpty)) {
+                                return 'Return date required';
+                              }
+                              return null;
+                            },
+                            onTap: () async {
+                              DateTime initialDate;
+                              try {
+                                final r = returnDateIso;
+                                initialDate = r != null
+                                    ? DateTime.parse(r)
+                                    : DateTime.now();
+                              } catch (e) {
+                                initialDate = DateTime.now();
+                              }
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: initialDate,
+                                firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  returnDateIso = date.toIso8601String().split('T')[0];
+                                  widget.returnController.text =
+                                      DateFormatter.formatDateIndian(returnDateIso ?? '');
+                                });
+                              }
+                            },
+                          ),
+                        if (selectedStatus == 'returned')
+                          const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedStatus,
+                          decoration: const InputDecoration(labelText: 'Status'),
+                          items: const [
+                            DropdownMenuItem(value: 'issued', child: Text('Issued')),
+                            DropdownMenuItem(value: 'returned', child: Text('Returned')),
+                            DropdownMenuItem(value: 'overdue', child: Text('Overdue')),
+                          ],
+                          onChanged: (value) => setState(() {
+                            if (value == null) return;
+                            selectedStatus = value;
+                            if (selectedStatus != 'returned') {
+                              returnDateIso = null;
+                              widget.returnController.text = '';
+                            }
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (widget.formKey.currentState?.validate() ?? true) {
+                          try {
+                            final due = dueDateIso ?? '';
+                            final String? dueToSend = due.isNotEmpty ? due : null;
+                            final ret = returnDateIso ?? '';
+                            final String? returnToSend = ret.isNotEmpty ? ret : null;
+                            await ApiService.updateIssue(
+                              widget.issue.id,
+                              dueDate: dueToSend,
+                              returnDate: returnToSend,
+                              status: selectedStatus,
+                            );
+                            if (mounted) {
+                              widget.navigator.pop();
+                              widget.messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Issue updated successfully'),
+                                ),
+                              );
+                              widget.issueProvider.loadIssues();
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              widget.messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to update issue: $e'),
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                      child: const Text('Update'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -488,6 +488,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                     child: GestureDetector(
                       onTap: () {
                         final ctx = context;
+                        // ignore: use_build_context_synchronously
                         Future.microtask(() => _logout(ctx));
                       },
                       child: Container(

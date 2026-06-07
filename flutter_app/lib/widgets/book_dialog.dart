@@ -596,44 +596,9 @@ class _BookDialogState extends State<BookDialog> {
   }
 
   Future<void> _showAddCategoryDialog(ColorScheme colorScheme) async {
-    final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.add_circle, color: colorScheme.primary),
-            const SizedBox(width: 12),
-            const Text('Add New Category'),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: 'Category Name',
-            hintText: 'Enter category name',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            prefixIcon: const Icon(Icons.category),
-          ),
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Navigator.pop(context, controller.text.trim());
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (context) => _AddCategoryDialog(colorScheme: colorScheme),
     );
 
     if (result != null && result.isNotEmpty) {
@@ -814,5 +779,63 @@ class _BookDialogState extends State<BookDialog> {
     _totalCopiesController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+}
+
+class _AddCategoryDialog extends StatefulWidget {
+  const _AddCategoryDialog({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+  late final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(Icons.add_circle, color: widget.colorScheme.primary),
+          const SizedBox(width: 12),
+          const Text('Add New Category'),
+        ],
+      ),
+      content: TextField(
+        controller: _controller,
+        decoration: InputDecoration(
+          labelText: 'Category Name',
+          hintText: 'Enter category name',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          prefixIcon: const Icon(Icons.category),
+        ),
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_controller.text.trim().isNotEmpty) {
+              Navigator.pop(context, _controller.text.trim());
+            }
+          },
+          child: const Text('Add'),
+        ),
+      ],
+    );
   }
 }

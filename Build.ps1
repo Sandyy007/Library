@@ -1,9 +1,20 @@
 # Library Management System - PowerShell Build Script
 # Run this script with: powershell -ExecutionPolicy Bypass -File Build.ps1
+#
+# Examples:
+#   pwsh -File Build.ps1 -Dev          # run backend + Flutter in dev mode
+#   pwsh -File Build.ps1 -Clean        # clean build artifacts
+#   pwsh -File Build.ps1 -Test         # run all tests
+#   pwsh -File Build.ps1 -Release      # build a release
+#   pwsh -File Build.ps1 -Installer    # build a release + Inno Setup installer
+#
+# This script replaces the older BuildRelease.bat, CreateInstaller.bat, and
+# RunDev.bat wrappers. Use these flags instead of the .bat files.
 
 param(
     [switch]$Clean,
     [switch]$Test,
+    [switch]$Dev,
     [switch]$Release,
     [switch]$Installer
 )
@@ -36,13 +47,39 @@ if ($Test) {
     Set-Location backend
     npm test
     Set-Location $ProjectRoot
-    
-    Write-Host "Running Flutter tests..." -ForegroundColor Yellow
-    Set-Location flutter_app
-    flutter test
+
+    Write-Host "Running integration smoke test..." -ForegroundColor Yellow
+    Set-Location backend
+    # Boot the server in the background, run the smoke test, then stop it.
+    $nodeProcess = Start-Process -FilePath "node" -ArgumentList "server.js" -PassThru -NoNewWindow -RedirectStandardOutput "stdout.log" -RedirectStandardError "stderr.log"
+    try {
+        Start-Sleep -Seconds 3
+        node integration_test.js
+        if ($LASTEXITCODE -ne 0) { throw "integration tests failed" }
+    } finally {
+        if ($nodeProcess -and -not $nodeProcess.HasExited) {
+            Stop-Process -Id $nodeProcess.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
     Set-Location $ProjectRoot
-    
+
     Write-Host "Tests complete." -ForegroundColor Green
+}
+
+# Dev mode: start the backend and the Flutter app together.
+if ($Dev) {
+    Write-Host "Starting development session..." -ForegroundColor Yellow
+    $backend = Start-Process -FilePath "node" -ArgumentList "backend\server.js" -PassThru -NoNewWindow
+    try {
+        Start-Sleep -Seconds 3
+        Set-Location flutter_app
+        flutter run -d windows
+    } finally {
+        if ($backend -and -not $backend.HasExited) {
+            Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Write-Host "Development session ended." -ForegroundColor Green
 }
 
 # Release build

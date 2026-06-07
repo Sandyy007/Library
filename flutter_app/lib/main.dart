@@ -15,6 +15,7 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'utils/theme.dart';
 import 'services/backend_service.dart';
+import 'widgets/app_error_boundary.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,9 +69,11 @@ class MyApp extends StatelessWidget {
                 themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             builder: (context, child) => TooltipVisibility(
               visible: _enableTooltips,
-              child: FocusTraversalGroup(
-                policy: OrderedTraversalPolicy(),
-                child: child ?? const SizedBox.shrink(),
+              child: AppErrorBoundary(
+                child: FocusTraversalGroup(
+                  policy: OrderedTraversalPolicy(),
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
             home: const AuthWrapper(),

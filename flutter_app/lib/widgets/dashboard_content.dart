@@ -2006,7 +2006,9 @@ class _DashboardContentState extends State<DashboardContent>
             TextButton(
               onPressed: () {
                 final ctx = context;
+                // ignore: use_build_context_synchronously
                 Future.microtask(() => _showAlertDetailsPopup(
+                  // ignore: use_build_context_synchronously
                   ctx: ctx,
                   title: title,
                   icon: icon,
@@ -2054,7 +2056,9 @@ class _DashboardContentState extends State<DashboardContent>
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               final ctx = context;
+              // ignore: use_build_context_synchronously
               Future.microtask(() => _showSingleAlertPopup(
+                // ignore: use_build_context_synchronously
                 ctx: ctx,
                 item: item,
                 type: 'issue',
@@ -3237,7 +3241,9 @@ class _DashboardContentState extends State<DashboardContent>
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               final ctx = context;
+              // ignore: use_build_context_synchronously
               Future.microtask(() => _showSingleAlertPopup(
+                // ignore: use_build_context_synchronously
                 ctx: ctx,
                 item: item,
                 type: 'lowstock',
@@ -3368,7 +3374,9 @@ class _DashboardContentState extends State<DashboardContent>
             TextButton(
               onPressed: () {
                 final ctx = context;
+                // ignore: use_build_context_synchronously
                 Future.microtask(() => _showAlertDetailsPopup(
+                  // ignore: use_build_context_synchronously
                   ctx: ctx,
                   title: 'Daily Issue-Return Summary',
                   icon: Icons.today_rounded,
@@ -3549,7 +3557,9 @@ class _DashboardContentState extends State<DashboardContent>
             TextButton(
               onPressed: () {
                 final ctx = context;
+                // ignore: use_build_context_synchronously
                 Future.microtask(() => _showAlertDetailsPopup(
+                  // ignore: use_build_context_synchronously
                   ctx: ctx,
                   title: 'Most Active Members',
                   icon: Icons.star_rounded,
@@ -3715,7 +3725,9 @@ class _DashboardContentState extends State<DashboardContent>
             TextButton(
               onPressed: () {
                 final ctx = context;
+                // ignore: use_build_context_synchronously
                 Future.microtask(() => _showAlertDetailsPopup(
+                  // ignore: use_build_context_synchronously
                   ctx: ctx,
                   title: 'Most Issued Books',
                   icon: Icons.trending_up_rounded,

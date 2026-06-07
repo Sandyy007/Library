@@ -1,5 +1,12 @@
 -- Library Management System Database Schema V2
 -- MySQL - Enhanced with new features
+--
+-- Note: server.js also runs runtime migrations on boot to add indexes
+-- (see the "Performance hot-path indexes" block near the top of
+-- `runMigrations` in server.js). The most important ones are mirrored
+-- in the CREATE TABLE statements below so a fresh install doesn't
+-- depend on the runtime migration. Anything that depends on tables
+-- created at runtime (e.g. borrow_slips) is NOT in this file.
 
 CREATE DATABASE IF NOT EXISTS library_management
     CHARACTER SET utf8mb4
@@ -12,6 +19,8 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('admin') NOT NULL DEFAULT 'admin',
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+    last_password_change DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -42,7 +51,10 @@ CREATE TABLE IF NOT EXISTS books (
     INDEX idx_isbn (isbn),
     INDEX idx_title (title),
     INDEX idx_author (author),
-    INDEX idx_category (category)
+    INDEX idx_category (category),
+    INDEX idx_status (status),
+    INDEX idx_added_date (added_date),
+    INDEX idx_status_avail (status, available_copies)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Member Categories table (for different borrowing limits)
@@ -69,6 +81,9 @@ CREATE TABLE IF NOT EXISTS members (
     is_active BOOLEAN DEFAULT TRUE,
     INDEX idx_name (name),
     INDEX idx_email (email),
+    INDEX idx_is_active (is_active),
+    INDEX idx_member_type (member_type),
+    INDEX idx_expiry_date (expiry_date),
     FOREIGN KEY (category_id) REFERENCES member_categories(id) ON DELETE SET NULL
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -88,7 +103,10 @@ CREATE TABLE IF NOT EXISTS issues (
     INDEX idx_member_id (member_id),
     INDEX idx_issue_date (issue_date),
     INDEX idx_due_date (due_date),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_member_status (member_id, status),
+    INDEX idx_book_status (book_id, status),
+    INDEX idx_return_date (return_date)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Notifications table
@@ -105,7 +123,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_is_read (is_read),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_related (related_type, related_id)
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dashboard Settings table (for customizable widgets)
@@ -203,10 +222,13 @@ ON DUPLICATE KEY UPDATE name=name;
 -- ALTER TABLE members MODIFY COLUMN member_type ENUM('student', 'faculty', 'staff') NOT NULL DEFAULT 'student';
 
 -- Sample data (Password: Library#123)
-INSERT INTO users (username, password_hash, role) VALUES
-('admin', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin'),
-('librarian', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin')
-ON DUPLICATE KEY UPDATE username=username;
+-- must_change_password = TRUE forces a password rotation on first login.
+INSERT INTO users (username, password_hash, role, must_change_password) VALUES
+('admin', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin', TRUE),
+('librarian', '$2b$10$8ESTtromiUQPTQgcCUrEWOUIzjru2P5lYDRDK.WgHuNOAIJ4vFkJu', 'admin', TRUE)
+ON DUPLICATE KEY UPDATE
+    password_hash = VALUES(password_hash),
+    must_change_password = TRUE;
 
 -- Update existing books to have copies
 UPDATE books SET total_copies = 1, available_copies = CASE WHEN status = 'available' THEN 1 ELSE 0 END WHERE total_copies IS NULL;

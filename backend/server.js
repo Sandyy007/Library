@@ -13,6 +13,7 @@ const path = require('path');
 const multer = require('multer');
 const { parse: parseCsv } = require('csv-parse/sync');
 const xlsx = require('xlsx');
+const compression = require('compression');
 
 // Always resolve .env relative to this file so running from other working directories still works
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -28,7 +29,10 @@ if (isProduction && !JWT_SECRET) {
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
+// Only trust the X-Forwarded-For header when behind a real reverse proxy.
+// In dev / direct desktop usage, leaving this on lets clients spoof their IP
+// and bypass the per-IP login rate limiter.
+app.set('trust proxy', isProduction ? 1 : 0);
 
 app.use(
   helmet({
@@ -40,6 +44,17 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+
+// In production we MUST have an explicit allowlist. Refuse to boot otherwise
+// to avoid silently blocking all browser traffic when the operator forgets to
+// set the env var.
+if (isProduction && allowedOrigins.length === 0) {
+  console.error(
+    'CORS_ORIGINS must be set to a comma-separated list in production. ' +
+    'Refusing to start with a permissive CORS policy.'
+  );
+  process.exit(1);
+}
 
 app.use(
   cors({
@@ -59,6 +74,19 @@ const jsonBodyLimit = process.env.JSON_BODY_LIMIT || '2mb';
 app.use(express.json({ limit: jsonBodyLimit }));
 app.use(express.urlencoded({ limit: jsonBodyLimit, extended: true }));
 
+// Compress JSON/CSV/text responses. Skip for already-compressed file uploads.
+app.use(
+  compression({
+    threshold: '1kb',
+    filter: (req, res) => {
+      if (req.path === '/uploads/' || req.path.startsWith('/uploads/')) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
+
 // Structured request logging
 const logFormat = isProduction ? 'combined' : 'dev';
 const logStream = process.env.LOG_FILE
@@ -66,24 +94,11 @@ const logStream = process.env.LOG_FILE
   : null;
 app.use(morgan(logFormat, logStream ? { stream: logStream } : {}));
 
-// Rate limiting is mainly for public-facing deployments.
-// For local desktop usage (NODE_ENV !== 'production'), it can easily block legitimate UI traffic.
-const rateLimitEnabled = String(process.env.RATE_LIMIT_ENABLED ?? 'true').toLowerCase() !== 'false';
-if (isProduction && rateLimitEnabled) {
-  app.use(
-    '/api',
-    rateLimit({
-      windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
-      max: Number(process.env.RATE_LIMIT_MAX || 300),
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: { error: 'Too many requests, please try again later.' },
-      handler: (req, res) => {
-        res.status(429).json({ error: 'Too many requests, please try again later.' });
-      },
-    })
-  );
-}
+// Rate limiting is configured via the apiLimiter mounted on /api below
+// (see `apiLimiter` definition and `app.use('/api', apiLimiter)`).
+// The OLD per-environment production-only rate limit was removed because
+// it shadowed the new one in production (a single request would increment
+// both counters). Operators can tune via API_RATE_LIMIT_PER_MIN env var.
 
 // Stricter rate limit on login endpoint to prevent brute-force attacks.
 // Applies in ALL environments (not just production).
@@ -97,6 +112,26 @@ const loginLimiter = rateLimit({
     res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
   },
   // Key by IP only (not auth header).
+  keyGenerator: (req) => req.ip,
+});
+
+// General API rate limit: protects every /api/* endpoint (not just login)
+// from being hammered by a runaway client or scraping bot. Higher than the
+// login limit because legitimate clients (e.g. dashboards that auto-refresh)
+// make many requests per minute.
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: parseInt(process.env.API_RATE_LIMIT_PER_MIN, 10) || 300, // 300 req/min/IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip limit on the login route; it has its own stricter limiter.
+  skip: (req) => req.path === '/auth/login',
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many requests. Please slow down.',
+      code: 'RATE_LIMITED',
+    });
+  },
   keyGenerator: (req) => req.ip,
 });
 
@@ -383,8 +418,13 @@ const decodeTextBuffer = (buffer) => {
   return buffer.toString('utf8');
 };
 
-// Promote overdue issues to "overdue" status before returning data/stats
-const refreshOverdueStatuses = () =>
+// Promote overdue issues to "overdue" status before returning data/stats.
+// Throttle the actual UPDATE to once per REFRESH_OVERDUE_MIN_INTERVAL_MS;
+// the dashboard polls every 10s but the UPDATE itself is cheap to skip.
+const REFRESH_OVERDUE_MIN_INTERVAL_MS = 15_000;
+let _refreshOverdueStatusesLastRun = 0;
+let _refreshOverdueStatusesInflight = null;
+const _refreshOverdueStatusesCore = () =>
   new Promise((resolve) => {
     db.query(
       "UPDATE issues SET status = 'overdue' WHERE status = 'issued' AND due_date < CURDATE()",
@@ -397,8 +437,36 @@ const refreshOverdueStatuses = () =>
     );
   });
 
-// Generate notifications for overdue and due-soon books
-const generateNotifications = async () => {
+const refreshOverdueStatuses = async (opts = {}) => {
+  const force = opts.force === true;
+  const now = Date.now();
+  if (!force && now - _refreshOverdueStatusesLastRun < REFRESH_OVERDUE_MIN_INTERVAL_MS) {
+    return;
+  }
+  if (_refreshOverdueStatusesInflight) {
+    return _refreshOverdueStatusesInflight;
+  }
+  _refreshOverdueStatusesInflight = (async () => {
+    try {
+      await _refreshOverdueStatusesCore();
+      _refreshOverdueStatusesLastRun = Date.now();
+    } finally {
+      _refreshOverdueStatusesInflight = null;
+    }
+  })();
+  return _refreshOverdueStatusesInflight;
+};
+
+// Generate notifications for overdue and due-soon books.
+// The dashboard polls every 10s, but the full pipeline (two SQL inserts
+// each scanning issues/joined tables) is wasteful to run that often. We
+// throttle to at most once per GENERATE_NOTIFICATIONS_MIN_INTERVAL_MS, and
+// also coalesce concurrent calls so a second caller piggy-backs on the
+// in-flight run instead of starting a parallel one.
+const GENERATE_NOTIFICATIONS_MIN_INTERVAL_MS = 30_000;
+let _generateNotificationsLastRun = 0;
+let _generateNotificationsInflight = null;
+const _generateNotificationsCore = async () => {
   return new Promise((resolve) => {
     // Create notifications for overdue books
     db.query(`
@@ -454,6 +522,26 @@ const generateNotifications = async () => {
   });
 };
 
+const generateNotifications = async (opts = {}) => {
+  const force = opts.force === true;
+  const now = Date.now();
+  if (!force && now - _generateNotificationsLastRun < GENERATE_NOTIFICATIONS_MIN_INTERVAL_MS) {
+    return;
+  }
+  if (_generateNotificationsInflight) {
+    return _generateNotificationsInflight;
+  }
+  _generateNotificationsInflight = (async () => {
+    try {
+      await _generateNotificationsCore();
+      _generateNotificationsLastRun = Date.now();
+    } finally {
+      _generateNotificationsInflight = null;
+    }
+  })();
+  return _generateNotificationsInflight;
+};
+
 // MySQL connection pool for better concurrency with large operations
 const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -462,12 +550,39 @@ const db = mysql.createPool({
   database: process.env.DB_NAME || 'library_management',
   charset: 'utf8mb4',
   waitForConnections: true,
-  connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 30,  // Increased for heavy load
-  queueLimit: 100,  // Queue up to 100 requests when pool is full
-  connectTimeout: 60000,
+  connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 20,
+  maxIdle: parseInt(process.env.DB_POOL_MAX_IDLE, 10) || 10,
+  idleTimeout: parseInt(process.env.DB_POOL_IDLE_MS, 10) || 60000,
+  // 0 = unlimited queue. With max connections enforced by the pool, an
+  // unlimited queue lets us absorb traffic spikes rather than 503-ing
+  // clients; the OS will still error out if memory is exhausted.
+  queueLimit: 0,
+  connectTimeout: 10000,  // fail fast rather than waiting 60s on bad network
   enableKeepAlive: true,  // Keep connections alive
-  keepAliveInitialDelay: 10000,  // Initial delay before keepalive probes
+  keepAliveInitialDelay: 10000,
 });
+
+// Statement timeout: kill any single query that runs longer than this.
+// MySQL 5.7+ supports MAX_EXECUTION_TIME (millis) for SELECTs. Without this
+// a single bad query can pin a pool connection forever.
+const STATEMENT_TIMEOUT_MS = parseInt(process.env.STATEMENT_TIMEOUT_MS, 10) || 30000;
+
+function applyStatementTimeout(conn, cb) {
+  // Only SELECTs honour MAX_EXECUTION_TIME; writes are bounded by
+  // innodb_lock_wait_timeout (default 50s) and by our connectTimeout.
+  conn.query('SET SESSION MAX_EXECUTION_TIME=' + STATEMENT_TIMEOUT_MS, (err) => {
+    cb(err, conn);
+  });
+}
+
+// Wrap db.getConnection so every acquired connection has the timeout applied.
+const _origGetConnection = db.getConnection.bind(db);
+db.getConnection = function patchedGetConnection(cb) {
+  _origGetConnection((err, conn) => {
+    if (err) return cb(err);
+    applyStatementTimeout(conn, cb);
+  });
+};
 
 // Test pool connection on startup
 db.getConnection((err, conn) => {
@@ -537,8 +652,108 @@ const runMigrations = async () => {
     // ΓöÇΓöÇ Schema additions (members ΓÇô timestamps) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     "ALTER TABLE members ADD COLUMN created_at DATETIME NULL",
 
+
+    // ─── Schema additions (users – password rotation) ───────────────────────────────────
+    // must_change_password is set on seed and cleared by POST /api/auth/change-password.
+    "ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN last_password_change DATETIME NULL",
+    "UPDATE users SET must_change_password = 1 WHERE last_password_change IS NULL",
     // ΓöÇΓöÇ Best-effort backfill (safe to ignore if columns don't exist yet) ΓöÇ
     "UPDATE issues SET issued_at = CAST(issue_date AS DATETIME) WHERE issued_at IS NULL",
+    // ΓöÇΓöÇ Performance indexes (idempotent via information_schema check) ΓöÇΓöÇ
+    // Indexes for hot WHERE/ORDER BY columns that were missing in the original schema.
+    // MySQL 5.7 doesn't support CREATE INDEX IF NOT EXISTS, so we check information_schema first.
+    (async () => {
+      const REQUIRED_INDEXES =     [
+      {
+        "table": "books",
+        "name": "idx_status",
+        "cols": "(status)"
+      },
+      {
+        "table": "books",
+        "name": "idx_added_date",
+        "cols": "(added_date)"
+      },
+      {
+        "table": "books",
+        "name": "idx_status_avail",
+        "cols": "(status, available_copies)"
+      },
+      {
+        "table": "issues",
+        "name": "idx_member_status",
+        "cols": "(member_id, status)"
+      },
+      {
+        "table": "issues",
+        "name": "idx_book_status",
+        "cols": "(book_id, status)"
+      },
+      {
+        "table": "issues",
+        "name": "idx_return_date",
+        "cols": "(return_date)"
+      },
+      {
+        "table": "members",
+        "name": "idx_is_active",
+        "cols": "(is_active)"
+      },
+      {
+        "table": "members",
+        "name": "idx_member_type",
+        "cols": "(member_type)"
+      },
+      {
+        "table": "members",
+        "name": "idx_expiry_date",
+        "cols": "(expiry_date)"
+      },
+      {
+        "table": "notifications",
+        "name": "idx_related",
+        "cols": "(related_id, related_type)"
+      },
+      {
+        "table": "borrow_slips",
+        "name": "idx_issue_id",
+        "cols": "(issue_id)"
+      },
+      {
+        "table": "borrow_slips",
+        "name": "idx_generated_at",
+        "cols": "(generated_at)"
+      },
+      {
+        "table": "book_recommendations",
+        "name": "idx_member_id",
+        "cols": "(member_id)"
+      },
+      {
+        "table": "book_recommendations",
+        "name": "idx_book_id",
+        "cols": "(book_id)"
+      }
+    ];
+      for (const idx of REQUIRED_INDEXES) {
+        try {
+          const [existing] = await db.promise().query(
+            "SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ? LIMIT 1",
+            [process.env.DB_NAME || 'library_management', idx.table, idx.name]
+          );
+          if (existing.length === 0) {
+            // Build CREATE INDEX with parameterised table/column names from a
+            // hard-coded list, so SQL injection isn't a concern.
+            const sql = 'CREATE INDEX `' + idx.name + '` ON `' + idx.table + '` ' + idx.cols;
+            await db.promise().query(sql);
+            console.log('[migrate] created index ' + idx.name + ' on ' + idx.table);
+          }
+        } catch (e) {
+          // table doesn't exist (older schema) or insufficient privileges; safe to ignore.
+        }
+      }
+    })(),
     "UPDATE issues SET returned_at = CAST(return_date AS DATETIME) WHERE returned_at IS NULL AND return_date IS NOT NULL",
     "UPDATE members SET created_at = CAST(membership_date AS DATETIME) WHERE created_at IS NULL",
 
@@ -597,20 +812,13 @@ const runMigrations = async () => {
     "UPDATE books SET total_copies = 1, available_copies = CASE WHEN status = 'available' THEN 1 ELSE 0 END WHERE total_copies IS NULL",
 
     // ΓöÇΓöÇ Indexes for large-database performance ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    // (no IF NOT EXISTS ΓÇô unsupported before MySQL 8.0.29; duplicate-key
-    //  errors are silently ignored by the run() helper above)
-    "CREATE INDEX idx_books_title ON books(title(100))",
-    "CREATE INDEX idx_books_author ON books(author(100))",
-    "CREATE INDEX idx_books_isbn ON books(isbn)",
-    "CREATE INDEX idx_books_category ON books(category(50))",
-    "CREATE INDEX idx_books_status ON books(status)",
-    "CREATE INDEX idx_books_title_author ON books(title(50), author(50))",
-    "CREATE INDEX idx_members_name ON members(name(100))",
-    "CREATE INDEX idx_members_email ON members(email)",
-    "CREATE INDEX idx_issues_book_id ON issues(book_id)",
-    "CREATE INDEX idx_issues_member_id ON issues(member_id)",
-    "CREATE INDEX idx_issues_status ON issues(status)",
-    "CREATE INDEX idx_issues_issue_date ON issues(issue_date)",
+    // These are now declared in schema_v2.sql and added by the second-pass
+    // runtime migration block at the top of runMigrations(). We keep NO
+    // inline CREATE INDEX here so that re-running migrations on an
+    // already-indexed database doesn't recreate the same indexes (which
+    // would otherwise balloon the index count and slow down writes). The
+    // run() helper above silently swallows duplicate-key errors, but the
+    // extra indexes were still piling up - see audit pass.
 
     // ΓöÇΓöÇ Borrow Slips table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     `CREATE TABLE IF NOT EXISTS borrow_slips (
@@ -630,20 +838,47 @@ const runMigrations = async () => {
   console.log('Database migrations completed');
 };
 
-// Middleware for authentication
+// Middleware for authentication. We return a machine-readable `code` so the
+// Flutter client can distinguish "token expired, please log in again" from
+// "token is malformed/forged, drop the session" from "you don't have
+// permission for this route" (the last one is enforced by `requireRole`).
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Access denied' });
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied', code: 'AUTH_MISSING' });
+  }
 
   if (!JWT_SECRET) {
     return res.status(500).json({ error: 'Server misconfigured: missing JWT secret' });
   }
 
   jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+    if (err) {
+      // TokenExpiredError is a sub-class of JsonWebTokenError; check it
+      // first. We use 401 for expired/missing and 403 for invalid/forged so
+      // a forged token doesn't get treated as a routine session timeout.
+      if (err.name === 'TokenExpiredError') {
+        return res
+          .status(401)
+          .json({ error: 'Token expired', code: 'AUTH_EXPIRED' });
+      }
+      return res
+        .status(403)
+        .json({ error: 'Invalid token', code: 'AUTH_INVALID' });
+    }
     req.user = user;
     next();
   });
+};
+
+// Role-based access control. Use AFTER authenticateToken.
+const requireRole = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res
+      .status(403)
+      .json({ error: 'Insufficient permissions', code: 'AUTH_FORBIDDEN' });
+  }
+  next();
 };
 
 // ==================== HEALTH CHECK ROUTES ====================
@@ -700,57 +935,149 @@ app.post(
     }
 
     const { username, password } = req.body;
-  db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    // Use a generic message for unknown-user vs bad-password to avoid
+    // leaking which usernames exist. Use the same status + code in both
+    // cases. We still distinguish non-admin accounts in a separate 403 to
+    // avoid silently allowing non-admins to authenticate through this
+    // system.
+    const invalidCredentials = () =>
+      res.status(401).json({ error: 'Invalid credentials', code: 'AUTH_FAILED' });
 
-    const user = results[0];
-    
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: 'Only admin users are allowed to access this system' });
-    }
-    
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
+    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0) return invalidCredentials();
 
-    if (!JWT_SECRET) {
-      return res.status(500).json({ error: 'Server misconfigured: missing JWT secret' });
-    }
+      const user = results[0];
 
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-      algorithm: 'HS256',
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admin users are allowed to access this system' });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password_hash);
+      if (!validPassword) return invalidCredentials();
+
+      if (!JWT_SECRET) {
+        return res.status(500).json({ error: 'Server misconfigured: missing JWT secret' });
+      }
+
+      const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
+        expiresIn: JWT_EXPIRES_IN,
+        algorithm: 'HS256',
+      });
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          mustChangePassword: user.must_change_password === 1 || user.must_change_password === true,
+        },
+      });
     });
-    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
-  });
   }
 );
 
-// Require authentication (admin-only) for all other API routes
+// Public auth routes. Anything else under /api requires a valid admin token.
+const PUBLIC_API_ROUTES = new Set(['/auth/login', '/auth/change-password']);
+// Apply the general rate limiter FIRST so it sees every /api request,
+// including the ones that will be rejected by the auth checks below.
+app.use('/api', apiLimiter);
 app.use('/api', (req, res, next) => {
-  if (req.path === '/auth/login') return next();
-  authenticateToken(req, res, next);
+  if (PUBLIC_API_ROUTES.has(req.path)) return next();
+  return authenticateToken(req, res, next);
+});
+app.use('/api', (req, res, next) => {
+  if (PUBLIC_API_ROUTES.has(req.path)) return next();
+  return requireRole('admin')(req, res, next);
 });
 
-app.use('/api', (req, res, next) => {
-  if (req.path === '/auth/login') return next();
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'Forbidden' });
+// Change the current user's password. Public (no JWT required) so a user
+// forced to rotate can do so even after their session expires. We still
+// verify the current password and issue a fresh token on success.
+app.post(
+  '/api/auth/change-password',
+  loginLimiter,
+  body('currentPassword').isString().isLength({ min: 1, max: 256 }),
+  body('newPassword').isString().isLength({ min: 8, max: 256 }),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    const auth = req.header('Authorization') || '';
+    const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    let userId = null;
+    if (bearer && JWT_SECRET) {
+      try {
+        const decoded = jwt.verify(bearer, JWT_SECRET, { algorithms: ['HS256'] });
+        userId = decoded.id;
+      } catch (_) {
+        // Fall through: maybe the token was cleared on the client.
+      }
+    }
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required', code: 'AUTH_MISSING' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    db.query(
+      'SELECT id, password_hash FROM users WHERE id = ? LIMIT 1',
+      [userId],
+      async (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!results || results.length === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        const ok = await bcrypt.compare(currentPassword, results[0].password_hash);
+        if (!ok) {
+          return res.status(401).json({ error: 'Current password is incorrect', code: 'AUTH_FAILED' });
+        }
+        if (currentPassword === newPassword) {
+          return res.status(400).json({ error: 'New password must be different from the current one' });
+        }
+        const newHash = await bcrypt.hash(newPassword, 10);
+        db.query(
+          'UPDATE users SET password_hash = ?, must_change_password = 0, last_password_change = NOW() WHERE id = ?',
+          [newHash, userId],
+          (updateErr) => {
+            if (updateErr) {
+              return res.status(500).json({ error: updateErr.message });
+            }
+            if (JWT_SECRET) {
+              const fresh = jwt.sign(
+                { id: userId, role: 'admin' },
+                JWT_SECRET,
+                { expiresIn: JWT_EXPIRES_IN, algorithm: 'HS256' }
+              );
+              return res.json({ token: fresh, mustChangePassword: false });
+            }
+            return res.json({ mustChangePassword: false });
+          }
+        );
+      }
+    );
   }
-  next();
-});
+);
 
 // Current authenticated user
 app.get('/api/auth/me', (req, res) => {
   const userId = req.user?.id;
   if (!userId) return res.status(401).json({ error: 'Access denied' });
   db.query(
-    'SELECT id, username, role FROM users WHERE id = ? LIMIT 1',
+    'SELECT id, username, role, must_change_password FROM users WHERE id = ? LIMIT 1',
     [userId],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!results || results.length === 0) return res.status(404).json({ error: 'User not found' });
-      res.json({ user: results[0] });
+      const u = results[0];
+      res.json({
+        user: {
+          id: u.id,
+          username: u.username,
+          role: u.role,
+          mustChangePassword: u.must_change_password === 1 || u.must_change_password === true,
+        },
+      });
     }
   );
 });
@@ -795,18 +1122,20 @@ app.get('/api/books', (req, res) => {
     whereClause += ' AND (available_copies > 0 OR status = "available")';
   }
   
-  // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
-  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS * FROM books ${whereClause} ORDER BY title ASC LIMIT ? OFFSET ?`;
+  // Two simple queries instead of SQL_CALC_FOUND_ROWS + FOUND_ROWS().
+  // SQL_CALC_FOUND_ROWS is deprecated in MySQL 8.0.17+.
+  const dataQuery = `SELECT * FROM books ${whereClause} ORDER BY title ASC LIMIT ? OFFSET ?`;
   const dataParams = [...params, limit, offset];
-  
+  const countQuery = `SELECT COUNT(*) AS total FROM books ${whereClause}`;
+  const countParams = [...params];
+
   db.query(dataQuery, dataParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    
-    // Get total count using FOUND_ROWS() - much faster than separate COUNT query
-    db.query('SELECT FOUND_ROWS() as total', (countErr, countResults) => {
+
+    db.query(countQuery, countParams, (countErr, countResults) => {
       if (countErr) return res.status(500).json({ error: countErr.message });
-      
-      const total = countResults[0]?.total || 0;
+
+      const total = Number(countResults[0]?.total || 0);
       const totalPages = Math.ceil(total / limit);
       
       // Return with pagination metadata
@@ -1358,8 +1687,10 @@ app.get('/api/categories', (req, res) => {
         'Drama', 'Romance', 'Mystery', 'Thriller', 'Fantasy', 'Science Fiction',
         'Horror', 'Adventure', 'Children', 'Young Adult', 'Reference', 'Comics'
       ];
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
       return res.json(defaultCategories.map((name, index) => ({ id: index + 1, name })));
     }
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
     res.json(results);
   });
 });
@@ -1439,7 +1770,12 @@ app.post('/api/borrow-slips', (req, res) => {
     }
 
     const issue = results[0];
-    const slipNumber = `SLIP-${Date.now()}-${issue_id}`;
+    // Two slips generated in the same millisecond for the same issue would
+// collide on the UNIQUE slip_number column. Append a short random suffix
+// so we don't 500 the borrow request on a tight race.
+const slipNumber = `SLIP-${Date.now()}-${issue_id}-${Math.random()
+  .toString(36)
+  .slice(2, 8)}`;
     // Use MySQL datetime format
     const generatedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
@@ -1681,21 +2017,20 @@ app.get('/api/members', (req, res) => {
     params.push(active === 'true');
   }
   
-  // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
-  // Include borrow_count (currently issued/overdue books) for each member
-  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS m.*,
+  // Two simple queries instead of SQL_CALC_FOUND_ROWS + FOUND_ROWS().
+  const dataQuery = `SELECT m.*,
     COALESCE((SELECT COUNT(*) FROM issues i WHERE i.member_id = m.id AND i.status IN ('issued', 'overdue')), 0) AS borrow_count
     FROM members m ${whereClause} ORDER BY m.name ASC LIMIT ? OFFSET ?`;
   const dataParams = [...params, limit, offset];
-  
+  const countQuery = `SELECT COUNT(*) AS total FROM members m ${whereClause}`;
+
   db.query(dataQuery, dataParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    
-    // Get total count using FOUND_ROWS() - much faster than separate COUNT query
-    db.query('SELECT FOUND_ROWS() as total', (countErr, countResults) => {
+
+    db.query(countQuery, params, (countErr, countResults) => {
       if (countErr) return res.status(500).json({ error: countErr.message });
-      
-      const total = countResults[0]?.total || 0;
+
+      const total = Number(countResults[0]?.total || 0);
       const totalPages = Math.ceil(total / limit);
       
       res.json({
@@ -1970,6 +2305,12 @@ app.post('/api/members/:id/photo', upload.single('photo'), (req, res) => {
 
 // Get currently borrowed books for a member (issued/overdue only)
 app.get('/api/members/:id/borrowed-books', (req, res) => {
+  const memberId = Number(req.params.id);
+  if (!Number.isInteger(memberId) || memberId <= 0) {
+    return res.status(400).json({ error: 'Invalid member id' });
+  }
+  // Borrowing limit is 5 per member; cap the result to a small page.
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 1), 100);
   db.query(`
     SELECT i.id, i.book_id, i.issue_date, i.due_date, i.status,
            b.title, b.author, b.isbn, b.category, b.cover_image
@@ -1977,7 +2318,8 @@ app.get('/api/members/:id/borrowed-books', (req, res) => {
     JOIN books b ON i.book_id = b.id
     WHERE i.member_id = ? AND i.status IN ('issued', 'overdue')
     ORDER BY i.issue_date DESC
-  `, [req.params.id], (err, results) => {
+    LIMIT ?
+  `, [memberId, limit], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ borrowed_books: results, count: results.length, max_allowed: 5 });
   });
@@ -1985,15 +2327,34 @@ app.get('/api/members/:id/borrowed-books', (req, res) => {
 
 // Get member borrowing history
 app.get('/api/members/:id/history', (req, res) => {
+  const memberId = Number(req.params.id);
+  if (!Number.isInteger(memberId) || memberId <= 0) {
+    return res.status(400).json({ error: 'Invalid member id' });
+  }
+  // Cap to a reasonable page size; clients should request pagination for longer histories.
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+  const offset = (page - 1) * limit;
   db.query(`
     SELECT i.*, b.title, b.author, b.isbn, b.category, b.cover_image
     FROM issues i
     JOIN books b ON i.book_id = b.id
     WHERE i.member_id = ?
     ORDER BY i.issue_date DESC
-  `, [req.params.id], (err, results) => {
+    LIMIT ? OFFSET ?
+  `, [memberId, limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+    db.query('SELECT COUNT(*) AS total FROM issues WHERE member_id = ?', [memberId], (err2, countRows) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      const total = Number(countRows[0]?.total || 0);
+      res.json({
+        data: results,
+        pagination: {
+          page, limit, total,
+          hasMore: offset + results.length < total,
+        },
+      });
+    });
   });
 });
 
@@ -2002,12 +2363,14 @@ app.get('/api/member-categories', (req, res) => {
   db.query('SELECT * FROM member_categories', (err, results) => {
     if (err || results.length === 0) {
       // Return default values if table doesn't exist
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
       return res.json([
         { name: 'student', max_books: 3, loan_period_days: 14 },
         { name: 'faculty', max_books: 10, loan_period_days: 30 },
         { name: 'staff', max_books: 5, loan_period_days: 21 }
       ]);
     }
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
     res.json(results);
   });
 });
@@ -2046,26 +2409,30 @@ app.get('/api/issues', async (req, res) => {
     params.push(status);
   }
   
-  // Use SQL_CALC_FOUND_ROWS for faster combined count + data fetch
+  // Two simple queries instead of SQL_CALC_FOUND_ROWS + FOUND_ROWS().
   const selectFields = `i.id, i.book_id, i.member_id, i.issue_date, i.due_date, i.return_date, i.status, i.notes,
          b.title, b.author, b.cover_image,
          m.name as member_name, m.profile_photo as member_photo,
          'Library Staff' as issued_by_name`;
-  const dataQuery = `SELECT SQL_CALC_FOUND_ROWS ${selectFields}
+  const dataQuery = `SELECT ${selectFields}
     FROM issues i
     JOIN books b ON i.book_id = b.id
     JOIN members m ON i.member_id = m.id
     ${whereClause} ORDER BY i.issue_date DESC LIMIT ? OFFSET ?`;
   const dataParams = [...params, limit, offset];
+  const countQuery = `SELECT COUNT(*) AS total
+    FROM issues i
+    JOIN books b ON i.book_id = b.id
+    JOIN members m ON i.member_id = m.id
+    ${whereClause}`;
 
   db.query(dataQuery, dataParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    
-    // Get total count using FOUND_ROWS() - much faster than separate COUNT query
-    db.query('SELECT FOUND_ROWS() as total', (countErr, countResults) => {
+
+    db.query(countQuery, params, (countErr, countResults) => {
       if (countErr) return res.status(500).json({ error: countErr.message });
-      
-      const total = countResults[0]?.total || 0;
+
+      const total = Number(countResults[0]?.total || 0);
       const totalPages = Math.ceil(total / limit);
       
       res.json({
@@ -2103,6 +2470,21 @@ app.get('/api/issues/:id', (req, res) => {
 
 app.post('/api/issues', async (req, res) => {
   const { book_id, member_id, due_date } = req.body;
+
+  // Validate before opening a transaction. A bad book_id or member_id would
+  // otherwise surface as a generic MySQL error from the FOR UPDATE query.
+  const bookIdNum = Number(book_id);
+  const memberIdNum = Number(member_id);
+  if (!Number.isInteger(bookIdNum) || bookIdNum <= 0) {
+    return res.status(400).json({ error: 'book_id must be a positive integer' });
+  }
+  if (!Number.isInteger(memberIdNum) || memberIdNum <= 0) {
+    return res.status(400).json({ error: 'member_id must be a positive integer' });
+  }
+  if (due_date !== undefined && due_date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(due_date))) {
+    return res.status(400).json({ error: 'due_date must be YYYY-MM-DD' });
+  }
+
   const now = new Date();
   const issue_date = now.toISOString().split('T')[0];
 
@@ -2398,123 +2780,165 @@ app.post('/api/issues/:id/remind', (req, res) => {
   );
 });
 
-app.put('/api/issues/:id', (req, res) => {
+app.put('/api/issues/:id', async (req, res) => {
   const { due_date, return_date, status } = req.body;
+  const issueId = Number(req.params.id);
+  if (!Number.isInteger(issueId) || issueId <= 0) {
+    return res.status(400).json({ error: 'Invalid issue id' });
+  }
 
-  db.query(
-    `
-      SELECT i.*, b.title AS book_title, m.name AS member_name
-      FROM issues i
-      LEFT JOIN books b ON i.book_id = b.id
-      LEFT JOIN members m ON i.member_id = m.id
-      WHERE i.id = ?
-    `,
-    [req.params.id],
-    (err, issueResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (issueResults.length === 0) return res.status(404).json({ error: 'Issue not found' });
+  // Reject obviously-bad input before opening a transaction.
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (due_date !== undefined && due_date !== null && !datePattern.test(String(due_date))) {
+    return res.status(400).json({ error: 'due_date must be YYYY-MM-DD' });
+  }
+  if (return_date !== undefined && return_date !== null && !datePattern.test(String(return_date))) {
+    return res.status(400).json({ error: 'return_date must be YYYY-MM-DD' });
+  }
+  if (status !== undefined && !['issued', 'overdue', 'returned', 'lost'].includes(status)) {
+    return res.status(400).json({ error: "status must be one of issued|overdue|returned|lost" });
+  }
 
-    const issue = issueResults[0];
-    const changeNotes = [];
-    if (due_date !== undefined && String(due_date) !== String(issue.due_date ?? '')) {
-      changeNotes.push(`Due date set to ${due_date}`);
-    }
-    if (return_date !== undefined && String(return_date) !== String(issue.return_date ?? '')) {
-      changeNotes.push(`Return date set to ${return_date}`);
-    }
-    if (status !== undefined && String(status) !== String(issue.status ?? '')) {
-      changeNotes.push(`Status changed to ${status}`);
-    }
-    let updateFields = [];
-    let updateValues = [];
-    let wantsReturnedAt = false;
+  if (due_date === undefined && return_date === undefined && status === undefined) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
 
-    if (due_date !== undefined) {
-      updateFields.push('due_date = ?');
-      updateValues.push(due_date);
-    }
+  try {
+    const { issue, bookAvailabilityUpdated } = await withTransaction(async (connection) => {
+      // Lock the issue row first.
+      const issueResults = await dbQueryWithConnection(
+        connection,
+        'SELECT id, book_id, member_id, status, due_date, return_date, returned_at FROM issues WHERE id = ? FOR UPDATE',
+        [issueId]
+      );
+      if (!issueResults || issueResults.length === 0) {
+        throw createHttpError(404, { error: 'Issue not found' });
+      }
+      const issue = issueResults[0];
 
-    if (return_date !== undefined) {
-      updateFields.push('return_date = ?');
-      updateValues.push(return_date);
-      wantsReturnedAt = true;
-    }
+      const changeNotes = [];
+      if (due_date !== undefined && String(due_date) !== String(issue.due_date ?? '')) {
+        changeNotes.push(`Due date set to ${due_date}`);
+      }
+      if (return_date !== undefined && String(return_date) !== String(issue.return_date ?? '')) {
+        changeNotes.push(`Return date set to ${return_date}`);
+      }
+      if (status !== undefined && String(status) !== String(issue.status ?? '')) {
+        changeNotes.push(`Status changed to ${status}`);
+      }
 
-    if (status !== undefined) {
-      updateFields.push('status = ?');
-      updateValues.push(status);
+      const updateFields = [];
+      const updateValues = [];
+      let wantsReturnedAt = false;
 
-      if (status === 'returned' && issue.status !== 'returned') {
+      if (due_date !== undefined) {
+        updateFields.push('due_date = ?');
+        updateValues.push(due_date);
+      }
+
+      if (return_date !== undefined) {
+        updateFields.push('return_date = ?');
+        updateValues.push(return_date);
         wantsReturnedAt = true;
-        // Update book availability
-        db.query('SELECT * FROM books WHERE id = ?', [issue.book_id], (err, bookResults) => {
-          if (!err && bookResults.length > 0) {
-            const book = bookResults[0];
-            const currentAvailable = book.available_copies !== undefined ? book.available_copies : 0;
-            const newAvailable = currentAvailable + 1;
-            const totalCopies = book.total_copies || 1;
-            const newStatus = newAvailable >= totalCopies ? 'available' : 'issued';
-            
-            db.query(
-              'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
-              [newAvailable, newStatus, issue.book_id]
-            );
+      }
+
+      if (status !== undefined) {
+        updateFields.push('status = ?');
+        updateValues.push(status);
+
+        if (status === 'returned' && issue.status !== 'returned') {
+          wantsReturnedAt = true;
+          if (return_date === undefined) {
+            updateFields.push('return_date = ?');
+            updateValues.push(new Date().toISOString().split('T')[0]);
           }
-        });
-        
-        if (return_date === undefined) {
-          updateFields.push('return_date = ?');
-          updateValues.push(new Date().toISOString().split('T')[0]);
         }
       }
-    }
 
-    if (wantsReturnedAt) {
-      // This field may not exist on older schemas; we'll retry without it if needed.
-      updateFields.push('returned_at = COALESCE(returned_at, NOW())');
-    }
-
-    if (updateFields.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-
-    updateValues.push(req.params.id);
-    const query = `UPDATE issues SET ${updateFields.join(', ')} WHERE id = ?`;
-
-    const logIssueUpdate = () => {
-      const bookTitle = issue.book_title || `Issue #${issue.id}`;
-      const memberName = issue.member_name || '';
-      const summary = changeNotes.length > 0
-        ? changeNotes.join('; ')
-        : 'Issue updated';
-      const description = memberName ? `${memberName}: ${summary}` : summary;
-
-      logActivityEvent({
-        type: 'issue_updated',
-        related_id: issue.id,
-        related_type: 'issue',
-        title: `Issue updated: ${bookTitle}`,
-        description,
-      });
-    };
-
-    db.query(query, updateValues, async (err) => {
-      if (err && wantsReturnedAt && /Unknown column 'returned_at'/i.test(err.message || '')) {
-        const legacyFields = updateFields.filter((f) => !/returned_at/i.test(f));
-        const legacyQuery = `UPDATE issues SET ${legacyFields.join(', ')} WHERE id = ?`;
-        return db.query(legacyQuery, updateValues, (err2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
-          logIssueUpdate();
-          res.json({ message: 'Issue updated successfully' });
-        });
+      if (wantsReturnedAt) {
+        // Schema may not have this column; the fallback below strips it on failure.
+        updateFields.push('returned_at = COALESCE(returned_at, NOW())');
       }
-      if (err) return res.status(500).json({ error: err.message });
 
-      logIssueUpdate();
-      res.json({ message: 'Issue updated successfully' });
+      updateValues.push(issueId);
+      const updateQuery = `UPDATE issues SET ${updateFields.join(', ')} WHERE id = ?`;
+
+      let bookAvailabilityUpdated = false;
+      try {
+        await dbQueryWithConnection(connection, updateQuery, updateValues);
+      } catch (err) {
+        if (wantsReturnedAt && /Unknown column 'returned_at'/i.test(err.message || '')) {
+          const legacyFields = updateFields.filter((f) => !/returned_at/i.test(f));
+          const legacyQuery = `UPDATE issues SET ${legacyFields.join(', ')} WHERE id = ?`;
+          await dbQueryWithConnection(connection, legacyQuery, updateValues);
+        } else {
+          throw err;
+        }
+      }
+
+      // Reverse book availability inside the same transaction, with a row
+      // lock so concurrent returns don't double-credit the same copy.
+      if (status === 'returned' && issue.status !== 'returned' && issue.book_id) {
+        const bookResults = await dbQueryWithConnection(
+          connection,
+          'SELECT id, total_copies, available_copies FROM books WHERE id = ? FOR UPDATE',
+          [issue.book_id]
+        );
+        if (bookResults && bookResults.length > 0) {
+          const book = bookResults[0];
+          const currentAvailable = Number.isFinite(Number(book.available_copies))
+            ? Number(book.available_copies)
+            : 0;
+          const totalCopies = Number.isFinite(Number(book.total_copies)) && Number(book.total_copies) > 0
+            ? Number(book.total_copies)
+            : 1;
+          const newAvailable = Math.min(currentAvailable + 1, totalCopies);
+          const newStatus = newAvailable >= totalCopies ? 'available' : 'issued';
+          await dbQueryWithConnection(
+            connection,
+            'UPDATE books SET available_copies = ?, status = ? WHERE id = ?',
+            [newAvailable, newStatus, issue.book_id]
+          );
+          bookAvailabilityUpdated = true;
+        }
+      }
+
+      // Fetch display fields for the activity log; not strictly required
+      // for the response, but useful for log context.
+      const displayResults = await dbQueryWithConnection(
+        connection,
+        'SELECT b.title AS book_title, m.name AS member_name FROM issues i LEFT JOIN books b ON i.book_id = b.id LEFT JOIN members m ON i.member_id = m.id WHERE i.id = ?',
+        [issueId]
+      );
+      const display = displayResults?.[0] || {};
+      const enrichedIssue = { ...issue, book_title: display.book_title, member_name: display.member_name };
+
+      return { issue: enrichedIssue, bookAvailabilityUpdated, changeNotes };
     });
+
+    // Activity logging is best-effort and outside the transaction.
+    const bookTitle = issue.book_title || `Issue #${issue.id}`;
+    const memberName = issue.member_name || '';
+    const summary = issue.changeNotes && issue.changeNotes.length > 0
+      ? issue.changeNotes.join('; ')
+      : 'Issue updated';
+    const description = memberName ? `${memberName}: ${summary}` : summary;
+    logActivityEvent({
+      type: 'issue_updated',
+      related_id: issue.id,
+      related_type: 'issue',
+      title: `Issue updated: ${bookTitle}`,
+      description,
+    });
+
+    res.json({ message: 'Issue updated successfully', book_availability_updated: bookAvailabilityUpdated });
+  } catch (err) {
+    if (err?.status) {
+      return res.status(err.status).json(err.payload || { error: err.message });
+    }
+    console.error('Issue update error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update issue' });
   }
-  );
 });
 
 // DELETE single issue by ID
@@ -2629,20 +3053,25 @@ app.get('/api/dashboard/alerts', async (req, res) => {
     },
   };
 
-  const withCountsAndItems = (countSql, countParams, itemsSql, itemsParams, assign) =>
-    new Promise((resolve) => {
-      db.query(countSql, countParams, (err, countRows) => {
-        const count = err ? 0 : Number(countRows?.[0]?.count || 0);
-        db.query(itemsSql, itemsParams, (err2, itemRows) => {
-          const items = err2 ? [] : itemRows;
-          assign(count, items);
-          resolve();
-        });
-      });
-    });
+  // Each call runs its two queries (count + items) in parallel using the
+  // promise wrapper. Failures are swallowed (count=0 / items=[]) so a
+  // single bad query doesn't 500 the whole dashboard.
+  const withCountsAndItems = async (countSql, countParams, itemsSql, itemsParams, assign) => {
+    const [countRes, itemsRes] = await Promise.all([
+      db.promise().query(countSql, countParams).catch(() => [[{ count: 0 }]]),
+      db.promise().query(itemsSql, itemsParams).catch(() => [[]]),
+    ]);
+    const countRows = Array.isArray(countRes) ? countRes[0] : countRes;
+    const itemRows = Array.isArray(itemsRes) ? itemsRes[0] : itemsRes;
+    assign(Number(countRows?.[0]?.count || 0), itemRows || []);
+  };
 
   try {
-    await withCountsAndItems(
+    // Run all 7 count+items pairs in parallel. Each pair is internally
+    // parallelised (count + items run together), and the pairs run concurrently
+    // with each other. Latency is now max(per-pair) instead of sum-of-pairs.
+    await Promise.all([
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count
         FROM issues i
@@ -2667,9 +3096,9 @@ app.get('/api/dashboard/alerts', async (req, res) => {
       (count, items) => {
         response.overdue = { count, items };
       }
-    );
+    ),
 
-    await withCountsAndItems(
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count
         FROM issues i
@@ -2694,9 +3123,9 @@ app.get('/api/dashboard/alerts', async (req, res) => {
       (count, items) => {
         response.dueToday = { count, items };
       }
-    );
+    ),
 
-    await withCountsAndItems(
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count
         FROM issues i
@@ -2721,9 +3150,9 @@ app.get('/api/dashboard/alerts', async (req, res) => {
       (count, items) => {
         response.dueTomorrow = { count, items };
       }
-    );
+    ),
 
-    await withCountsAndItems(
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count
         FROM books b
@@ -2753,10 +3182,10 @@ app.get('/api/dashboard/alerts', async (req, res) => {
           },
         };
       }
-    );
+    ),
 
     // Daily Issue-Return Summary
-    await withCountsAndItems(
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count
         FROM issues
@@ -2781,10 +3210,10 @@ app.get('/api/dashboard/alerts', async (req, res) => {
         const returnedToday = items.filter(i => i.status === 'returned').length;
         response.dailySummary = { count, issued_today: issuedToday, returned_today: returnedToday, items };
       }
-    );
+    ),
 
     // Most Active Members (top borrowers this month)
-    await withCountsAndItems(
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count FROM (
           SELECT member_id FROM issues
@@ -2808,10 +3237,10 @@ app.get('/api/dashboard/alerts', async (req, res) => {
       (count, items) => {
         response.mostActiveMembers = { count, items };
       }
-    );
+    ),
 
     // Most Issued Books (top borrowed books this month)
-    await withCountsAndItems(
+      withCountsAndItems(
       `
         SELECT COUNT(*) AS count FROM (
           SELECT book_id FROM issues
@@ -2835,7 +3264,8 @@ app.get('/api/dashboard/alerts', async (req, res) => {
       (count, items) => {
         response.mostIssuedBooks = { count, items };
       }
-    );
+    ),
+    ]);
 
     // KPIs
     db.query('SELECT SUM(COALESCE(total_copies, 1)) AS total_copies FROM books', (err, rows) => {
@@ -2965,6 +3395,10 @@ app.get('/api/dashboard/activity', (req, res) => {
 
       // Build the UNION first, then apply the cutoff in an outer WHERE on a unified DATETIME.
       // This makes "Clear" reliable even when source columns are DATE-only.
+      // Each UNION branch is pre-LIMITed so MySQL doesn't try to materialize
+      // the entire books/members/issues tables for the UNION before sorting
+      // and slicing.
+      const PER_BRANCH_LIMIT = Math.max(limit * 4, 100);
       const whereCutoff = hiddenBefore ? 'WHERE a.occurred_at >= ?' : '';
       const params = [];
       if (hiddenBefore) params.push(hiddenBefore);
@@ -2984,6 +3418,8 @@ app.get('/api/dashboard/activity', (req, res) => {
             FROM issues i
             JOIN books b ON i.book_id = b.id
             JOIN members m ON i.member_id = m.id
+            ORDER BY i.issue_date DESC
+            LIMIT ${PER_BRANCH_LIMIT}
           )
           UNION ALL
           (
@@ -2998,6 +3434,8 @@ app.get('/api/dashboard/activity', (req, res) => {
             JOIN books b ON i.book_id = b.id
             JOIN members m ON i.member_id = m.id
             WHERE i.return_date IS NOT NULL
+            ORDER BY i.return_date DESC
+            LIMIT ${PER_BRANCH_LIMIT}
           )
           UNION ALL
           (
@@ -3009,6 +3447,8 @@ app.get('/api/dashboard/activity', (req, res) => {
               (CONCAT('New book: ', CONVERT(b.title USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS title,
               (CONCAT('"', CONVERT(b.title USING utf8mb4), '" by ', CONVERT(b.author USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS description
             FROM books b
+            ORDER BY b.id DESC
+            LIMIT ${PER_BRANCH_LIMIT}
           )
           UNION ALL
           (
@@ -3020,6 +3460,8 @@ app.get('/api/dashboard/activity', (req, res) => {
               (CONCAT('New member: ', CONVERT(m.name USING utf8mb4)) COLLATE utf8mb4_unicode_ci) AS title,
               (CONCAT(CONVERT(m.name USING utf8mb4), ' registered') COLLATE utf8mb4_unicode_ci) AS description
             FROM members m
+            ORDER BY m.id DESC
+            LIMIT ${PER_BRANCH_LIMIT}
           )
         ) a
         ${whereCutoff}
@@ -3065,21 +3507,29 @@ app.post('/api/dashboard/activity/clear', async (req, res) => {
 // ==================== REPORTS ROUTES ====================
 
 app.get('/api/reports/issued', (req, res) => {
+  // Cap at 1000 by default. Clients should request a smaller page for exports.
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 1000, 1), 5000);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   db.query(`
-    SELECT i.issue_date, i.due_date, b.title, b.author, b.isbn, b.cover_image, m.name as member_name, m.profile_photo
+    SELECT i.issue_date, i.due_date, i.status,
+           b.title, b.author, b.isbn, b.cover_image,
+           m.name as member_name, m.profile_photo
     FROM issues i
     JOIN books b ON i.book_id = b.id
     JOIN members m ON i.member_id = m.id
     WHERE i.return_date IS NULL
     ORDER BY i.issue_date DESC
-  `, (err, results) => {
+    LIMIT ? OFFSET ?
+  `, [limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+    res.json({ data: results, pagination: { limit, offset, hasMore: results.length === limit } });
   });
 });
 
 app.get('/api/reports/overdue', async (req, res) => {
   await refreshOverdueStatuses();
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 1000, 1), 5000);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   db.query(`
     SELECT i.due_date, i.issue_date, DATEDIFF(CURDATE(), i.due_date) as days_overdue,
            b.title, b.author, b.isbn, b.cover_image, 
@@ -3089,9 +3539,10 @@ app.get('/api/reports/overdue', async (req, res) => {
     JOIN members m ON i.member_id = m.id
     WHERE i.status = 'overdue'
     ORDER BY days_overdue DESC
-  `, (err, results) => {
+    LIMIT ? OFFSET ?
+  `, [limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
+    res.json({ data: results, pagination: { limit, offset, hasMore: results.length === limit } });
   });
 });
 
@@ -3220,7 +3671,10 @@ app.get('/api/notifications', async (req, res) => {
   } catch (e) {
     // Ignore
   }
-  const { unread_only, limit = 50 } = req.query;
+  const { unread_only } = req.query;
+  // Clamp to a sane upper bound so a malicious client can't request limit=1e9
+  // and force the server to materialise the entire notifications table.
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
   
   let query = 'SELECT * FROM notifications WHERE 1=1';
   const params = [];
@@ -3273,6 +3727,10 @@ app.delete('/api/notifications/:id', (req, res) => {
 
 // ==================== SEARCH & RECOMMENDATIONS ====================
 
+// Cap each branch of the cross-table search so a permissive query can't
+// pull tens of thousands of rows and freeze the API.
+const SEARCH_RESULT_LIMIT = 200;
+
 // Advanced search
 app.get('/api/search', (req, res) => {
   const { q, type, category, author, year_from, year_to, status, member_type } = req.query;
@@ -3306,7 +3764,9 @@ app.get('/api/search', (req, res) => {
     bookQuery += ' AND status = ?';
     bookParams.push(status);
   }
-  
+  bookQuery += ' ORDER BY title ASC LIMIT ?';
+  bookParams.push(SEARCH_RESULT_LIMIT);
+
   db.query(bookQuery, bookParams, (err, bookResults) => {
     if (!err) results.books = bookResults;
     
@@ -3322,7 +3782,9 @@ app.get('/api/search', (req, res) => {
       memberQuery += ' AND member_type = ?';
       memberParams.push(member_type);
     }
-    
+    memberQuery += ' ORDER BY name ASC LIMIT ?';
+    memberParams.push(SEARCH_RESULT_LIMIT);
+
     db.query(memberQuery, memberParams, (err, memberResults) => {
       if (!err) results.members = memberResults;
 
@@ -3345,7 +3807,8 @@ app.get('/api/search', (req, res) => {
         issueParams.push(status);
       }
 
-      issueQuery += ' ORDER BY i.issue_date DESC LIMIT 100';
+      issueQuery += ' ORDER BY i.issue_date DESC LIMIT ?';
+      issueParams.push(SEARCH_RESULT_LIMIT);
 
       db.query(issueQuery, issueParams, (err2, issueResults) => {
         if (!err2) results.issues = issueResults;
@@ -3385,21 +3848,46 @@ app.get('/api/recommendations/:memberId', (req, res) => {
     } else {
       const categories = preferences.map(p => p.category).filter(Boolean);
       const authors = preferences.map(p => p.author).filter(Boolean);
-      
-      // Get books not yet borrowed by member in similar categories/authors
-      let query = `
+
+      if (categories.length === 0 && authors.length === 0) {
+        // No usable preferences; fall through to popular books.
+        return db.query(`
+          SELECT b.*, COUNT(i.id) as popularity
+          FROM books b
+          LEFT JOIN issues i ON b.id = i.book_id
+          WHERE b.available_copies > 0 OR b.status = 'available'
+          GROUP BY b.id
+          ORDER BY popularity DESC
+          LIMIT 10
+        `, (err, results) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json(results);
+        });
+      }
+
+      // mysql2 expands `?` placeholders inside arrays automatically, but only
+      // for one placeholder per call. Build the IN clause manually so we can
+      // pass the right number of placeholders for both categories and
+      // authors.
+      const categoryPlaceholders = categories.map(() => '?').join(',') || "''";
+      const authorPlaceholders = authors.map(() => '?').join(',') || "''";
+      const query = `
         SELECT b.*
         FROM books b
         WHERE b.id NOT IN (SELECT book_id FROM issues WHERE member_id = ?)
         AND (b.available_copies > 0 OR b.status = 'available')
-        AND (b.category IN (?) OR b.author IN (?))
+        AND (b.category IN (${categoryPlaceholders}) OR b.author IN (${authorPlaceholders}))
         LIMIT 10
       `;
-      
-      db.query(query, [memberId, categories.length ? categories : [''], authors.length ? authors : ['']], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(results);
-      });
+
+      db.query(
+        query,
+        [memberId, ...categories, ...authors],
+        (err, results) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json(results);
+        }
+      );
     }
   });
 });
@@ -3438,6 +3926,17 @@ app.get('/api/dashboard/settings/:userId', (req, res) => {
   );
 });
 
+const DASHBOARD_WIDGET_WHITELIST = new Set([
+  'stats_cards',
+  'charts',
+  'recent_issues',
+  'popular_books',
+  'overdue_alerts',
+  'quick_actions',
+  'recent_activity',
+  'borrow_trends',
+]);
+
 app.put('/api/dashboard/settings/:userId', (req, res) => {
   const { widgets } = req.body;
   const userId = req.params.userId;
@@ -3451,60 +3950,69 @@ app.put('/api/dashboard/settings/:userId', (req, res) => {
   if (targetUserId !== authUserId) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
+  if (widgets !== undefined && !Array.isArray(widgets)) {
+    return res.status(400).json({ error: 'widgets must be an array' });
+  }
+
+  // Whitelist widget_name so a client can't insert arbitrary rows that
+  // later collide with feature-specific lookups (e.g. recent_activity_cutoff).
+  const safeWidgets = (widgets || []).filter((w) => w && DASHBOARD_WIDGET_WHITELIST.has(w.widget_name));
+
   // Delete existing layout settings, but preserve non-layout rows like activity cutoff.
   db.query(
     "DELETE FROM dashboard_settings WHERE user_id = ? AND widget_name <> 'recent_activity_cutoff'",
     [userId],
     (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    if (!widgets || widgets.length === 0) {
-      return res.json({ message: 'Settings saved' });
-    }
-    
-    // Insert new settings one by one
-    let completed = 0;
-    widgets.forEach((w, i) => {
-      db.query(
-        'INSERT INTO dashboard_settings (user_id, widget_name, is_visible, position, settings) VALUES (?, ?, ?, ?, ?)',
-        [userId, w.widget_name, w.is_visible, i, JSON.stringify(w.settings || {})],
-        () => {
-          completed++;
-          if (completed === widgets.length) {
-            res.json({ message: 'Settings saved' });
-          }
-        }
-      );
-    });
+      if (err) return res.status(500).json({ error: err.message });
+
+      if (safeWidgets.length === 0) {
+        return res.json({ message: 'Settings saved' });
+      }
+
+      // Bulk insert with a single round-trip. We never construct a column
+      // list from the input widgets, so SQL injection isn't a concern here,
+      // but the placeholder count must match the column count exactly.
+      const placeholders = safeWidgets.map(() => '(?, ?, ?, ?, ?)').join(', ');
+      const params = [];
+      safeWidgets.forEach((w, i) => {
+        params.push(userId, w.widget_name, !!w.is_visible, i, JSON.stringify(w.settings || {}));
+      });
+      const insertQuery = `INSERT INTO dashboard_settings (user_id, widget_name, is_visible, position, settings) VALUES ${placeholders}`;
+      db.query(insertQuery, params, (err2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        res.json({ message: 'Settings saved' });
+      });
     }
   );
 });
 
 // ==================== BACKUP & RESTORE ====================
 
-app.get('/api/backup', (req, res) => {
+const BACKUP_TABLES = ['books', 'members', 'issues'];
+
+app.get('/api/backup', async (req, res) => {
   const backup = {
     timestamp: new Date().toISOString(),
     version: '2.0',
-    data: {}
+    data: {},
+    errors: {},
   };
-  
-  const tables = ['books', 'members', 'issues'];
-  let completed = 0;
-  
-  tables.forEach(table => {
-    db.query(`SELECT * FROM ${table}`, (err, results) => {
-      backup.data[table] = err ? [] : results;
-      completed++;
-      
-      if (completed === tables.length) {
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Content-Disposition', `attachment; filename=library_backup_${Date.now()}.json`);
-        res.json(backup);
-      }
-    });
-  });
+
+  // Sequential await avoids firing N parallel SELECT * queries on huge
+  // tables, and gives us a clean per-table error path.
+  for (const table of BACKUP_TABLES) {
+    try {
+      backup.data[table] = await dbQuery(`SELECT * FROM \`${table}\``);
+    } catch (err) {
+      backup.data[table] = [];
+      backup.errors[table] = err.message;
+    }
+  }
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename=library_backup_${Date.now()}.json`);
+  res.json(backup);
 });
 
 // Allowed tables and their valid columns for restore (whitelist to prevent SQL injection)
@@ -3567,102 +4075,109 @@ app.post('/api/restore', (req, res) => {
 });
 
 // Export data to CSV format - Optimized for large datasets with streaming
-app.get('/api/export/:type', (req, res) => {
+app.get('/api/export/:type', async (req, res) => {
   const { type } = req.params;
   const { format = 'json' } = req.query;
-  
-  // Disable timeout for large exports
-  req.setTimeout(0);
-  res.setTimeout(0);
-  
+
+  // Hard cap on export size to protect the server from OOM on multi-million-row
+  // tables. Clients that need more should page via /api/books etc.
+  const EXPORT_ROW_LIMIT = 10000;
+  // Allow more time than the default, but not unlimited: a stuck export
+  // shouldn't pin a worker forever.
+  const EXPORT_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
+  req.setTimeout(EXPORT_TIMEOUT_MS);
+  res.setTimeout(EXPORT_TIMEOUT_MS);
+
   let query = '';
   let filename = '';
-  
+
   switch (type) {
     case 'books':
-      query = 'SELECT id, isbn, title, author, rack_number, category, publisher, year_published, total_copies, available_copies, status, added_date FROM books ORDER BY id';
+      query = 'SELECT id, isbn, title, author, rack_number, category, publisher, year_published, total_copies, available_copies, status, added_date FROM books ORDER BY id LIMIT ' + EXPORT_ROW_LIMIT;
       filename = 'books_export';
       break;
     case 'members':
-      query = 'SELECT id, name, email, phone, member_type, membership_date, is_active FROM members ORDER BY id';
+      query = 'SELECT id, name, email, phone, member_type, membership_date, is_active FROM members ORDER BY id LIMIT ' + EXPORT_ROW_LIMIT;
       filename = 'members_export';
       break;
     case 'issues':
-      query = `
-        SELECT i.id, b.title as book_title, b.isbn, m.name as member_name, 
-               i.issue_date, i.due_date, i.return_date, i.status
-        FROM issues i
-        JOIN books b ON i.book_id = b.id
-        JOIN members m ON i.member_id = m.id
-        ORDER BY i.id
-      `;
+      query = "SELECT i.id, b.title as book_title, b.isbn, m.name as member_name, i.issue_date, i.due_date, i.return_date, i.status FROM issues i JOIN books b ON i.book_id = b.id JOIN members m ON i.member_id = m.id ORDER BY i.id LIMIT " + EXPORT_ROW_LIMIT;
       filename = 'issues_export';
       break;
     default:
       return res.status(400).json({ error: 'Invalid export type' });
   }
-  
-  // For large datasets, we stream the response
-  db.query(query, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
+
+  try {
     if (format === 'csv') {
-      if (!results || results.length === 0) {
+      // CSV: stream rows directly from MySQL to the response so we never
+      // hold the full result set in memory. The query already has LIMIT
+      // applied; we use the same shape to discover column order.
+      const [sample] = await db.promise().query(query);
+      if (!sample || sample.length === 0) {
         return res.status(404).json({ error: 'No data to export' });
       }
+      const columns = Object.keys(sample[0]);
 
-      // Format current timestamp for CSV comment
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const monthName = months[now.getMonth()];
-      const year = now.getFullYear();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const generatedOn = `${day}-${monthName}-${year} ${hours}:${minutes}:${seconds} IST`;
+      // mysql2's streaming API is callback-based, so we go through the
+      // (patched) callback getConnection. applyStatementTimeout is wired
+      // in by db.getConnection, so a hung export query is killed at 30s.
+      const connection = await new Promise((resolve, reject) => {
+        db.getConnection((err, conn) => (err ? reject(err) : resolve(conn)));
+      });
 
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}_${Date.now()}.csv`);
+      try {
+        const stream = connection.query(query).stream();
 
-      // CSV escaping function
-      const csvEscape = (val) => {
-        if (val === null || val === undefined) return '';
-        const str = String(val);
-        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-          return `"${str.replace(/"/g, '""')}"`;
+        const csvEscape = (val) => {
+          if (val === null || val === undefined) return '';
+          const str = String(val);
+          if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+          }
+          return str;
+        };
+
+        const now = new Date();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const generatedOn = String(now.getDate()).padStart(2, '0') + '-' + months[now.getMonth()] + '-' + now.getFullYear()
+          + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0') + ' IST';
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename=' + filename + '_' + Date.now() + '.csv');
+
+        res.write('\ufeff');
+        res.write('# Generated on: ' + generatedOn + '\n');
+        res.write(columns.join(',') + '\n');
+
+        for await (const row of stream) {
+          res.write(columns.map((h) => csvEscape(row[h])).join(',') + '\n');
         }
-        return str;
-      };
-
-      // Write BOM for Excel UTF-8 compatibility
-      res.write('\ufeff');
-
-      // Write generation timestamp as comment
-      res.write(`# Generated on: ${generatedOn}\n`);
-
-      // Write headers
-      const headers = Object.keys(results[0]);
-      res.write(headers.join(',') + '\n');
-      
-      // Write data in chunks to avoid memory issues
-      const CHUNK_SIZE = 1000;
-      for (let i = 0; i < results.length; i += CHUNK_SIZE) {
-        const chunk = results.slice(i, Math.min(i + CHUNK_SIZE, results.length));
-        let chunkData = '';
-        for (const row of chunk) {
-          chunkData += headers.map(h => csvEscape(row[h])).join(',') + '\n';
-        }
-        res.write(chunkData);
+        res.end();
+      } finally {
+        connection.release();
       }
-      
-      res.end();
     } else {
+      // JSON export: still load into memory, but cap at EXPORT_ROW_LIMIT.
+      const [results] = await db.promise().query(query);
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}_${Date.now()}.json`);
-      res.json(results);
+      res.setHeader('Content-Disposition', 'attachment; filename=' + filename + '_' + Date.now() + '.json');
+      res.json({
+        row_count: results.length,
+        truncated: results.length === EXPORT_ROW_LIMIT,
+        data: results,
+      });
     }
-  });
+  } catch (err) {
+    if (err && err.code === 'ER_QUERY_INTERRUPTED') {
+      return res.status(504).json({ error: 'Export query was interrupted' });
+    }
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.end();
+    }
+  }
 });
 
 // ==================== ROOT ROUTE ====================

@@ -37,8 +37,11 @@ class NotificationProvider with ChangeNotifier {
   void _startPolling() {
     _pollTimer?.cancel();
     // Poll periodically to reflect changes made by other clients.
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      refresh(silent: true);
+    // The 10s cadence combined with other periodic timers in the app can
+    // stack up; if a refresh is already in flight we skip this tick.
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (_isLoading) return;
+      await refresh(silent: true);
     });
   }
 
@@ -49,8 +52,9 @@ class NotificationProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    stopPolling();
     _dataChangedSub?.cancel();
+    _dataChangedSub = null;
     super.dispose();
   }
 
@@ -58,6 +62,7 @@ class NotificationProvider with ChangeNotifier {
     bool unreadOnly = false,
     bool silent = false,
   }) async {
+    if (_isLoading) return; // Skip if a refresh is already in flight.
     if (!silent) {
       _isLoading = true;
       notifyListeners();
@@ -70,11 +75,14 @@ class NotificationProvider with ChangeNotifier {
       _unreadCount = _notifications.where((n) => !n.isRead).length;
       if (kDebugMode) {
         debugPrint(
-        'DEBUG [NotificationProvider]: Loaded ${_notifications.length} notifications',
-      );
+          'DEBUG [NotificationProvider]: Loaded ${_notifications.length} notifications',
+        );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('DEBUG [NotificationProvider]: Error loading notifications: $e');
+      if (kDebugMode) {
+        debugPrint('DEBUG [NotificationProvider]: Error loading notifications: $e');
+      }
+      if (!silent) rethrow;
     }
 
     if (!silent) {

@@ -2274,63 +2274,11 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
     required String name,
     String? description,
   }) async {
-    final nameController = TextEditingController(text: name);
-    final descController = TextEditingController(text: description ?? '');
-    final isNew = name.isEmpty;
-
     return showDialog<Map<String, String?>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isNew ? 'Add Category' : 'Edit Category'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: 'Category Name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descController,
-                decoration: InputDecoration(
-                  labelText: 'Description (optional)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(null),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final n = nameController.text.trim();
-              if (n.isEmpty) return;
-              Navigator.of(context).pop({
-                'name': n,
-                'description':
-                    descController.text.trim().isEmpty
-                        ? null
-                        : descController.text.trim(),
-              });
-            },
-            child: Text(isNew ? 'Add' : 'Save'),
-          ),
-        ],
+      builder: (context) => _CategoryEditDialog(
+        initialName: name,
+        initialDescription: description,
       ),
     );
   }
@@ -2497,6 +2445,89 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CategoryEditDialog extends StatefulWidget {
+  const _CategoryEditDialog({
+    required this.initialName,
+    this.initialDescription,
+  });
+
+  final String initialName;
+  final String? initialDescription;
+
+  @override
+  State<_CategoryEditDialog> createState() => _CategoryEditDialogState();
+}
+
+class _CategoryEditDialogState extends State<_CategoryEditDialog> {
+  late final TextEditingController _nameController =
+      TextEditingController(text: widget.initialName);
+  late final TextEditingController _descController =
+      TextEditingController(text: widget.initialDescription ?? '');
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isNew = widget.initialName.isEmpty;
+    return AlertDialog(
+      title: Text(isNew ? 'Add Category' : 'Edit Category'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Category Name',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descController,
+              decoration: InputDecoration(
+                labelText: 'Description (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final n = _nameController.text.trim();
+            if (n.isEmpty) return;
+            Navigator.of(context).pop({
+              'name': n,
+              'description': _descController.text.trim().isEmpty
+                  ? null
+                  : _descController.text.trim(),
+            });
+          },
+          child: Text(isNew ? 'Add' : 'Save'),
+        ),
+      ],
     );
   }
 }

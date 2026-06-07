@@ -53,7 +53,13 @@ class ApiService {
   static const Duration retryDelay = Duration(seconds: 2);  // Delay between retries
 
   // Persistent HTTP client for connection reuse (keep-alive)
-  static final http.Client _client = http.Client();
+  static http.Client _client = http.Client();
+
+  /// Test hook: inject a mock client. Only used by the test suite.
+  @visibleForTesting
+  static void setHttpClientForTesting(http.Client client) {
+    _client = client;
+  }
 
   // Cache duration for categories
   static const Duration _categoriesCacheDuration = Duration(minutes: 5);
@@ -65,9 +71,40 @@ class ApiService {
       StreamController<void>.broadcast();
   static Stream<void> get unauthorizedStream => _unauthorizedController.stream;
 
+  /// Fires when the current JWT is about to expire (within
+  /// [_sessionExpiringThreshold]). Listeners should prompt the user to
+  /// re-login proactively so they don't get bumped to the login screen
+  /// mid-action.
+  static final StreamController<Duration> _sessionExpiringController =
+      StreamController<Duration>.broadcast();
+  static Stream<Duration> get sessionExpiringStream =>
+      _sessionExpiringController.stream;
+
+  /// How close to expiry triggers the proactive warning.
+  static const Duration _sessionExpiringThreshold = Duration(minutes: 5);
+
+  /// Rate-limits the proactive warning to at most once per minute per
+  /// session, so we don't spam listeners on every request.
+  static DateTime _lastSessionExpiringNotify = DateTime.fromMillisecondsSinceEpoch(0);
+
   static final StreamController<void> _dataChangedController =
       StreamController<void>.broadcast();
   static Stream<void> get dataChangedStream => _dataChangedController.stream;
+
+  /// Closes the broadcast controllers. Call this from app shutdown / tests
+  /// so long-lived listeners don't pin the app in memory.
+  static Future<void> disposeStatic() async {
+    if (!_unauthorizedController.isClosed) {
+      await _unauthorizedController.close();
+    }
+    if (!_sessionExpiringController.isClosed) {
+      await _sessionExpiringController.close();
+    }
+    if (!_dataChangedController.isClosed) {
+      await _dataChangedController.close();
+    }
+    _client.close();
+  }
 
   static const Set<int> _retryableStatusCodes = {
     408,
@@ -86,13 +123,27 @@ class ApiService {
   }
 
   static Future<void> _throwIfUnauthorized(http.Response response) async {
-    if (response.statusCode == 401 || response.statusCode == 403) {
+    // 401 (expired/missing token) is the only status that should force a
+    // logout. 403 means the request was valid but the action is forbidden
+    // (e.g. trying to deactivate yourself, or hitting an admin-only route
+    // with a non-admin token) — we should NOT nuke the session for that.
+    if (response.statusCode == 401) {
       await clearToken();
-      _unauthorizedController.add(null);
+      if (!_unauthorizedController.isClosed) {
+        _unauthorizedController.add(null);
+      }
       throw ApiException(
         message: 'Session expired. Please login again.',
         code: 'AUTH_EXPIRED',
-        statusCode: response.statusCode,
+        statusCode: 401,
+        isRetryable: false,
+      );
+    }
+    if (response.statusCode == 403) {
+      throw ApiException(
+        message: 'You do not have permission to perform this action.',
+        code: 'AUTH_FORBIDDEN',
+        statusCode: 403,
         isRetryable: false,
       );
     }
@@ -213,6 +264,36 @@ class ApiService {
     );
   }
 
+  /// GET helper that does a single retryable request. 5xx and rate-limit
+  /// (429) responses throw [ApiException] with `isRetryable: true`, which
+  /// the [_withRetry] loop will then retry up to [maxRetries] times with
+  /// linear backoff. Used by the high-traffic read endpoints.
+  static Future<http.Response> _getWithRetry(
+    Uri uri, {
+    required Map<String, String> headers,
+    required String operationName,
+  }) {
+    return _withRetry(
+      () async {
+        final response =
+            await _client.get(uri, headers: headers).timeout(timeout);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return response;
+        }
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, operationName);
+        // Should not reach here, but be defensive.
+        throw ApiException(
+          message: '$operationName failed',
+          code: 'REQUEST_FAILED',
+          statusCode: response.statusCode,
+        );
+      },
+      operationName: operationName,
+    );
+  }
+
   static void _log(String message) {
     if (kDebugMode) {
       debugPrint(message);
@@ -250,59 +331,64 @@ class ApiService {
   static Future<String?> getToken() async {
     // flutter_secure_storage has limited support on some web targets.
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_tokenKey);
+      // Web: no secure storage available, but the user is also not in a
+      // shared-desktop threat model, so SharedPreferences is acceptable.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        return prefs.getString(_tokenKey);
+      } catch (_) {
+        return null;
+      }
     }
     try {
       final token = await _secureStorage.read(key: _tokenKey);
       if (token != null && token.isNotEmpty) return token;
     } catch (_) {
-      // Fall back below.
+      // Secure storage is misconfigured / unavailable. We intentionally do
+      // NOT fall back to SharedPreferences on desktop because the entire
+      // point of secure storage is to keep the JWT out of a plaintext file
+      // that anyone with file access on the kiosk can read. Returning null
+      // forces the user to log in again — preferable to leaking the token.
     }
-
-    // Fallback for desktop targets where secure storage may be unavailable or
-    // misconfigured.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_tokenKey);
-    } catch (_) {
-      return null;
-    }
+    return null;
   }
 
   static Future<void> setToken(String token) async {
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, token);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_tokenKey, token);
+      } catch (_) {
+        // Ignore.
+      }
       return;
     }
     try {
       await _secureStorage.write(key: _tokenKey, value: token);
     } catch (_) {
-      // Ignore when secure storage is unavailable (e.g., widget tests).
-    }
-
-    // Always also store in SharedPreferences as a fallback for desktop.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, token);
-    } catch (_) {
-      // Ignore.
+      // We intentionally do NOT mirror the token to SharedPreferences on
+      // desktop; see getToken() for the rationale.
     }
   }
 
   static Future<void> clearToken() async {
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_tokenKey);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_tokenKey);
+      } catch (_) {
+        // Ignore.
+      }
       return;
     }
     try {
       await _secureStorage.delete(key: _tokenKey);
     } catch (_) {
-      // Ignore when secure storage is unavailable (e.g., widget tests).
+      // Ignore when secure storage is unavailable.
     }
-
+    // Also wipe any leftover plaintext copy that an older version of this
+    // app may have written, so existing installs don't keep a stale token
+    // sitting in SharedPreferences.
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
@@ -316,8 +402,57 @@ class ApiService {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
+      _checkSessionExpiringSoon(token);
     }
     return headers;
+  }
+
+  /// Parses a JWT and returns the `exp` claim as a [DateTime], or null
+  /// if it can't be parsed. Only does base64-decode + JSON parse; does
+  /// NOT verify the signature (the server does that).
+  @visibleForTesting
+  static DateTime? getTokenExpiry(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      var payload = parts[1];
+      // base64url -> base64
+      payload = payload.replaceAll('-', '+').replaceAll('_', '/');
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final decoded = utf8.decode(base64Decode(payload));
+      final Map<String, dynamic> claims = jsonDecode(decoded);
+      final exp = claims['exp'];
+      if (exp is int) {
+        return DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+      } else if (exp is double) {
+        return DateTime.fromMillisecondsSinceEpoch((exp * 1000).toInt());
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  /// If the token is within [_sessionExpiringThreshold] of expiry, fire
+  /// the [sessionExpiringStream] (rate-limited to once per minute). The
+  /// server's login endpoint issues 2h tokens so this gives the user a
+  /// 5-minute heads-up before being kicked out.
+  static void _checkSessionExpiringSoon(String token) {
+    final expiry = getTokenExpiry(token);
+    if (expiry == null) return;
+    final remaining = expiry.difference(DateTime.now());
+    if (remaining <= _sessionExpiringThreshold && remaining > Duration.zero) {
+      final now = DateTime.now();
+      if (now.difference(_lastSessionExpiringNotify) >
+          const Duration(minutes: 1)) {
+        _lastSessionExpiringNotify = now;
+        if (!_sessionExpiringController.isClosed) {
+          _sessionExpiringController.add(remaining);
+        }
+      }
+    }
   }
 
   static Future<bool> testConnection() async {
@@ -398,7 +533,7 @@ class ApiService {
   static Future<User> getMe() async {
     try {
       final headers = await getHeaders();
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/auth/me'), headers: headers)
           .timeout(timeout);
 
@@ -411,6 +546,41 @@ class ApiService {
       await _throwIfUnauthorized(response);
       _handleErrorResponse(response, 'Loading user');
       throw Exception('Failed to load current user');
+    } on SocketException catch (_) {
+      throw Exception(
+        'Cannot connect to server. Please check your connection.',
+      );
+    } on TimeoutException catch (_) {
+      throw Exception('Connection timed out. Please try again.');
+    }
+  }
+
+  /// Change the current user's password. Required on first login when the
+  /// server reports `mustChangePassword: true`.
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final headers = await getHeaders();
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/change-password'),
+            headers: headers,
+            body: jsonEncode({
+              'currentPassword': currentPassword,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(timeout);
+
+      if (response.statusCode == 200) {
+        return;
+      }
+      _throwIfRateLimited(response, 'Too many requests. Please wait.');
+      await _throwIfUnauthorized(response);
+      _handleErrorResponse(response, 'Changing password');
+      throw Exception('Failed to change password');
     } on SocketException catch (_) {
       throw Exception(
         'Cannot connect to server. Please check your connection.',
@@ -572,7 +742,7 @@ class ApiService {
   static Future<Book> getBook(int id) async {
     try {
       final headers = await getHeaders();
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/books/$id'), headers: headers)
           .timeout(timeout);
 
@@ -879,9 +1049,11 @@ class ApiService {
 
     final headers = await getHeaders();
     try {
-      final response = await _client
-          .get(Uri.parse('$baseUrl/categories'), headers: headers)
-          .timeout(timeout);
+      final response = await _getWithRetry(
+        Uri.parse('$baseUrl/categories'),
+        headers: headers,
+        operationName: 'Loading categories',
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -1599,9 +1771,11 @@ class ApiService {
     _log('DEBUG: Fetching dashboard stats from $uri');
 
     try {
-      final response = await _client
-          .get(uri, headers: headers)
-          .timeout(timeout);
+      final response = await _getWithRetry(
+        uri,
+        headers: headers,
+        operationName: 'Loading dashboard stats',
+      );
       _log('DEBUG: Dashboard stats response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
@@ -1613,11 +1787,6 @@ class ApiService {
                 MapEntry(k, v is int ? v : int.tryParse(v.toString()) ?? 0),
           ),
         );
-      } else {
-        _throwIfRateLimited(response);
-        await _throwIfUnauthorized(response);
-        _handleErrorResponse(response, 'Loading dashboard stats');
-        throw Exception('Failed to load dashboard stats');
       }
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading dashboard stats: $e');
@@ -1631,6 +1800,9 @@ class ApiService {
       _log('DEBUG: Error loading dashboard stats: $e');
       rethrow;
     }
+    // Unreachable: _getWithRetry always throws on non-2xx. Defensive
+    // throw keeps the analyzer happy and the function total.
+    throw Exception('Failed to load dashboard stats');
   }
 
   static Future<List<DashboardWidget>> getDashboardSettings(int userId) async {
@@ -1757,17 +1929,15 @@ class ApiService {
     ).replace(queryParameters: {'limit': limit.toString()});
 
     try {
-      final response = await _withRetry(
-        () => _client.get(uri, headers: headers).timeout(timeout),
+      final response = await _getWithRetry(
+        uri,
+        headers: headers,
         operationName: 'Loading dashboard activity',
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return List<Map<String, dynamic>>.from(data);
       }
-      _throwIfRateLimited(response);
-      await _throwIfUnauthorized(response);
-      _handleErrorResponse(response, 'Loading dashboard activity');
       throw Exception('Failed to load dashboard activity');
     } on ApiException {
       rethrow;
@@ -1894,17 +2064,24 @@ class ApiService {
     _log('DEBUG: Fetching issued report from $uri');
 
     try {
-      final response = await _client
-          .get(uri, headers: headers)
-          .timeout(timeout);
+      final response = await _getWithRetry(
+        uri,
+        headers: headers,
+        operationName: 'Loading issued report',
+      );
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        // Backend now returns {data: [...], pagination: {...}}, but we
+        // also accept a bare array for forward-compat with older servers.
+        final dynamic decoded = jsonDecode(response.body);
+        final List<dynamic> data = decoded is List
+            ? decoded
+            : (decoded is Map<String, dynamic> &&
+                    decoded['data'] is List
+                ? decoded['data'] as List<dynamic>
+                : <dynamic>[]);
         _log('DEBUG: Parsed ${data.length} issued reports');
         return List<Map<String, dynamic>>.from(data);
       } else {
-        _throwIfRateLimited(response);
-        await _throwIfUnauthorized(response);
-        _handleErrorResponse(response, 'Loading issued report');
         throw Exception('Failed to load issued report');
       }
     } on SocketException catch (_) {
@@ -1923,17 +2100,24 @@ class ApiService {
     _log('DEBUG: Fetching overdue report from $uri');
 
     try {
-      final response = await _client
-          .get(uri, headers: headers)
-          .timeout(timeout);
+      final response = await _getWithRetry(
+        uri,
+        headers: headers,
+        operationName: 'Loading overdue report',
+      );
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        // Backend now returns {data: [...], pagination: {...}}, but we
+        // also accept a bare array for forward-compat with older servers.
+        final dynamic decoded = jsonDecode(response.body);
+        final List<dynamic> data = decoded is List
+            ? decoded
+            : (decoded is Map<String, dynamic> &&
+                    decoded['data'] is List
+                ? decoded['data'] as List<dynamic>
+                : <dynamic>[]);
         _log('DEBUG: Parsed ${data.length} overdue reports');
         return List<Map<String, dynamic>>.from(data);
       } else {
-        _throwIfRateLimited(response);
-        await _throwIfUnauthorized(response);
-        _handleErrorResponse(response, 'Loading overdue report');
         throw Exception('Failed to load overdue report');
       }
     } on SocketException catch (_) {
@@ -2128,33 +2312,51 @@ class ApiService {
   static Future<void> markNotificationAsRead(int id) async {
     final headers = await getHeaders();
     try {
-      await http
+      final response = await _client
           .put(Uri.parse('$baseUrl/notifications/$id/read'), headers: headers)
           .timeout(timeout);
+      _throwIfRateLimited(response);
+      await _throwIfUnauthorized(response);
+      if (response.statusCode != 200) {
+        _handleErrorResponse(response, 'Marking notification as read');
+      }
     } catch (e) {
       _log('DEBUG: Error marking notification as read: $e');
+      rethrow;
     }
   }
 
   static Future<void> markAllNotificationsAsRead() async {
     final headers = await getHeaders();
     try {
-      await http
+      final response = await _client
           .put(Uri.parse('$baseUrl/notifications/read-all'), headers: headers)
           .timeout(timeout);
+      _throwIfRateLimited(response);
+      await _throwIfUnauthorized(response);
+      if (response.statusCode != 200) {
+        _handleErrorResponse(response, 'Marking all notifications as read');
+      }
     } catch (e) {
       _log('DEBUG: Error marking all notifications as read: $e');
+      rethrow;
     }
   }
 
   static Future<void> deleteNotification(int id) async {
     final headers = await getHeaders();
     try {
-      await http
+      final response = await _client
           .delete(Uri.parse('$baseUrl/notifications/$id'), headers: headers)
           .timeout(timeout);
+      _throwIfRateLimited(response);
+      await _throwIfUnauthorized(response);
+      if (response.statusCode != 200) {
+        _handleErrorResponse(response, 'Deleting notification');
+      }
     } catch (e) {
       _log('DEBUG: Error deleting notification: $e');
+      rethrow;
     }
   }
 
@@ -2230,9 +2432,9 @@ class ApiService {
     final headers = await getHeaders();
 
     try {
-      final response = await http
+      final response = await _client
           .get(
-            Uri.parse('$baseUrl/recommendations/$memberId'),
+            Uri.parse('$baseUrl/auth/me'),
             headers: headers,
           )
           .timeout(timeout);
