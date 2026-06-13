@@ -187,19 +187,22 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                       ),
                     ),
                     // Borrow limit indicator
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: limitColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: limitColor.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        '${widget.borrowCount} / $_maxAllowed',
-                        style: TextStyle(
-                          color: limitColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: limitColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: limitColor.withValues(alpha: 0.4)),
+                        ),
+                        child: Text(
+                          '${widget.borrowCount} / $_maxAllowed',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: limitColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -487,11 +490,15 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
       children: [
         Icon(icon, size: 11, color: color),
         const SizedBox(width: 3),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 11,
-            color: color,
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

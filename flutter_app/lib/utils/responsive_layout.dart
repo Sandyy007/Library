@@ -57,7 +57,9 @@ class ResponsiveDataTable extends StatelessWidget {
     // Calculate total available width
     double availableWidth = responsive.width - (responsive.pagePadding * 2);
     if (!responsive.isCompact) {
-      availableWidth -= responsive.sidebarExpandedWidth;
+      availableWidth -= responsive.shouldCollapseSidebar
+          ? responsive.sidebarCollapsedWidth
+          : responsive.sidebarExpandedWidth;
     }
 
     // Calculate minimum width needed

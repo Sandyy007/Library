@@ -198,7 +198,7 @@ class _BooksContentState extends State<BooksContent>
         : const Color(0xFF6B7280);
     return Text(
       label.toUpperCase(),
-      style: GoogleFonts.inter(
+      style: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
@@ -667,10 +667,11 @@ class _BooksContentState extends State<BooksContent>
                                                     Text(
                                                       isbnValue,
                                                       style: GoogleFonts
-                                                          .robotoMono(
+                                                          .inter(
                                                         fontSize: 12,
                                                         color: isbnTextColor,
                                                       ),
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ),
@@ -689,7 +690,7 @@ class _BooksContentState extends State<BooksContent>
                                                         normalizedTitle,
                                                         style: _textStyleForHindi(
                                                           normalizedTitle,
-                                                          GoogleFonts.inter(
+                                                          GoogleFonts.dmSans(
                                                             fontSize: 15,
                                                             fontWeight:
                                                                 FontWeight.w600,
@@ -704,7 +705,7 @@ class _BooksContentState extends State<BooksContent>
                                                           secondaryText,
                                                           style: secondaryIsMono
                                                               ? GoogleFonts
-                                                                  .robotoMono(
+                                                                  .inter(
                                                                   fontSize: 11,
                                                                   color:
                                                                       mutedText,
@@ -735,7 +736,7 @@ class _BooksContentState extends State<BooksContent>
                                                       normalizedAuthor,
                                                       style: _textStyleForHindi(
                                                         normalizedAuthor,
-                                                        GoogleFonts.inter(
+                                                        GoogleFonts.dmSans(
                                                           fontSize: 13,
                                                           color:
                                                               authorTextColor,
@@ -758,16 +759,16 @@ class _BooksContentState extends State<BooksContent>
                                                         vertical: 4,
                                                       ),
                                                       decoration: BoxDecoration(
-                                                        color: const Color(
-                                                          0xFFEEF2FF,
-                                                        ),
+                                                        color: isDark
+                                                            ? const Color(0xFF4338CA).withValues(alpha: 0.15)
+                                                            : const Color(0xFFEEF2FF),
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(999),
                                                         border: Border.all(
-                                                          color: const Color(
-                                                            0xFFC7D2FE,
-                                                          ),
+                                                          color: isDark
+                                                              ? const Color(0xFF4338CA).withValues(alpha: 0.4)
+                                                              : const Color(0xFFC7D2FE),
                                                         ),
                                                       ),
                                                       child: Text(
@@ -777,10 +778,12 @@ class _BooksContentState extends State<BooksContent>
                                                           fontSize: 11,
                                                           fontWeight:
                                                               FontWeight.w600,
-                                                          color: const Color(
-                                                            0xFF4338CA,
-                                                          ),
+                                                          color: isDark
+                                                              ? const Color(0xFF818CF8)
+                                                              : const Color(0xFF4338CA),
                                                         ),
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
                                                       ),
                                                     ),
                                                   ),
@@ -797,7 +800,7 @@ class _BooksContentState extends State<BooksContent>
                                                         normalizeHindiForDisplay(
                                                           book.category ?? '-',
                                                         ),
-                                                        GoogleFonts.inter(
+                                                        GoogleFonts.dmSans(
                                                           fontSize: 13,
                                                           color:
                                                               categoryTextColor,
@@ -820,9 +823,9 @@ class _BooksContentState extends State<BooksContent>
                                                         vertical: 6,
                                                       ),
                                                       decoration: BoxDecoration(
-                                                        color: const Color(
-                                                          0xFFD1FAE5,
-                                                        ),
+                                                        color: isDark
+                                                            ? const Color(0xFF059669).withValues(alpha: 0.15)
+                                                            : const Color(0xFFD1FAE5),
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(6),
@@ -839,10 +842,9 @@ class _BooksContentState extends State<BooksContent>
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w700,
-                                                              color:
-                                                                  const Color(
-                                                                0xFF065F46,
-                                                              ),
+                                                              color: isDark
+                                                                  ? const Color(0xFF34D399)
+                                                                  : const Color(0xFF065F46),
                                                             ),
                                                           ),
                                                           const SizedBox(
@@ -853,9 +855,9 @@ class _BooksContentState extends State<BooksContent>
                                                             style: GoogleFonts
                                                                 .inter(
                                                               fontSize: 10,
-                                                              color: const Color(
-                                                                0xFF3F8F72,
-                                                              ),
+                                                              color: isDark
+                                                                  ? const Color(0xFF34D399).withValues(alpha: 0.7)
+                                                                  : const Color(0xFF3F8F72),
                                                             ),
                                                           ),
                                                         ],
@@ -888,21 +890,19 @@ class _BooksContentState extends State<BooksContent>
                                                             book: book,
                                                           ),
                                                           backgroundColor:
-                                                              const Color(
-                                                            0xFFFFF7ED,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.15)
+                                                                  : const Color(0xFFFFF7ED),
                                                           hoverColor:
-                                                              const Color(
-                                                            0xFFFEF3C7,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.25)
+                                                                  : const Color(0xFFFEF3C7),
                                                           borderColor:
-                                                              const Color(
-                                                            0xFFFDE68A,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.4)
+                                                                  : const Color(0xFFFDE68A),
                                                           iconColor:
-                                                              const Color(
-                                                            0xFFD97706,
-                                                          ),
+                                                              const Color(0xFFD97706),
                                                         ),
                                                         const SizedBox(
                                                           width: 6,
@@ -917,21 +917,19 @@ class _BooksContentState extends State<BooksContent>
                                                             book.id,
                                                           ),
                                                           backgroundColor:
-                                                              const Color(
-                                                            0xFFFFF1F2,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.15)
+                                                                  : const Color(0xFFFFF1F2),
                                                           hoverColor:
-                                                              const Color(
-                                                            0xFFFFE4E6,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.25)
+                                                                  : const Color(0xFFFFE4E6),
                                                           borderColor:
-                                                              const Color(
-                                                            0xFFFECDD3,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.4)
+                                                                  : const Color(0xFFFECDD3),
                                                           iconColor:
-                                                              const Color(
-                                                            0xFFE11D48,
-                                                          ),
+                                                              const Color(0xFFE11D48),
                                                         ),
                                                       ],
                                                     ),
@@ -983,7 +981,7 @@ class _BooksContentState extends State<BooksContent>
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isNarrow = constraints.maxWidth < 760;
-                    final footerTextStyle = GoogleFonts.inter(
+                    final footerTextStyle = GoogleFonts.dmSans(
                       fontSize: 13,
                       color: mutedText,
                     );
@@ -998,7 +996,7 @@ class _BooksContentState extends State<BooksContent>
                       ),
                       child: Text(
                         '${bookProvider.currentPage}',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1052,7 +1050,7 @@ class _BooksContentState extends State<BooksContent>
                           return accentTeal;
                         }),
                         textStyle: WidgetStateProperty.all(
-                          GoogleFonts.inter(
+                          GoogleFonts.dmSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1163,19 +1161,21 @@ class _BooksContentState extends State<BooksContent>
     required VoidCallback onPressed,
     Color? color,
   }) {
+    final iconColor = color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
     return Tooltip(
       message: tooltip,
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        onTap: onPressed,
-        child: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: 20,
-            color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onPressed,
+          hoverColor: iconColor.withValues(alpha: 0.1),
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 20, color: iconColor),
           ),
         ),
       ),
@@ -1214,7 +1214,7 @@ class _BooksContentState extends State<BooksContent>
   }) {
     return TextField(
       controller: controller,
-      style: GoogleFonts.inter(fontSize: 14),
+      style: GoogleFonts.dmSans(fontSize: 14),
       cursorColor: accentTeal,
       decoration: InputDecoration(
         hintText: hintText,
@@ -1245,7 +1245,7 @@ class _BooksContentState extends State<BooksContent>
         fillColor: searchFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         isDense: true,
-        hintStyle: GoogleFonts.inter(fontSize: 13, color: mutedText),
+        hintStyle: GoogleFonts.dmSans(fontSize: 13, color: mutedText),
       ),
       onChanged: (value) {
         _searchDebounce?.cancel();
@@ -1399,61 +1399,71 @@ class _BooksContentState extends State<BooksContent>
           ),
         ),
         const SizedBox(width: 10),
-        _buildCategoryFilterPopup(bookProvider),
-        if (selectedCount > 0) ...[
-          _buildToolbarDivider(context),
-          _buildToolbarIconButton(
-            icon: Icons.delete_forever,
-            tooltip: 'Delete ($selectedCount)',
-            onPressed: _deleteSelectedBooks,
-            color: colorScheme.error,
-          ),
-          _buildToolbarIconButton(
-            icon: Icons.clear,
-            tooltip: 'Clear selection',
-            onPressed: () => setState(_selectedBookIds.clear),
-          ),
-        ],
-        _buildToolbarDivider(context),
-        _buildToolbarIconButton(
-          icon: Icons.category,
-          tooltip: 'Manage Categories',
-          onPressed: _showCategoryManagement,
-          color: colorScheme.primary,
-        ),
-        _buildToolbarIconButton(
-          icon: Icons.upload_file,
-          tooltip: 'Import CSV/Excel',
-          onPressed: _importBooks,
-        ),
-        _buildToolbarIconButton(
-          icon: Icons.download,
-          tooltip: 'Export CSV',
-          onPressed: _exportBooksCsv,
-        ),
-        _buildToolbarIconButton(
-          icon: Icons.refresh,
-          tooltip: 'Refresh',
-          onPressed: _loadBooks,
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: () => _showBookDialog(),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add Book'),
-          style: ButtonStyle(
-            padding: WidgetStateProperty.all(
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        Flexible(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildCategoryFilterPopup(bookProvider),
+                if (selectedCount > 0) ...[
+                  _buildToolbarDivider(context),
+                  _buildToolbarIconButton(
+                    icon: Icons.delete_forever,
+                    tooltip: 'Delete ($selectedCount)',
+                    onPressed: _deleteSelectedBooks,
+                    color: colorScheme.error,
+                  ),
+                  _buildToolbarIconButton(
+                    icon: Icons.clear,
+                    tooltip: 'Clear selection',
+                    onPressed: () => setState(_selectedBookIds.clear),
+                  ),
+                ],
+                _buildToolbarDivider(context),
+                _buildToolbarIconButton(
+                  icon: Icons.category,
+                  tooltip: 'Manage Categories',
+                  onPressed: _showCategoryManagement,
+                  color: colorScheme.primary,
+                ),
+                _buildToolbarIconButton(
+                  icon: Icons.upload_file,
+                  tooltip: 'Import CSV/Excel',
+                  onPressed: _importBooks,
+                ),
+                _buildToolbarIconButton(
+                  icon: Icons.download,
+                  tooltip: 'Export CSV',
+                  onPressed: _exportBooksCsv,
+                ),
+                _buildToolbarIconButton(
+                  icon: Icons.refresh,
+                  tooltip: 'Refresh',
+                  onPressed: _loadBooks,
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () => _showBookDialog(),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Book'),
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    ),
+                    shape: WidgetStateProperty.all(
+                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
+                      if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
+                      return accentTeal;
+                    }),
+                    foregroundColor: WidgetStateProperty.all(Colors.white),
+                  ),
+                ),
+              ],
             ),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
-              if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
-              return accentTeal;
-            }),
-            foregroundColor: WidgetStateProperty.all(Colors.white),
           ),
         ),
       ],
@@ -1949,12 +1959,16 @@ class _BooksContentState extends State<BooksContent>
 
   Widget _buildStatusBadge(Book book) {
     final isAvailable = book.availableCopies > 0;
-    final background =
-        isAvailable ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2);
-    final border =
-        isAvailable ? const Color(0xFF6EE7B7) : const Color(0xFFFECACA);
-    final textColor =
-        isAvailable ? const Color(0xFF059669) : const Color(0xFFEF4444);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final background = isAvailable
+        ? (isDark ? const Color(0xFF059669).withValues(alpha: 0.15) : const Color(0xFFECFDF5))
+        : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFFFEF2F2));
+    final border = isAvailable
+        ? (isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : const Color(0xFF6EE7B7))
+        : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.4) : const Color(0xFFFECACA));
+    final textColor = isAvailable
+        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+        : (isDark ? const Color(0xFFFC8181) : const Color(0xFFEF4444));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1988,12 +2002,15 @@ class _BooksContentState extends State<BooksContent>
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            isAvailable ? 'Available' : 'Unavailable',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: textColor,
+          Flexible(
+            child: Text(
+              isAvailable ? 'Available' : 'Unavailable',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textColor,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

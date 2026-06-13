@@ -138,7 +138,12 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   ),
                   // Header content - ultra compact
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    padding: EdgeInsets.fromLTRB(
+                      responsive.shouldCollapseSidebar ? 8 : 16,
+                      responsive.shouldCollapseSidebar ? 8 : 16,
+                      responsive.shouldCollapseSidebar ? 8 : 16,
+                      responsive.shouldCollapseSidebar ? 8 : 12,
+                    ),
                     child: Column(
                       children: [
                         // Logo section - smaller
@@ -147,8 +152,8 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           children: [
                             // Radial glow
                             Container(
-                              width: 90,
-                              height: 90,
+                              width: responsive.shouldCollapseSidebar ? 48 : 90,
+                              height: responsive.shouldCollapseSidebar ? 48 : 90,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 gradient: RadialGradient(
@@ -162,8 +167,8 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                             ),
                             // Outer ring
                             Container(
-                              width: 62,
-                              height: 62,
+                              width: responsive.shouldCollapseSidebar ? 40 : 62,
+                              height: responsive.shouldCollapseSidebar ? 40 : 62,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
@@ -179,10 +184,10 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                 ],
                               ),
                             ),
-                            // Logo container 90x90
+                            // Logo container
                             Container(
-                              width: 90,
-                              height: 90,
+                              width: responsive.shouldCollapseSidebar ? 36 : 90,
+                              height: responsive.shouldCollapseSidebar ? 36 : 90,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: Colors.white,
@@ -196,7 +201,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                               ),
                               child: ClipOval(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(1),
+                                  padding: EdgeInsets.all(responsive.shouldCollapseSidebar ? 0 : 1),
                                   child: Image.asset(
                                     'assets/images/Office_Logo.png',
                                     fit: BoxFit.contain,
@@ -214,7 +219,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                         child: Center(
                                           child: Icon(
                                             Icons.account_balance_rounded,
-                                            size: 36,
+                                            size: responsive.shouldCollapseSidebar ? 16 : 36,
                                             color: Colors.white,
                                           ),
                                         ),
@@ -226,70 +231,73 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        // Institute Name - compact single line
-                        Text(
-                          'Uttar Pradesh State Tax\nTraining & Research Institute',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: 0.2,
-                            height: 1.3,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                        ),
-                        // Subtitless
-                        const SizedBox(height: 2),
-                        Text(
-                          'Library Management System',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: const Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.7),
-                            letterSpacing: 0.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        // Administrator badge - compact
-                        if (user != null) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 3,
+                        // Header text - hidden in collapsed mode
+                        if (!responsive.shouldCollapseSidebar) ...[
+                          const SizedBox(height: 8),
+                          // Institute Name - compact single line
+                          Text(
+                            'Uttar Pradesh State Tax\nTraining & Research Institute',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.2,
+                              height: 1.3,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                width: 1,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                          ),
+                          // Subtitless
+                          const SizedBox(height: 2),
+                          Text(
+                            'Library Management System',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: const Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.7),
+                              letterSpacing: 0.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          // Administrator badge - compact
+                          if (user != null) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.person_rounded,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    user.role.toLowerCase() == 'admin'
+                                        ? 'Administrator'
+                                        : user.username,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.person_rounded,
-                                  size: 10,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  user.role.toLowerCase() == 'admin'
-                                      ? 'Administrator'
-                                      : user.username,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          ],
                         ],
                       ],
                     ),
@@ -303,7 +311,12 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
             // ══════════════════════════════════════════════
             Expanded(
               child: Container(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                padding: EdgeInsets.fromLTRB(
+                  responsive.shouldCollapseSidebar ? 0 : 12,
+                  12,
+                  responsive.shouldCollapseSidebar ? 0 : 12,
+                  8,
+                ),
                 child: ListView(
                   shrinkWrap: true,
                   children: [
@@ -351,26 +364,27 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                     // Divider before QUICK ACTIONS
                     Container(
                       height: 1,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      color: const Color(0xFFE5E7EB),
+                      margin: EdgeInsets.symmetric(horizontal: responsive.shouldCollapseSidebar ? 0 : 8),
+                      color: isDark ? const Color(0xFF2D2F3D) : const Color(0xFFE5E7EB),
                     ),
                     const SizedBox(height: 8),
-                    // QUICK ACTIONS label
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 8, bottom: 4),
-                        child: Text(
-                          'QUICK ACTIONS',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF6B7280),
-                            letterSpacing: 1.2,
+                    // QUICK ACTIONS label - hidden in collapsed mode
+                    if (!responsive.shouldCollapseSidebar)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8, bottom: 4),
+                          child: Text(
+                            'QUICK ACTIONS',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFF9B9DAB) : const Color(0xFF6B7280),
+                              letterSpacing: 1.2,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     _buildQuickActionItem(
                       icon: Icons.search_rounded,
                       title: 'Advanced Search',
@@ -587,6 +601,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
     final isSelected = widget.selectedIndex == index;
     final isHovered = _menuHoverStates[index] ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCollapsed = Responsive(context).shouldCollapseSidebar;
 
     // Theme-aware colors
     final activeColor = isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0);
@@ -608,7 +623,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           transform: Matrix4.diagonal3Values(isHovered ? 1.02 : 1.0, isHovered ? 1.02 : 1.0, 1.0),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 10, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? (isDark ? const Color(0xFF262836) : const Color(0xFFDEEAFB))
@@ -633,9 +648,10 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                     : null),
           ),
           child: Row(
+            mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
-              // Left accent bar (active only)
-              if (isSelected)
+              // Left accent bar (active only) - expanded only
+              if (!isCollapsed && isSelected)
                 Container(
                   width: 3,
                   height: 32,
@@ -677,22 +693,24 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                       : (isDark ? const Color(0xFF9B9DAB) : const Color(0xFF455A64)),
                 ),
               ),
-              const SizedBox(width: 10),
-              // Label
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? activeColor
-                        : isHovered
-                            ? activeColor
-                            : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
+              // Label - expanded only
+              if (!isCollapsed) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected
+                          ? activeColor
+                          : isHovered
+                              ? activeColor
+                              : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -711,6 +729,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   }) {
     final isHovered = _quickActionHoverStates[index] ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCollapsed = Responsive(context).shouldCollapseSidebar;
     final activeColor = isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0);
 
     return MouseRegion(
@@ -723,7 +742,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           transform: Matrix4.diagonal3Values(isHovered ? 1.01 : 1.0, isHovered ? 1.01 : 1.0, 1.0),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 10, vertical: 8),
           decoration: BoxDecoration(
             color: isHovered ? (isDark ? const Color(0xFF2C2E3C) : const Color(0xFFEBF4FF)) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
@@ -738,6 +757,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                 : null,
           ),
           child: Row(
+            mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
               // Icon container 28x28 (compact)
               AnimatedContainer(
@@ -756,18 +776,20 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   color: activeColor,
                 ),
               ),
-              const SizedBox(width: 10),
-              // Label
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isHovered ? FontWeight.w600 : FontWeight.w500,
-                    color: isHovered ? activeColor : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
+              // Label - expanded only
+              if (!isCollapsed) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isHovered ? FontWeight.w600 : FontWeight.w500,
+                      color: isHovered ? activeColor : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -790,7 +812,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
               color: Theme.of(dialogContext).colorScheme.error,
             ),
             const SizedBox(width: 8),
-            const Text('Logout'),
+            Expanded(child: Text('Logout', overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: const Text('Are you sure you want to logout?'),

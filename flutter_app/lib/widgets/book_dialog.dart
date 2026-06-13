@@ -400,6 +400,7 @@ class _BookDialogState extends State<BookDialog> {
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: onPressed,
+        hoverColor: colorScheme.primary.withValues(alpha: 0.1),
         child: Container(
           padding: const EdgeInsets.all(8),
           child: Icon(icon, size: 28, color: colorScheme.primary),

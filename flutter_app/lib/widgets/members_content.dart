@@ -221,7 +221,7 @@ class _MembersContentState extends State<MembersContent>
   }) {
     return TextField(
       controller: controller,
-      style: GoogleFonts.inter(fontSize: 14),
+      style: GoogleFonts.dmSans(fontSize: 14),
       cursorColor: accentTeal,
       decoration: InputDecoration(
         hintText: 'Search members...',
@@ -252,7 +252,7 @@ class _MembersContentState extends State<MembersContent>
         fillColor: searchFill,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         isDense: true,
-        hintStyle: GoogleFonts.inter(fontSize: 13, color: mutedText),
+        hintStyle: GoogleFonts.dmSans(fontSize: 13, color: mutedText),
       ),
       onChanged: (value) {
         _searchDebounce?.cancel();
@@ -388,52 +388,62 @@ class _MembersContentState extends State<MembersContent>
           ),
         ),
         const SizedBox(width: 12),
-        _buildStatusChips(),
-        const SizedBox(width: 8),
-        if (selectedCount > 0) ...[
-          _buildToolbarDivider(context),
-          _buildToolbarIconButton(
-            icon: Icons.delete_forever,
-            tooltip: 'Delete ($selectedCount)',
-            onPressed: _deleteSelectedMembers,
-            color: colorScheme.error,
-          ),
-          _buildToolbarIconButton(
-            icon: Icons.clear,
-            tooltip: 'Clear selection',
-            onPressed: () => setState(_selectedMemberIds.clear),
-          ),
-          const SizedBox(width: 4),
-        ],
-        _buildToolbarDivider(context),
-        _buildToolbarIconButton(
-          icon: Icons.download,
-          tooltip: 'Export CSV',
-          onPressed: _exportMembersActivityCsv,
-        ),
-        _buildToolbarIconButton(
-          icon: Icons.refresh,
-          tooltip: 'Refresh',
-          onPressed: _loadMembers,
-        ),
-        const SizedBox(width: 10),
-        FilledButton.icon(
-          onPressed: () => _showMemberDialog(),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add Member'),
-          style: ButtonStyle(
-            padding: WidgetStateProperty.all(
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        Flexible(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildStatusChips(),
+                const SizedBox(width: 8),
+                if (selectedCount > 0) ...[
+                  _buildToolbarDivider(context),
+                  _buildToolbarIconButton(
+                    icon: Icons.delete_forever,
+                    tooltip: 'Delete ($selectedCount)',
+                    onPressed: _deleteSelectedMembers,
+                    color: colorScheme.error,
+                  ),
+                  _buildToolbarIconButton(
+                    icon: Icons.clear,
+                    tooltip: 'Clear selection',
+                    onPressed: () => setState(_selectedMemberIds.clear),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                _buildToolbarDivider(context),
+                _buildToolbarIconButton(
+                  icon: Icons.download,
+                  tooltip: 'Export CSV',
+                  onPressed: _exportMembersActivityCsv,
+                ),
+                _buildToolbarIconButton(
+                  icon: Icons.refresh,
+                  tooltip: 'Refresh',
+                  onPressed: _loadMembers,
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  onPressed: () => _showMemberDialog(),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Member'),
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    ),
+                    shape: WidgetStateProperty.all(
+                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
+                      if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
+                      return accentTeal;
+                    }),
+                    foregroundColor: WidgetStateProperty.all(Colors.white),
+                  ),
+                ),
+              ],
             ),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
-              if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
-              return accentTeal;
-            }),
-            foregroundColor: WidgetStateProperty.all(Colors.white),
           ),
         ),
       ],
@@ -548,31 +558,37 @@ class _MembersContentState extends State<MembersContent>
     final isSelected = _statusFilter == filter;
     const accentTeal = Color(0xFF1D9E75);
     final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () => setState(() => _statusFilter = filter),
-      child: AnimatedContainer(
-        duration: _hoverDuration,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? accentTeal : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected
-                ? accentTeal
-                : cs.outlineVariant.withValues(alpha: 0.4),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () => setState(() => _statusFilter = filter),
+        borderRadius: BorderRadius.circular(8),
+        hoverColor: accentTeal.withValues(alpha: 0.1),
+        child: AnimatedContainer(
+          duration: _hoverDuration,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? accentTeal : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? accentTeal
+                  : cs.outlineVariant.withValues(alpha: 0.4),
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected
-                ? Colors.white
-                : Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.7),
+          child: Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7),
+            ),
           ),
         ),
       ),
@@ -586,7 +602,7 @@ class _MembersContentState extends State<MembersContent>
         : const Color(0xFF6B7280);
     return Text(
       label.toUpperCase(),
-      style: GoogleFonts.inter(
+      style: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
@@ -678,6 +694,7 @@ class _MembersContentState extends State<MembersContent>
     required VoidCallback onPressed,
     Color? color,
   }) {
+    final iconColor = color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
     return Tooltip(
       message: tooltip,
       child: Material(
@@ -686,15 +703,12 @@ class _MembersContentState extends State<MembersContent>
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: onPressed,
+          hoverColor: iconColor.withValues(alpha: 0.1),
           child: Container(
             width: 36,
             height: 36,
             alignment: Alignment.center,
-            child: Icon(
-              icon,
-              size: 20,
-              color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
+            child: Icon(icon, size: 20, color: iconColor),
           ),
         ),
       ),
@@ -1113,7 +1127,7 @@ class _MembersContentState extends State<MembersContent>
                                                           normalizeHindiForDisplay(
                                                             member.name,
                                                           ),
-                                                          GoogleFonts.inter(
+                                                          GoogleFonts.dmSans(
                                                             fontSize: 15,
                                                             fontWeight:
                                                                 FontWeight.w600,
@@ -1129,7 +1143,7 @@ class _MembersContentState extends State<MembersContent>
                                                           metaLine,
                                                           style: _textStyleForHindi(
                                                             metaLine,
-                                                            GoogleFonts.inter(
+                                                            GoogleFonts.dmSans(
                                                               fontSize: 11,
                                                               color: mutedText,
                                                             ),
@@ -1151,7 +1165,7 @@ class _MembersContentState extends State<MembersContent>
                                                           ? '-'
                                                           : emailValue,
                                                       style:
-                                                          GoogleFonts.inter(
+                                                          GoogleFonts.dmSans(
                                                         fontSize: 13,
                                                         color:
                                                             secondaryTextColor,
@@ -1170,11 +1184,13 @@ class _MembersContentState extends State<MembersContent>
                                                           ? '-'
                                                           : phoneValue,
                                                       style: GoogleFonts
-                                                          .robotoMono(
+                                                          .inter(
                                                         fontSize: 12,
                                                         color:
                                                             secondaryTextColor,
                                                       ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ),
@@ -1224,21 +1240,19 @@ class _MembersContentState extends State<MembersContent>
                                                             member,
                                                           ),
                                                           backgroundColor:
-                                                              const Color(
-                                                            0xFFEFF6FF,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFF2563EB).withValues(alpha: 0.15)
+                                                                  : const Color(0xFFEFF6FF),
                                                           hoverColor:
-                                                              const Color(
-                                                            0xFFDBEAFE,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFF2563EB).withValues(alpha: 0.25)
+                                                                  : const Color(0xFFDBEAFE),
                                                           borderColor:
-                                                              const Color(
-                                                            0xFFBFDBFE,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFF2563EB).withValues(alpha: 0.4)
+                                                                  : const Color(0xFFBFDBFE),
                                                           iconColor:
-                                                              const Color(
-                                                            0xFF2563EB,
-                                                          ),
+                                                              const Color(0xFF2563EB),
                                                         ),
                                                         const SizedBox(
                                                           width: 6,
@@ -1253,21 +1267,19 @@ class _MembersContentState extends State<MembersContent>
                                                             member: member,
                                                           ),
                                                           backgroundColor:
-                                                              const Color(
-                                                            0xFFFFF7ED,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.15)
+                                                                  : const Color(0xFFFFF7ED),
                                                           hoverColor:
-                                                              const Color(
-                                                            0xFFFEF3C7,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.25)
+                                                                  : const Color(0xFFFEF3C7),
                                                           borderColor:
-                                                              const Color(
-                                                            0xFFFDE68A,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.4)
+                                                                  : const Color(0xFFFDE68A),
                                                           iconColor:
-                                                              const Color(
-                                                            0xFFD97706,
-                                                          ),
+                                                              const Color(0xFFD97706),
                                                         ),
                                                         const SizedBox(
                                                           width: 6,
@@ -1282,21 +1294,19 @@ class _MembersContentState extends State<MembersContent>
                                                             member.id,
                                                           ),
                                                           backgroundColor:
-                                                              const Color(
-                                                            0xFFFFF1F2,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.15)
+                                                                  : const Color(0xFFFFF1F2),
                                                           hoverColor:
-                                                              const Color(
-                                                            0xFFFFE4E6,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.25)
+                                                                  : const Color(0xFFFFE4E6),
                                                           borderColor:
-                                                              const Color(
-                                                            0xFFFECDD3,
-                                                          ),
+                                                              isDark
+                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.4)
+                                                                  : const Color(0xFFFECDD3),
                                                           iconColor:
-                                                              const Color(
-                                                            0xFFE11D48,
-                                                          ),
+                                                              const Color(0xFFE11D48),
                                                         ),
                                                       ],
                                                     ),
@@ -1348,7 +1358,7 @@ class _MembersContentState extends State<MembersContent>
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isNarrow = constraints.maxWidth < 760;
-                    final footerTextStyle = GoogleFonts.inter(
+                    final footerTextStyle = GoogleFonts.dmSans(
                       fontSize: 13,
                       color: mutedText,
                     );
@@ -1363,7 +1373,7 @@ class _MembersContentState extends State<MembersContent>
                       ),
                       child: Text(
                         '${memberProvider.currentPage}',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1417,7 +1427,7 @@ class _MembersContentState extends State<MembersContent>
                           return accentTeal;
                         }),
                         textStyle: WidgetStateProperty.all(
-                          GoogleFonts.inter(
+                          GoogleFonts.dmSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1583,12 +1593,16 @@ class _MembersContentState extends State<MembersContent>
   }
 
   Widget _buildStatusBadge(bool isActive) {
-    final background =
-        isActive ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2);
-    final border =
-        isActive ? const Color(0xFF6EE7B7) : const Color(0xFFFECACA);
-    final textColor =
-        isActive ? const Color(0xFF059669) : const Color(0xFFEF4444);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final background = isActive
+        ? (isDark ? const Color(0xFF059669).withValues(alpha: 0.15) : const Color(0xFFECFDF5))
+        : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFFFEF2F2));
+    final border = isActive
+        ? (isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : const Color(0xFF6EE7B7))
+        : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.4) : const Color(0xFFFECACA));
+    final textColor = isActive
+        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+        : (isDark ? const Color(0xFFFC8181) : const Color(0xFFEF4444));
     final label = isActive ? 'Active' : 'Inactive';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1623,11 +1637,14 @@ class _MembersContentState extends State<MembersContent>
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: textColor,
+          Flexible(
+            child: Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: textColor,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1732,9 +1749,13 @@ class _MembersContentState extends State<MembersContent>
         ? Icons.library_books
         : (ratio > 0.5 ? Icons.menu_book : Icons.book);
 
-    return InkWell(
-      onTap: count > 0 ? () => _showBorrowedBooks(member) : null,
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: count > 0 ? () => _showBorrowedBooks(member) : null,
+        borderRadius: BorderRadius.circular(12),
+        hoverColor: badgeColor.withValues(alpha: 0.15),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         constraints: const BoxConstraints(maxWidth: 78),
@@ -1759,7 +1780,7 @@ class _MembersContentState extends State<MembersContent>
             Flexible(
               child: Text(
                 '$count/$maxBooks',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: badgeColor,
@@ -1769,6 +1790,7 @@ class _MembersContentState extends State<MembersContent>
             ),
           ],
         ),
+      ),
       ),
     );
   }

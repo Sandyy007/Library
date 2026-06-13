@@ -108,8 +108,6 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final primaryBlue = _primaryBlue(context);
-    final cardBg = _cardBg(context);
-    final textColor = _textColor(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -140,35 +138,6 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
         },
         child: Column(
           children: [
-            // Top bar
-            Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              decoration: BoxDecoration(
-                color: cardBg,
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.library_books_rounded, color: primaryBlue, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    'About Us',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(

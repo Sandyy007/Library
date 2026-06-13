@@ -683,3 +683,365 @@ String formatRelativeTime(String? dateTimeStr) {
     return dateTimeStr;
   }
 }
+
+/// Standardized alert card with icon, title, subtitle, trailing badge,
+/// optional overdue warning, and a row of action buttons.
+class AlertCard extends StatefulWidget {
+  const AlertCard({
+    super.key,
+    required this.color,
+    this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.overdueWarning,
+    this.actions = const [],
+    this.onTap,
+  });
+
+  final Color color;
+  final IconData? icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final String? overdueWarning;
+  final List<Widget> actions;
+  final VoidCallback? onTap;
+
+  @override
+  State<AlertCard> createState() => _AlertCardState();
+}
+
+class _AlertCardState extends State<AlertCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isOverdue = widget.overdueWarning != null;
+    final color = widget.color;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.only(bottom: 10),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: widget.onTap,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      cs.surfaceContainerHighest.withValues(alpha: isOverdue ? 0.5 : 0.4),
+                      cs.surfaceContainerHighest.withValues(alpha: isOverdue ? 0.35 : 0.25),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isOverdue
+                        ? color.withValues(alpha: 0.25)
+                        : cs.outlineVariant.withValues(alpha: 0.15),
+                  ),
+                  boxShadow: _hovered
+                      ? [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.2),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.08),
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: cs.shadow.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (widget.icon != null)
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(widget.icon, color: color, size: 16),
+                          ),
+                        if (widget.icon != null) const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.title,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (widget.subtitle != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  widget.subtitle!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: cs.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (widget.trailing != null) ...[
+                          const SizedBox(width: 8),
+                          widget.trailing!,
+                        ],
+                      ],
+                    ),
+                    if (isOverdue) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.warning_rounded, size: 14, color: color),
+                            const SizedBox(width: 6),
+                            Text(
+                              widget.overdueWarning!,
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (widget.actions.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: widget.actions,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Animates a child with fade + slide, staggered by [index].
+class StaggeredFadeSlide extends StatefulWidget {
+  final int index;
+  final Widget child;
+  final Duration itemDelay;
+
+  const StaggeredFadeSlide({
+    super.key,
+    required this.index,
+    required this.child,
+    this.itemDelay = const Duration(milliseconds: 60),
+  });
+
+  @override
+  State<StaggeredFadeSlide> createState() => _StaggeredFadeSlideState();
+}
+
+class _StaggeredFadeSlideState extends State<StaggeredFadeSlide>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    final delay = Duration(
+      milliseconds: (widget.index * widget.itemDelay.inMilliseconds).round(),
+    );
+    Future.delayed(delay, () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(_animation),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Shimmer placeholder for loading states.
+class ShimmerLoader extends StatefulWidget {
+  final double height;
+  final double? width;
+  final double borderRadius;
+  final EdgeInsetsGeometry? margin;
+
+  const ShimmerLoader({
+    super.key,
+    this.height = 4,
+    this.width,
+    this.borderRadius = 4,
+    this.margin,
+  });
+
+  @override
+  State<ShimmerLoader> createState() => _ShimmerLoaderState();
+}
+
+class _ShimmerLoaderState extends State<ShimmerLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final sweep = -0.3 + _controller.value * 1.6;
+        return Container(
+          height: widget.height,
+          width: widget.width,
+          margin: widget.margin,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            gradient: LinearGradient(
+              colors: [
+                cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                cs.surfaceContainerHighest.withValues(alpha: 0.7),
+                cs.surfaceContainerHighest.withValues(alpha: 0.4),
+              ],
+              stops: [sweep - 0.3, sweep, sweep + 0.3]
+                  .map((s) => s.clamp(0.0, 1.0))
+                  .toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Wraps child with hover scale + glow shadow.
+class HoverWrap extends StatefulWidget {
+  final Widget child;
+  final Color? glowColor;
+  final Duration duration;
+
+  const HoverWrap({
+    super.key,
+    required this.child,
+    this.glowColor,
+    this.duration = const Duration(milliseconds: 200),
+  });
+
+  @override
+  State<HoverWrap> createState() => _HoverWrapState();
+}
+
+class _HoverWrapState extends State<HoverWrap> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final glow = widget.glowColor ?? cs.primary;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: widget.duration,
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: _hovered
+              ? [
+                  BoxShadow(
+                    color: glow.withValues(alpha: 0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [BoxShadow(
+                  color: Colors.transparent,
+                  blurRadius: 0,
+                )],
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}

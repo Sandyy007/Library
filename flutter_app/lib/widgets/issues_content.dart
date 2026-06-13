@@ -322,21 +322,18 @@ class _IssuesContentState extends State<IssuesContent> {
   }) {
     return Tooltip(
       message: tooltip,
-      child: MouseRegion(
-        child: StatefulBuilder(
-          builder: (context, setHoverState) => Material(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: onTap,
-              child: Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                child: Icon(icon, size: 18, color: color),
-              ),
-            ),
+      child: Material(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          hoverColor: color.withValues(alpha: 0.2),
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: color),
           ),
         ),
       ),
@@ -353,6 +350,7 @@ class _IssuesContentState extends State<IssuesContent> {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () => _returnBook(context, issueId),
+          hoverColor: returnColor.withValues(alpha: 0.15),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             constraints: const BoxConstraints(minWidth: 70),
@@ -384,19 +382,21 @@ class _IssuesContentState extends State<IssuesContent> {
     required VoidCallback onPressed,
     Color? color,
   }) {
+    final iconColor = color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
     return Tooltip(
       message: tooltip,
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        onTap: onPressed,
-        child: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: 20,
-            color: color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onPressed,
+          hoverColor: iconColor.withValues(alpha: 0.1),
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(icon, size: 20, color: iconColor),
           ),
         ),
       ),
@@ -731,11 +731,13 @@ class _IssuesContentState extends State<IssuesContent> {
                                           DataCell(Text(
                                             DateFormatter.formatDateIndian(issue.issueDate),
                                             style: TextStyle(fontSize: 12, color: mutedText),
+                                            overflow: TextOverflow.ellipsis,
                                           )),
                                         if (showDueDate)
                                           DataCell(Text(
                                             DateFormatter.formatDateIndian(issue.dueDate),
                                             style: TextStyle(fontSize: 12, color: mutedText),
+                                            overflow: TextOverflow.ellipsis,
                                           )),
                                         if (showReturnDate)
                                           DataCell(Text(
@@ -743,6 +745,7 @@ class _IssuesContentState extends State<IssuesContent> {
                                                 ? DateFormatter.formatDateIndian(issue.returnDate)
                                                 : '-',
                                             style: TextStyle(fontSize: 12, color: mutedText),
+                                            overflow: TextOverflow.ellipsis,
                                           )),
                                         if (showStatus)
                                           DataCell(
@@ -761,12 +764,15 @@ class _IssuesContentState extends State<IssuesContent> {
                                                     decoration: BoxDecoration(shape: BoxShape.circle, color: statusColor),
                                                   ),
                                                   const SizedBox(width: 4),
-                                                  Text(
-                                                    issue.status[0].toUpperCase() + issue.status.substring(1),
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: statusColor,
+                                                  Flexible(
+                                                    child: Text(
+                                                      issue.status[0].toUpperCase() + issue.status.substring(1),
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: statusColor,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],
@@ -774,38 +780,36 @@ class _IssuesContentState extends State<IssuesContent> {
                                             ),
                                           ),
                                         DataCell(
-                                          SizedBox(
-                                            width: 230,
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.end,
-                                              children: [
-                                                _buildActionButton(
-                                                  icon: Icons.description_outlined,
-                                                  color: accentTeal,
-                                                  tooltip: 'Generate Slip',
-                                                  onTap: () => _generateBorrowSlip(context, issue),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                _buildActionButton(
-                                                  icon: Icons.edit_outlined,
-                                                  color: const Color(0xFFD97706),
-                                                  tooltip: 'Edit Issue',
-                                                  onTap: () => _showEditIssueDialog(context, issue),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                _buildActionButton(
-                                                  icon: Icons.delete_outlined,
-                                                  color: const Color(0xFFE11D48),
-                                                  tooltip: 'Delete Issue',
-                                                  onTap: () => _showDeleteIssueDialog(context, issue),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                if (issue.status == 'issued' || issue.status == 'overdue')
-                                                  _buildReturnButtonFor(issue.id, colorScheme)
-                                                else
-                                                  const SizedBox(width: 0),
-                                              ],
-                                            ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              _buildActionButton(
+                                                icon: Icons.description_outlined,
+                                                color: accentTeal,
+                                                tooltip: 'Generate Slip',
+                                                onTap: () => _generateBorrowSlip(context, issue),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              _buildActionButton(
+                                                icon: Icons.edit_outlined,
+                                                color: const Color(0xFFD97706),
+                                                tooltip: 'Edit Issue',
+                                                onTap: () => _showEditIssueDialog(context, issue),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              _buildActionButton(
+                                                icon: Icons.delete_outlined,
+                                                color: const Color(0xFFE11D48),
+                                                tooltip: 'Delete Issue',
+                                                onTap: () => _showDeleteIssueDialog(context, issue),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              if (issue.status == 'issued' || issue.status == 'overdue')
+                                                _buildReturnButtonFor(issue.id, colorScheme)
+                                              else
+                                                const SizedBox(width: 0),
+                                            ],
                                           ),
                                         ),
                                       ],
@@ -908,7 +912,7 @@ class _IssuesContentState extends State<IssuesContent> {
                         children: [
                           Text('Showing ${filteredIssues.length} of ${issueProvider.totalIssues} issues', style: footerTextStyle),
                           const SizedBox(height: 10),
-                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [pageIndicator, pagerButtons]),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Flexible(child: pageIndicator), pagerButtons]),
                           if (issueProvider.hasMore) ...[const SizedBox(height: 10), loadMoreButton],
                         ],
                       );
@@ -1133,7 +1137,7 @@ class _IssuesContentState extends State<IssuesContent> {
       children: [
         Expanded(flex: 3, child: searchField),
         const SizedBox(width: 10),
-        actions,
+        Flexible(child: actions),
       ],
     );
   }

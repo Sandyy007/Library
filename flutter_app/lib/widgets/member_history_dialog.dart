@@ -197,13 +197,14 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildStatItem(
+                            Flexible(child: _buildStatItem(
                               'Total Borrowed',
                               _history.length.toString(),
                               Icons.book,
                               const Color(0xFF3B82F6),
-                            ),
-                            _buildStatItem(
+                            )),
+                            const SizedBox(width: 8),
+                            Flexible(child: _buildStatItem(
                               'Currently Borrowed',
                               _history
                                   .where((i) => i.status == 'issued')
@@ -211,8 +212,9 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .toString(),
                               Icons.bookmark,
                               const Color(0xFFF59E0B),
-                            ),
-                            _buildStatItem(
+                            )),
+                            const SizedBox(width: 8),
+                            Flexible(child: _buildStatItem(
                               'Returned',
                               _history
                                   .where((i) => i.status == 'returned')
@@ -220,8 +222,9 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .toString(),
                               Icons.check_circle,
                               const Color(0xFF10B981),
-                            ),
-                            _buildStatItem(
+                            )),
+                            const SizedBox(width: 8),
+                            Flexible(child: _buildStatItem(
                               'Overdue',
                               _history
                                   .where((i) => i.status == 'overdue')
@@ -229,7 +232,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .toString(),
                               Icons.warning,
                               const Color(0xFFEF4444),
-                            ),
+                            )),
                           ],
                         ),
                 ),
@@ -696,6 +699,8 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                     );
                     return Text(
                       displayTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: hindiAwareTextStyle(
                         context,
                         text: displayTitle,
@@ -715,6 +720,8 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                     );
                     return Text(
                       displayAuthor,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: hindiAwareTextStyle(
                         context,
                         text: displayAuthor,
@@ -791,11 +798,15 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
       children: [
         Icon(icon, size: 12, color: color),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 10,
-            color: Theme.of(context).textTheme.bodySmall?.color,
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
           ),
         ),
       ],

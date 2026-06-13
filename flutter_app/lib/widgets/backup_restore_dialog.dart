@@ -174,6 +174,8 @@ class _BackupRestoreDialogState extends State<BackupRestoreDialog> {
               children: [
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -182,6 +184,8 @@ class _BackupRestoreDialogState extends State<BackupRestoreDialog> {
                 const SizedBox(height: 4),
                 Text(
                   description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodySmall?.color,

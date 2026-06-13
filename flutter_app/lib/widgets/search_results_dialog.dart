@@ -6,6 +6,7 @@ import '../models/member.dart';
 import '../models/issue.dart';
 import '../utils/hindi_text.dart';
 import '../utils/responsive.dart';
+import 'common_widgets.dart';
 
 class SearchResultsDialog extends StatelessWidget {
   const SearchResultsDialog({super.key});
@@ -25,9 +26,13 @@ class SearchResultsDialog extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  'Search Results for "${searchProvider.lastQuery}"',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                Expanded(
+                  child: Text(
+                    'Search Results for "${searchProvider.lastQuery}"',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -81,7 +86,7 @@ class SearchResultsDialog extends StatelessWidget {
 
   Widget _buildBooksTab(List<Book> books) {
     if (books.isEmpty) {
-      return const Center(child: Text('No books found'));
+      return EmptyStatePresets.noSearchResults();
     }
 
     return ListView.builder(
@@ -123,7 +128,7 @@ class SearchResultsDialog extends StatelessWidget {
 
   Widget _buildMembersTab(List<Member> members) {
     if (members.isEmpty) {
-      return const Center(child: Text('No members found'));
+      return EmptyStatePresets.noSearchResults();
     }
 
     return ListView.builder(
@@ -163,7 +168,7 @@ class SearchResultsDialog extends StatelessWidget {
 
   Widget _buildIssuesTab(List<Issue> issues) {
     if (issues.isEmpty) {
-      return const Center(child: Text('No issues found'));
+      return EmptyStatePresets.noSearchResults();
     }
 
     return ListView.builder(

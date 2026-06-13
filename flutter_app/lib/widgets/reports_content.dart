@@ -460,7 +460,12 @@ class _ReportsContentState extends State<ReportsContent>
         children: [
           _buildMemberTypeChip(member.memberType),
           const SizedBox(width: 8),
-          Text('Borrowed: ${member.borrowCount}'),
+          Expanded(
+            child: Text(
+              'Borrowed: ${member.borrowCount}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
       trailing: Column(
@@ -977,15 +982,19 @@ class _ReportsContentState extends State<ReportsContent>
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                '${displayStats[_touchedCategoryIndex].category}: '
-                                '${displayStats[_touchedCategoryIndex].bookCount} books, '
-                                '${displayStats[_touchedCategoryIndex].borrowCount} borrows '
-                                '(${total > 0 ? ((displayStats[_touchedCategoryIndex].bookCount / total) * 100).toStringAsFixed(1) : "0"}%)',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: _getCategoryColor(_touchedCategoryIndex),
-                                  fontSize: 13,
+                              Flexible(
+                                child: Text(
+                                  '${displayStats[_touchedCategoryIndex].category}: '
+                                  '${displayStats[_touchedCategoryIndex].bookCount} books, '
+                                  '${displayStats[_touchedCategoryIndex].borrowCount} borrows '
+                                  '(${total > 0 ? ((displayStats[_touchedCategoryIndex].bookCount / total) * 100).toStringAsFixed(1) : "0"}%)',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: _getCategoryColor(_touchedCategoryIndex),
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1414,24 +1423,36 @@ class _ReportsContentState extends State<ReportsContent>
   }
 
   Widget _buildEmptyState(String message, IconData icon) {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 80,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.4),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutBack,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: cs.primary.withValues(alpha: 0.1),
+                  ),
+                  child: Icon(icon, size: 48, color: cs.primary.withValues(alpha: 0.5)),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           Text(
             message,
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 24),
