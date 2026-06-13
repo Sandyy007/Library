@@ -61,6 +61,9 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
+          final resolvedTheme = themeProvider.isDarkMode
+              ? AppTheme.darkTheme
+              : AppTheme.lightTheme;
           return MaterialApp(
             title: 'Library Management System',
             theme: AppTheme.lightTheme,
@@ -70,9 +73,19 @@ class MyApp extends StatelessWidget {
             builder: (context, child) => TooltipVisibility(
               visible: _enableTooltips,
               child: AppErrorBoundary(
-                child: FocusTraversalGroup(
-                  policy: OrderedTraversalPolicy(),
-                  child: child ?? const SizedBox.shrink(),
+                // AnimatedTheme tweens all colors, text styles, and
+                // decorations smoothly when the user toggles dark mode
+                // instead of snapping. The duration matches the
+                // AppDurations.normal we use for page transitions so the
+                // app feels like one cohesive motion system.
+                child: AnimatedTheme(
+                  data: resolvedTheme,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  child: FocusTraversalGroup(
+                    policy: OrderedTraversalPolicy(),
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),

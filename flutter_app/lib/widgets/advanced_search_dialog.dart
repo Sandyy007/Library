@@ -5,6 +5,7 @@ import '../providers/search_provider.dart';
 import '../models/book.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
+import '../utils/responsive.dart';
 
 class AdvancedSearchDialog extends StatefulWidget {
   const AdvancedSearchDialog({super.key});
@@ -80,11 +81,9 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 900;
-    final maxWidth = (isSmallScreen ? screenSize.width * 0.95 : 900).toDouble();
-    final maxHeight = (isSmallScreen ? screenSize.height * 0.95 : 800)
-        .toDouble();
+    final responsive = Responsive(context);
+    final maxWidth = responsive.dialogWidth(maxDesktop: 900);
+    final maxHeight = responsive.height * 0.92;
 
     return Dialog(
       child: ConstrainedBox(

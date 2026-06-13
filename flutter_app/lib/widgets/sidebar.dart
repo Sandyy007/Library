@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../utils/responsive.dart';
 import 'advanced_search_dialog.dart';
 import 'backup_restore_dialog.dart';
 
@@ -61,14 +62,15 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final sidebarWidth = widget.isDrawer ? 280.0 : 280.0;
+    final responsive = Responsive(context);
+    final sidebarWidth = responsive.shouldCollapseSidebar ? Breakpoints.sidebarCollapsedWidth : Breakpoints.sidebarWidth;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: sidebarWidth,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0D1829) : const Color(0xFFFFFFFF),
-        border: Border.all(color: isDark ? const Color(0xFF1E2D47) : const Color(0xFFE5E7EB), width: 1),
+        color: isDark ? const Color(0xFF171923) : const Color(0xFFFFFFFF),
+        border: Border.all(color: isDark ? const Color(0xFF2D2F3D) : const Color(0xFFE5E7EB), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
@@ -401,11 +403,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: _toggleHovered
-                        ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFF8FAFC))
-                        : (isDark ? const Color(0xFF162338) : const Color(0xFFF8FAFC)),
+                        ? (isDark ? const Color(0xFF2C2E3C) : const Color(0xFFF8FAFC))
+                        : (isDark ? const Color(0xFF1C1E28) : const Color(0xFFF8FAFC)),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isDark ? const Color(0xFF1E2D47) : const Color(0xFFE5E7EB),
+                      color: isDark ? const Color(0xFF2D2F3D) : const Color(0xFFE5E7EB),
                       width: 1,
                     ),
                   ),
@@ -419,7 +421,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           Icon(
                             Icons.light_mode_rounded,
                             size: 16,
-                            color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B),
+                            color: isDark ? const Color(0xFFFCD34D) : const Color(0xFFF59E0B),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -427,7 +429,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF374151),
+                              color: isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151),
                             ),
                           ),
                           const Spacer(),
@@ -439,12 +441,12 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                 key: ValueKey(themeProvider.isDarkMode),
                                 value: themeProvider.isDarkMode,
                                 onChanged: (value) => themeProvider.toggleTheme(),
-                                activeThumbColor: isDark ? const Color(0xFF5B8DEF) : const Color(0xFF1565C0),
+                                activeThumbColor: isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0),
                                 activeTrackColor:
-                                    (isDark ? const Color(0xFF5B8DEF) : const Color(0xFF1565C0)).withValues(alpha: 0.3),
-                                inactiveThumbColor: isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+                                    (isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0)).withValues(alpha: 0.3),
+                                inactiveThumbColor: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
                                 inactiveTrackColor:
-                                    (isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF)).withValues(alpha: 0.3),
+                                    (isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)).withValues(alpha: 0.3),
                                 materialTapTargetSize:
                                     MaterialTapTargetSize.shrinkWrap,
                               ),
@@ -454,7 +456,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           Icon(
                             Icons.dark_mode_rounded,
                             size: 16,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                            color: isDark ? const Color(0xFF9B9DAB) : const Color(0xFF6B7280),
                           ),
                         ],
                         ),
@@ -587,14 +589,14 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Theme-aware colors
-    final activeColor = const Color(0xFF1565C0);
+    final activeColor = isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0);
     final hoverColorLight = const Color(0xFFEBF4FF);
-    final hoverColorDark = const Color(0xFF1E3A5F);
+    final hoverColorDark = const Color(0xFF2C2E3C);
     final iconBgLight = const Color(0xFFF0F4F8);
-    final iconBgDark = const Color(0xFF1E293B);
+    final iconBgDark = const Color(0xFF262836);
 
     final hoverColor = isHovered ? (isDark ? hoverColorDark : hoverColorLight) : Colors.transparent;
-    final iconBg = isSelected ? null : (isHovered ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFDBEAFE)) : (isDark ? iconBgDark : iconBgLight));
+    final iconBg = isSelected ? null : (isHovered ? (isDark ? activeColor.withValues(alpha: 0.15) : const Color(0xFFDBEAFE)) : (isDark ? iconBgDark : iconBgLight));
 
     return MouseRegion(
       onEnter: (_) => _setMenuHover(index, true),
@@ -609,7 +611,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFDEEAFB))
+                ? (isDark ? const Color(0xFF262836) : const Color(0xFFDEEAFB))
                 : hoverColor,
             borderRadius: BorderRadius.circular(10),
             boxShadow: isHovered
@@ -656,7 +658,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                       ? LinearGradient(
                           colors: [
                             activeColor,
-                            const Color(0xFF42A5F5),
+                            isDark ? const Color(0xFF5B8DEF) : const Color(0xFF42A5F5),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -669,10 +671,10 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   icon,
                   size: 18,
                   color: isSelected
-                      ? Colors.white
-                      : isHovered
-                          ? const Color(0xFF1565C0)
-                          : const Color(0xFF455A64),
+                  ? Colors.white
+                  : isHovered
+                      ? activeColor
+                      : (isDark ? const Color(0xFF9B9DAB) : const Color(0xFF455A64)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -687,7 +689,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                         ? activeColor
                         : isHovered
                             ? activeColor
-                            : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF374151)),
+                            : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
                   ),
                 ),
               ),
@@ -709,7 +711,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
   }) {
     final isHovered = _quickActionHoverStates[index] ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = const Color(0xFF1565C0);
+    final activeColor = isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0);
 
     return MouseRegion(
       onEnter: (_) => _setQuickActionHover(index, true),
@@ -723,7 +725,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
           transform: Matrix4.diagonal3Values(isHovered ? 1.01 : 1.0, isHovered ? 1.01 : 1.0, 1.0),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: isHovered ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEBF4FF)) : Colors.transparent,
+            color: isHovered ? (isDark ? const Color(0xFF2C2E3C) : const Color(0xFFEBF4FF)) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isHovered
                 ? [
@@ -744,14 +746,14 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                 height: 28,
                 decoration: BoxDecoration(
                   color: isHovered
-                      ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.2) : const Color(0xFFDBEAFE))
-                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4F8)),
+                      ? (isDark ? activeColor.withValues(alpha: 0.15) : const Color(0xFFDBEAFE))
+                      : (isDark ? const Color(0xFF262836) : const Color(0xFFF0F4F8)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   icon,
                   size: 16,
-                  color: const Color(0xFF1565C0),
+                  color: activeColor,
                 ),
               ),
               const SizedBox(width: 10),
@@ -762,7 +764,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: isHovered ? FontWeight.w600 : FontWeight.w500,
-                    color: isHovered ? activeColor : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF374151)),
+                    color: isHovered ? activeColor : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
                   ),
                 ),
               ),

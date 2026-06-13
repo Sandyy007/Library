@@ -1,5 +1,12 @@
 import '../utils/legacy_hindi.dart';
 
+int _toInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
 class Member {
   final int id;
   final String name;
@@ -31,7 +38,7 @@ class Member {
     final addressRaw = json['address'];
 
     return Member(
-      id: json['id'] ?? 0,
+      id: _toInt(json['id']),
       name: normalizeLegacyHindiToUnicode(json['name'] ?? ''),
       email: json['email'],
       phone: json['phone'],
@@ -43,7 +50,7 @@ class Member {
           : normalizeLegacyHindiToUnicode(addressRaw.toString()),
       expiryDate: json['expiry_date'],
       isActive: json['is_active'] == true || json['is_active'] == 1,
-      borrowCount: json['borrow_count'] ?? 0,
+      borrowCount: _toInt(json['borrow_count']),
     );
   }
 
@@ -178,10 +185,14 @@ class MembersResponse {
 
   factory MembersResponse.fromJson(Map<String, dynamic> json) {
     final dataList = json['data'] as List<dynamic>? ?? [];
+    final paginationJson = json['pagination'];
     return MembersResponse(
       data: dataList.map((item) => Member.fromJson(item)).toList(),
       pagination: MembersPagination.fromJson(
-          Map<String, dynamic>.from(json['pagination'] ?? {})),
+        paginationJson is Map<String, dynamic>
+            ? paginationJson
+            : <String, dynamic>{},
+      ),
     );
   }
 }

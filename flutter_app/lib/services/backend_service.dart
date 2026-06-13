@@ -124,25 +124,25 @@ class BackendService {
     }
   }
 
-  /// Ensure .env file exists with safe defaults.
-  /// SECURITY: Never auto-write secrets. If the .env is missing the operator
-  /// MUST create it (and supply DB_PASSWORD + JWT_SECRET) before the backend
-  /// can start. We write placeholder values that the backend will reject.
+  /// Ensure .env file exists. In production, fail fast if missing or contains placeholders.
+  /// The operator MUST create .env with real DB_PASSWORD and JWT_SECRET before starting.
   static Future<void> _ensureEnvFile(String envPath) async {
     final envFile = File(envPath);
     if (!envFile.existsSync()) {
-      debugPrint('Creating placeholder .env at $envPath. '
-          'You MUST edit it to set DB_PASSWORD and JWT_SECRET before '
-          'the backend can start.');
-      await envFile.writeAsString('''
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=CHANGE_ME
-DB_NAME=library_management
-JWT_SECRET=CHANGE_ME_GENERATE_WITH_crypto_randomBytes_48
-PORT=3000
-NODE_ENV=production
-''');
+      debugPrint('ERROR: Backend .env file not found at $envPath. '
+          'Create it with real DB_PASSWORD and JWT_SECRET before starting.');
+      throw StateError('Missing backend/.env file. Copy backend/.env.example to backend/.env and fill in real values.');
+    }
+    
+    // Validate critical values are not placeholders
+    final content = await envFile.readAsString();
+    if (content.contains('DB_PASSWORD=CHANGE_ME') || 
+        content.contains('JWT_SECRET=CHANGE_ME') ||
+        content.contains('DB_PASSWORD=your_password') ||
+        content.contains('JWT_SECRET=change_me_to_a_long_random_secret')) {
+      debugPrint('ERROR: Backend .env contains placeholder values. '
+          'Edit backend/.env and set real DB_PASSWORD and JWT_SECRET.');
+      throw StateError('Backend .env contains placeholder values. Set real DB_PASSWORD and JWT_SECRET in backend/.env');
     }
   }
 

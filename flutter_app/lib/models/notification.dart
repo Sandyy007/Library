@@ -1,3 +1,10 @@
+int _toInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
 class AppNotification {
   final int id;
   final int? userId;
@@ -23,13 +30,21 @@ class AppNotification {
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
-      id: json['id'] ?? 0,
-      userId: json['user_id'],
+      id: _toInt(json['id']),
+      userId: json['user_id'] is int
+          ? json['user_id'] as int
+          : (json['user_id'] is num
+              ? (json['user_id'] as num).toInt()
+              : null),
       title: json['title'] ?? '',
       message: json['message'] ?? '',
       type: json['type'] ?? 'info',
       isRead: json['is_read'] == true || json['is_read'] == 1,
-      relatedId: json['related_id'],
+      relatedId: json['related_id'] is int
+          ? json['related_id'] as int
+          : (json['related_id'] is num
+              ? (json['related_id'] as num).toInt()
+              : null),
       relatedType: json['related_type'],
       createdAt: json['created_at'] ?? '',
     );

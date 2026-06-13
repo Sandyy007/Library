@@ -5,6 +5,7 @@ import '../models/member.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import '../utils/responsive.dart';
 
 class MemberDialog extends StatefulWidget {
   final Member? member;
@@ -88,18 +89,16 @@ class _MemberDialogState extends State<MemberDialog> {
   Widget build(BuildContext context) {
     final isEditing = widget.member != null;
     final colorScheme = Theme.of(context).colorScheme;
-    final screenSize = MediaQuery.of(context).size;
-    final isVerySmallScreen = screenSize.width < 480;
-    final isSmallScreen = screenSize.width < 700;
-    final maxWidth = isVerySmallScreen
-        ? screenSize.width * 0.95
-        : (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
-    final maxHeight = screenSize.height * 0.92;
+    final responsive = Responsive(context);
+    final maxWidth = responsive.dialogWidth(maxDesktop: 900);
+    final maxHeight = responsive.height * 0.92;
+    final isVerySmallScreen = responsive.isCompact;
+    final isSmallScreen = responsive.isMedium;
 
     return Dialog(
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isVerySmallScreen ? 4 : (isSmallScreen ? 8 : 24),
-        vertical: isVerySmallScreen ? 8 : 16,
+        horizontal: responsive.pagePadding,
+        vertical: responsive.pagePadding * 2,
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
@@ -114,10 +113,10 @@ class _MemberDialogState extends State<MemberDialog> {
             children: [
               _buildHeader(colorScheme, isEditing),
               Expanded(child: SingleChildScrollView(
-                padding: EdgeInsets.all(isVerySmallScreen ? 16 : 24),
+                padding: EdgeInsets.all(responsive.pagePadding),
                 child: isVerySmallScreen
-                    ? _buildCompactLayout(colorScheme, veryCompact: true)
-                    : (isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme)),
+                    ? _buildCompactLayout(colorScheme, responsive, veryCompact: true)
+                    : (isSmallScreen ? _buildCompactLayout(colorScheme, responsive) : _buildWideLayout(colorScheme, responsive)),
               )),
               _buildFooter(colorScheme, isEditing),
             ],
@@ -241,31 +240,34 @@ class _MemberDialogState extends State<MemberDialog> {
     );
   }
 
-  Widget _buildWideLayout(ColorScheme colorScheme) {
+  Widget _buildWideLayout(ColorScheme colorScheme, Responsive responsive) {
+    final profileWidth = (responsive.width * 0.25).clamp(180.0, 260.0);
+    final spacing = responsive.pagePadding;
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 220, child: Column(children: [
-          _buildProfileCard(colorScheme),
-          const SizedBox(height: 20),
+        SizedBox(width: profileWidth, child: Column(children: [
+          _buildProfileCard(colorScheme, responsive),
+          SizedBox(height: spacing),
           if (_selectedType != null) _buildMemberTypeCard(colorScheme),
         ])),
-        const SizedBox(width: 36),
+        SizedBox(width: spacing * 1.5),
         Expanded(child: _buildFormSection(colorScheme)),
       ],
     );
   }
 
-  Widget _buildCompactLayout(ColorScheme colorScheme, {bool veryCompact = false}) {
+  Widget _buildCompactLayout(ColorScheme colorScheme, Responsive responsive, {bool veryCompact = false}) {
     return Column(
       children: [
         if (veryCompact)
           Column(
             children: [
-              Center(child: _buildProfileCard(colorScheme, compact: true)),
-              const SizedBox(height: 16),
+              Center(child: _buildProfileCard(colorScheme, responsive, compact: true)),
+              SizedBox(height: responsive.pagePadding),
               if (_selectedType != null) _buildMemberTypeCard(colorScheme),
-              const SizedBox(height: 16),
+              SizedBox(height: responsive.pagePadding),
               _buildFormSection(colorScheme, compact: true),
             ],
           )
@@ -275,12 +277,12 @@ class _MemberDialogState extends State<MemberDialog> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProfileCard(colorScheme, compact: true),
-                  const SizedBox(width: 20),
+                  _buildProfileCard(colorScheme, responsive, compact: true),
+                  SizedBox(width: responsive.pagePadding * 1.2),
                   Expanded(child: _buildFormSection(colorScheme, compact: true)),
                 ],
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: responsive.pagePadding * 1.5),
               if (_selectedType != null) _buildMemberTypeCard(colorScheme),
             ],
           ),
@@ -288,9 +290,14 @@ class _MemberDialogState extends State<MemberDialog> {
     );
   }
 
-  Widget _buildProfileCard(ColorScheme colorScheme, {bool compact = false}) {
+  Widget _buildProfileCard(ColorScheme colorScheme, Responsive responsive, {bool compact = false}) {
+    final photoSize = compact 
+        ? (responsive.isCompact ? 80 : 100)
+        : (responsive.isCompact ? 100 : 130);
+    final cardPadding = responsive.pagePadding;
+    
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(cardPadding),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
@@ -304,8 +311,8 @@ class _MemberDialogState extends State<MemberDialog> {
           Stack(
             children: [
               Container(
-                width: compact ? 100 : 130,
-                height: compact ? 100 : 130,
+                width: photoSize.toDouble(),
+                height: photoSize.toDouble(),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [colorScheme.primary.withValues(alpha: 0.12), colorScheme.tertiary.withValues(alpha: 0.12)]),
@@ -319,7 +326,7 @@ class _MemberDialogState extends State<MemberDialog> {
                 child: GestureDetector(
                   onTap: _pickPhoto,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(responsive.pagePadding / 2),
                     decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle, boxShadow: [BoxShadow(color: colorScheme.primary.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 3))]),
                     child: Icon(_profilePhotoUrl != null || _selectedPhotoBytes != null ? Icons.edit : Icons.add_a_photo, color: colorScheme.onPrimary, size: compact ? 18 : 22),
                   ),
@@ -328,12 +335,12 @@ class _MemberDialogState extends State<MemberDialog> {
             ],
           ),
           if ((_profilePhotoUrl != null || _selectedPhotoBytes != null) && !compact) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: responsive.pagePadding),
             TextButton.icon(
               onPressed: () => setState(() { _profilePhotoUrl = null; _selectedPhotoBytes = null; _selectedPhotoName = null; }),
               icon: Icon(Icons.delete_outline, size: 16, color: colorScheme.error),
               label: Text('Remove', style: TextStyle(color: colorScheme.error, fontSize: 12)),
-              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
+              style: TextButton.styleFrom(padding: EdgeInsets.symmetric(horizontal: responsive.pagePadding / 2)),
             ),
           ],
         ],

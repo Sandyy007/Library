@@ -5,6 +5,7 @@ import '../models/book.dart';
 import '../models/member.dart';
 import '../models/issue.dart';
 import '../utils/hindi_text.dart';
+import '../utils/responsive.dart';
 
 class SearchResultsDialog extends StatelessWidget {
   const SearchResultsDialog({super.key});
@@ -12,16 +13,13 @@ class SearchResultsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchProvider = Provider.of<SearchProvider>(context);
-
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isCompact = screenWidth < 600;
+    final responsive = Responsive(context);
 
     return Dialog(
       child: Container(
-        width: isCompact ? screenWidth * 0.95 : screenWidth * 0.8,
-        height: screenHeight * 0.8,
-        padding: EdgeInsets.all(isCompact ? 12 : 24),
+        width: responsive.dialogWidth(maxDesktop: 850),
+        height: responsive.height * 0.8,
+        padding: EdgeInsets.all(responsive.pagePadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

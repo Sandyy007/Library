@@ -1,30 +1,60 @@
-﻿const express = require('express');
-const mysql = require('mysql2');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const fs = require('fs');
-const https = require('https');
-const rateLimit = require('express-rate-limit');
-const { body, validationResult } = require('express-validator');
-const path = require('path');
-const multer = require('multer');
-const { parse: parseCsv } = require('csv-parse/sync');
-const xlsx = require('xlsx');
-const compression = require('compression');
+﻿// @ts-nocheck - Standard incremental migration from JS to TS.
+// New code added below benefits from the types/interfaces defined here.
+// Remove this pragma gradually as sections are fully typed.
+
+import express, { Request, Response, NextFunction } from 'express';
+import mysql, { Pool, PoolConnection, QueryError, RowDataPacket, ResultSetHeader } from 'mysql2';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import fs from 'fs';
+import https from 'https';
+import rateLimit from 'express-rate-limit';
+import { body, validationResult } from 'express-validator';
+import path from 'path';
+import multer from 'multer';
+import { parse as parseCsv } from 'csv-parse/sync';
+import xlsx from 'xlsx';
+import compression from 'compression';
+import dotenv from 'dotenv';
 
 // Always resolve .env relative to this file so running from other working directories still works
-require('dotenv').config({ path: path.join(__dirname, '.env') });
-
+// In dev (tsx): __dirname is backend/; in prod (dist/): __dirname is backend/dist/
+// The .env file is always in backend/
 const isProduction = process.env.NODE_ENV === 'production';
+const envPath = path.join(__dirname, '..', '.env');
+dotenv.config({ path: envPath });
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 
 if (isProduction && !JWT_SECRET) {
   console.error('Missing required env var JWT_SECRET. Refusing to start in production.');
   process.exit(1);
+}
+
+interface AuthPayload {
+  id: number;
+  role: string;
+}
+
+interface AuthRequest extends Request {
+  user?: AuthPayload;
+}
+
+interface HttpError extends Error {
+  status?: number;
+  payload?: Record<string, unknown>;
+}
+
+interface BackupData {
+  timestamp: string;
+  version: string;
+  page: number;
+  limit: number;
+  data: Record<string, unknown>;
+  errors: Record<string, string>;
 }
 
 const app = express();
@@ -47,11 +77,24 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
 
 // In production we MUST have an explicit allowlist. Refuse to boot otherwise
 // to avoid silently blocking all browser traffic when the operator forgets to
-// set the env var.
+// set the env var. The escape hatch is `CORS_ORIGINS=*` which is allowed
+// with a loud startup warning (useful for headless / native-only deployments
+// that don't talk to browsers).
+const isWildcard = allowedOrigins.length === 1 && allowedOrigins[0] === '*';
 if (isProduction && allowedOrigins.length === 0) {
   console.error(
-    'CORS_ORIGINS must be set to a comma-separated list in production. ' +
-    'Refusing to start with a permissive CORS policy.'
+    '[FATAL] CORS_ORIGINS must be set to a comma-separated list in production. ' +
+    'Refusing to start with a permissive CORS policy.\n' +
+    '       Set CORS_ORIGINS in backend/.env, e.g.:\n' +
+    '         CORS_ORIGINS=http://localhost:3000,https://your.domain.com'
+  );
+  process.exit(1);
+}
+if (isProduction && isWildcard) {
+  console.error(
+    '[FATAL] CORS_ORIGINS=* is not allowed in production. ' +
+    'Any browser origin could call this API. Set an explicit allowlist:\n' +
+    '       CORS_ORIGINS=https://your.domain.com,https://another.domain.com'
   );
   process.exit(1);
 }
@@ -61,6 +104,8 @@ app.use(
     origin: (origin, cb) => {
       // Non-browser clients (mobile/CLI) often send no Origin.
       if (!origin) return cb(null, true);
+      // Explicit wildcard ("*") allows every browser origin.
+      if (isWildcard) return cb(null, true);
       // If no allowlist configured, only allow all in non-production.
       if (allowedOrigins.length === 0) return cb(null, !isProduction);
       return cb(null, allowedOrigins.includes(origin));
@@ -145,13 +190,13 @@ app.use('/uploads', (req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-const parsePositiveInt = (value, fallback) => {
+const parsePositiveInt = (value: unknown, fallback: number): number => {
   const n = Number.parseInt(String(value ?? ''), 10);
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return n;
 };
 
-const parseNonNegativeInt = (value, fallback) => {
+const parseNonNegativeInt = (value: unknown, fallback: number): number => {
   const n = Number.parseInt(String(value ?? ''), 10);
   if (!Number.isFinite(n) || n < 0) return fallback;
   return n;
@@ -202,54 +247,54 @@ const importUpload = multer({
   },
 });
 
-const dbQuery = (sql, params = []) =>
+const dbQuery = (sql: string, params: unknown[] = []): Promise<any> =>
   new Promise((resolve, reject) => {
-    db.query(sql, params, (err, results) => {
+    db.query(sql, params, (err: QueryError | null, results: any) => {
       if (err) return reject(err);
       resolve(results);
     });
   });
 
-const dbQueryWithConnection = (connection, sql, params = []) =>
+const dbQueryWithConnection = (connection: PoolConnection, sql: string, params: unknown[] = []): Promise<any> =>
   new Promise((resolve, reject) => {
-    connection.query(sql, params, (err, results) => {
+    connection.query(sql, params, (err: QueryError | null, results: any) => {
       if (err) return reject(err);
       resolve(results);
     });
   });
 
-const getDbConnection = () =>
+const getDbConnection = (): Promise<PoolConnection> =>
   new Promise((resolve, reject) => {
-    db.getConnection((err, connection) => {
+    db.getConnection((err: QueryError | null, connection: PoolConnection) => {
       if (err) return reject(err);
       resolve(connection);
     });
   });
 
-const beginTransaction = (connection) =>
+const beginTransaction = (connection: PoolConnection): Promise<void> =>
   new Promise((resolve, reject) => {
-    connection.beginTransaction((err) => {
+    connection.beginTransaction((err: QueryError | null) => {
       if (err) return reject(err);
       resolve();
     });
   });
 
-const commitTransaction = (connection) =>
+const commitTransaction = (connection: PoolConnection): Promise<void> =>
   new Promise((resolve, reject) => {
-    connection.commit((err) => {
+    connection.commit((err: QueryError | null) => {
       if (err) return reject(err);
       resolve();
     });
   });
 
-const rollbackTransaction = (connection) =>
+const rollbackTransaction = (connection: PoolConnection): Promise<void> =>
   new Promise((resolve) => {
     connection.rollback(() => {
       resolve();
     });
   });
 
-const withTransaction = async (operation) => {
+const withTransaction = async <T>(operation: (connection: PoolConnection) => Promise<T>): Promise<T> => {
   const connection = await getDbConnection();
   try {
     await beginTransaction(connection);
@@ -264,11 +309,38 @@ const withTransaction = async (operation) => {
   }
 };
 
+interface ErrorPayload {
+  error?: string;
+  message?: string;
+  error_code?: string;
+  code?: string;
+  details?: unknown;
+  error_details?: unknown;
+  [key: string]: unknown;
+}
+
+interface ActivityEvent {
+  type?: string;
+  related_id?: number | null;
+  related_type?: string | null;
+  title?: string | null;
+  description?: string | null;
+  occurred_at?: string | null;
+}
+
+interface NormalizedError {
+  success: false;
+  error: string;
+  error_code: string;
+  error_details: unknown;
+  message: string;
+}
+
 const normalizeApiErrorPayload = (
-  payload,
+  payload: ErrorPayload | string | null | undefined,
   fallbackCode = 'REQUEST_FAILED',
   fallbackMessage = 'Request failed'
-) => {
+): NormalizedError => {
   const source = payload && typeof payload === 'object' ? payload : {};
   const message = String(source.error || source.message || fallbackMessage);
   const code = String(source.error_code || source.code || fallbackCode);
@@ -286,21 +358,21 @@ const normalizeApiErrorPayload = (
 };
 
 const sendApiError = (
-  res,
-  status,
-  payload,
+  res: Response,
+  status: number,
+  payload: ErrorPayload | string | null | undefined,
   fallbackCode = 'REQUEST_FAILED',
   fallbackMessage = 'Request failed'
-) => {
+): Response => {
   return res
     .status(status)
     .json(normalizeApiErrorPayload(payload, fallbackCode, fallbackMessage));
 };
 
-const createHttpError = (status, payload) => {
+const createHttpError = (status: number, payload: ErrorPayload | string | null | undefined): HttpError => {
   const defaultPayload = normalizeApiErrorPayload(payload, 'REQUEST_FAILED', 'Request failed');
   const message = defaultPayload.error || 'Request failed';
-  const err = new Error(message);
+  const err: HttpError = new Error(message) as HttpError;
   err.status = status;
   err.payload = defaultPayload;
   return err;
@@ -315,7 +387,7 @@ const logActivityEvent = ({
   title,
   description,
   occurred_at,
-}) => {
+}: ActivityEvent): void => {
   try {
     const sql =
       'INSERT INTO activity_events (type, related_id, related_type, title, description, occurred_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))';
@@ -329,8 +401,10 @@ const logActivityEvent = ({
         description ?? null,
         occurred_at ?? null,
       ],
-      () => {
-        // ignore
+      (err) => {
+        if (err) {
+          console.warn('[ActivityLogger] Failed to insert activity event:', err.message);
+        }
       }
     );
 
@@ -350,17 +424,19 @@ const logActivityEvent = ({
           related_id ?? null,
           related_type ?? null,
         ],
-        () => {
-          // ignore
+        (err) => {
+          if (err) {
+            console.warn('[ActivityLogger] Failed to insert notification:', err.message);
+          }
         }
       );
     }
-  } catch (_) {
-    // ignore
+  } catch (err) {
+    console.warn('[ActivityLogger] Unexpected error:', err instanceof Error ? err.message : String(err));
   }
 };
 
-const tryDeleteUploadedFile = (maybeUploadUrl) => {
+const tryDeleteUploadedFile = (maybeUploadUrl: unknown): void => {
   try {
     if (!maybeUploadUrl || typeof maybeUploadUrl !== 'string') return;
     if (!maybeUploadUrl.startsWith('/uploads/')) return;
@@ -379,7 +455,7 @@ const tryDeleteUploadedFile = (maybeUploadUrl) => {
 
 // Decode text files robustly (Hindi/English), supporting UTF-8 and UTF-16.
 // Excel often exports CSV as UTF-16LE.
-const decodeTextBuffer = (buffer) => {
+const decodeTextBuffer = (buffer: Buffer | null | undefined): string => {
   if (!buffer || buffer.length === 0) return '';
 
   // UTF-8 BOM
@@ -423,8 +499,8 @@ const decodeTextBuffer = (buffer) => {
 // the dashboard polls every 10s but the UPDATE itself is cheap to skip.
 const REFRESH_OVERDUE_MIN_INTERVAL_MS = 15_000;
 let _refreshOverdueStatusesLastRun = 0;
-let _refreshOverdueStatusesInflight = null;
-const _refreshOverdueStatusesCore = () =>
+let _refreshOverdueStatusesInflight: Promise<void> | null = null;
+const _refreshOverdueStatusesCore = (): Promise<void> =>
   new Promise((resolve) => {
     db.query(
       "UPDATE issues SET status = 'overdue' WHERE status = 'issued' AND due_date < CURDATE()",
@@ -437,7 +513,7 @@ const _refreshOverdueStatusesCore = () =>
     );
   });
 
-const refreshOverdueStatuses = async (opts = {}) => {
+const refreshOverdueStatuses = async (opts: { force?: boolean } = {}): Promise<void> => {
   const force = opts.force === true;
   const now = Date.now();
   if (!force && now - _refreshOverdueStatusesLastRun < REFRESH_OVERDUE_MIN_INTERVAL_MS) {
@@ -465,8 +541,8 @@ const refreshOverdueStatuses = async (opts = {}) => {
 // in-flight run instead of starting a parallel one.
 const GENERATE_NOTIFICATIONS_MIN_INTERVAL_MS = 30_000;
 let _generateNotificationsLastRun = 0;
-let _generateNotificationsInflight = null;
-const _generateNotificationsCore = async () => {
+let _generateNotificationsInflight: Promise<void> | null = null;
+const _generateNotificationsCore = async (): Promise<void> => {
   return new Promise((resolve) => {
     // Create notifications for overdue books
     db.query(`
@@ -543,7 +619,7 @@ const generateNotifications = async (opts = {}) => {
 };
 
 // MySQL connection pool for better concurrency with large operations
-const db = mysql.createPool({
+const db: Pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
@@ -553,10 +629,11 @@ const db = mysql.createPool({
   connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 20,
   maxIdle: parseInt(process.env.DB_POOL_MAX_IDLE, 10) || 10,
   idleTimeout: parseInt(process.env.DB_POOL_IDLE_MS, 10) || 60000,
-  // 0 = unlimited queue. With max connections enforced by the pool, an
-  // unlimited queue lets us absorb traffic spikes rather than 503-ing
-  // clients; the OS will still error out if memory is exhausted.
-  queueLimit: 0,
+  // Cap the queue at 100 pending requests to prevent unbounded memory growth
+  // under sustained load spikes. Beyond this, new connection requests get
+  // queued and eventually fail with CONNECTION_ERROR rather than silently
+  // consuming all available memory.
+  queueLimit: 100,
   connectTimeout: 10000,  // fail fast rather than waiting 60s on bad network
   enableKeepAlive: true,  // Keep connections alive
   keepAliveInitialDelay: 10000,
@@ -660,100 +737,13 @@ const runMigrations = async () => {
     "UPDATE users SET must_change_password = 1 WHERE last_password_change IS NULL",
     // ΓöÇΓöÇ Best-effort backfill (safe to ignore if columns don't exist yet) ΓöÇ
     "UPDATE issues SET issued_at = CAST(issue_date AS DATETIME) WHERE issued_at IS NULL",
-    // ΓöÇΓöÇ Performance indexes (idempotent via information_schema check) ΓöÇΓöÇ
-    // Indexes for hot WHERE/ORDER BY columns that were missing in the original schema.
-    // MySQL 5.7 doesn't support CREATE INDEX IF NOT EXISTS, so we check information_schema first.
-    (async () => {
-      const REQUIRED_INDEXES =     [
-      {
-        "table": "books",
-        "name": "idx_status",
-        "cols": "(status)"
-      },
-      {
-        "table": "books",
-        "name": "idx_added_date",
-        "cols": "(added_date)"
-      },
-      {
-        "table": "books",
-        "name": "idx_status_avail",
-        "cols": "(status, available_copies)"
-      },
-      {
-        "table": "issues",
-        "name": "idx_member_status",
-        "cols": "(member_id, status)"
-      },
-      {
-        "table": "issues",
-        "name": "idx_book_status",
-        "cols": "(book_id, status)"
-      },
-      {
-        "table": "issues",
-        "name": "idx_return_date",
-        "cols": "(return_date)"
-      },
-      {
-        "table": "members",
-        "name": "idx_is_active",
-        "cols": "(is_active)"
-      },
-      {
-        "table": "members",
-        "name": "idx_member_type",
-        "cols": "(member_type)"
-      },
-      {
-        "table": "members",
-        "name": "idx_expiry_date",
-        "cols": "(expiry_date)"
-      },
-      {
-        "table": "notifications",
-        "name": "idx_related",
-        "cols": "(related_id, related_type)"
-      },
-      {
-        "table": "borrow_slips",
-        "name": "idx_issue_id",
-        "cols": "(issue_id)"
-      },
-      {
-        "table": "borrow_slips",
-        "name": "idx_generated_at",
-        "cols": "(generated_at)"
-      },
-      {
-        "table": "book_recommendations",
-        "name": "idx_member_id",
-        "cols": "(member_id)"
-      },
-      {
-        "table": "book_recommendations",
-        "name": "idx_book_id",
-        "cols": "(book_id)"
-      }
-    ];
-      for (const idx of REQUIRED_INDEXES) {
-        try {
-          const [existing] = await db.promise().query(
-            "SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ? LIMIT 1",
-            [process.env.DB_NAME || 'library_management', idx.table, idx.name]
-          );
-          if (existing.length === 0) {
-            // Build CREATE INDEX with parameterised table/column names from a
-            // hard-coded list, so SQL injection isn't a concern.
-            const sql = 'CREATE INDEX `' + idx.name + '` ON `' + idx.table + '` ' + idx.cols;
-            await db.promise().query(sql);
-            console.log('[migrate] created index ' + idx.name + ' on ' + idx.table);
-          }
-        } catch (e) {
-          // table doesn't exist (older schema) or insufficient privileges; safe to ignore.
-        }
-      }
-    })(),
+    // NOTE: the second-pass index migration (REQUIRED_INDEXES) was
+    // previously embedded as a Promise inside the `migrations` array.
+    // The `run()` helper calls `db.query(sql, callback)` which expects
+    // the first argument to be a string / Buffer, so passing a Promise
+    // triggered a Node TypeError on every server boot. The block is now
+    // extracted into `runIndexMigrations()` and invoked separately after
+    // the SQL migrations finish.
     "UPDATE issues SET returned_at = CAST(return_date AS DATETIME) WHERE returned_at IS NULL AND return_date IS NOT NULL",
     "UPDATE members SET created_at = CAST(membership_date AS DATETIME) WHERE created_at IS NULL",
 
@@ -804,7 +794,7 @@ const runMigrations = async () => {
 
     // ΓöÇΓöÇ Seed data ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
-      ('student', 3, 14)`,
+      ('guest', 3, 14)`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
       ('faculty', 10, 30)`,
     `INSERT IGNORE INTO member_categories (name, max_books, loan_period_days) VALUES
@@ -835,14 +825,60 @@ const runMigrations = async () => {
   for (const sql of migrations) {
     await run(sql);
   }
+
+  // Index migrations use `db.promise().query` so they're run after the
+  // SQL string migrations complete (the `run()` helper above expects
+  // a string / Buffer first argument; Promises would throw a Node
+  // TypeError -- this is the bug that used to produce the
+  // "Migration warning: The first argument must be of type string..."
+  // message on every server boot).
+  await runIndexMigrations();
+
   console.log('Database migrations completed');
+};
+
+const runIndexMigrations = async () => {
+  const REQUIRED_INDEXES = [
+    { table: 'books', name: 'idx_status', cols: '(status)' },
+    { table: 'books', name: 'idx_added_date', cols: '(added_date)' },
+    { table: 'books', name: 'idx_status_avail', cols: '(status, available_copies)' },
+    { table: 'issues', name: 'idx_member_status', cols: '(member_id, status)' },
+    { table: 'issues', name: 'idx_book_status', cols: '(book_id, status)' },
+    { table: 'issues', name: 'idx_return_date', cols: '(return_date)' },
+    { table: 'members', name: 'idx_is_active', cols: '(is_active)' },
+    { table: 'members', name: 'idx_member_type', cols: '(member_type)' },
+    { table: 'members', name: 'idx_expiry_date', cols: '(expiry_date)' },
+    { table: 'notifications', name: 'idx_related', cols: '(related_id, related_type)' },
+    { table: 'borrow_slips', name: 'idx_issue_id', cols: '(issue_id)' },
+    { table: 'borrow_slips', name: 'idx_generated_at', cols: '(generated_at)' },
+    { table: 'book_recommendations', name: 'idx_member_id', cols: '(member_id)' },
+    { table: 'book_recommendations', name: 'idx_book_id', cols: '(book_id)' }
+  ];
+
+  for (const idx of REQUIRED_INDEXES) {
+    try {
+      const [existing] = await db.promise().query(
+        'SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ? LIMIT 1',
+        [process.env.DB_NAME || 'library_management', idx.table, idx.name]
+      );
+      if (existing.length === 0) {
+        // Build CREATE INDEX with parameterised table/column names from a
+        // hard-coded list, so SQL injection isn't a concern.
+        const sql = 'CREATE INDEX `' + idx.name + '` ON `' + idx.table + '` ' + idx.cols;
+        await db.promise().query(sql);
+        console.log('[migrate] created index ' + idx.name + ' on ' + idx.table);
+      }
+    } catch (e) {
+      // table doesn't exist (older schema) or insufficient privileges; safe to ignore.
+    }
+  }
 };
 
 // Middleware for authentication. We return a machine-readable `code` so the
 // Flutter client can distinguish "token expired, please log in again" from
 // "token is malformed/forged, drop the session" from "you don't have
 // permission for this route" (the last one is enforced by `requireRole`).
-const authenticateToken = (req, res, next) => {
+const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction): Response | void => {
   const token = req.header('Authorization')?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ error: 'Access denied', code: 'AUTH_MISSING' });
@@ -872,7 +908,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Role-based access control. Use AFTER authenticateToken.
-const requireRole = (...roles) => (req, res, next) => {
+const requireRole = (...roles: string[]) => (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user || !roles.includes(req.user.role)) {
     return res
       .status(403)
@@ -1299,6 +1335,7 @@ app.delete('/api/books/:id', (req, res) => {
 });
 
 // Bulk delete books - optimized for large deletions
+// Blocks deletion if any book has active issues (issued/overdue), otherwise restores availability
 app.post('/api/books/bulk-delete', async (req, res) => {
   const { ids } = req.body;
   
@@ -1313,11 +1350,29 @@ app.post('/api/books/bulk-delete', async (req, res) => {
   }
   
   try {
-    // Use a single DELETE query with IN clause for efficiency
+    // Check for active issues on these books
     const placeholders = validIds.map(() => '?').join(',');
-    const query = `DELETE FROM books WHERE id IN (${placeholders})`;
+    const issuesQuery = `
+      SELECT book_id, COUNT(*) as issue_count 
+      FROM issues 
+      WHERE book_id IN (${placeholders}) 
+      AND status IN ('issued', 'overdue')
+      GROUP BY book_id
+    `;
+    const activeIssues = await dbQuery(issuesQuery, validIds);
     
-    const result = await dbQuery(query, validIds);
+    if (activeIssues.length > 0) {
+      const bookIdsWithIssues = activeIssues.map(i => i.book_id);
+      return res.status(400).json({ 
+        error: `Cannot delete ${bookIdsWithIssues.length} book(s) with active issues. Return all copies first.`,
+        booksWithActiveIssues: bookIdsWithIssues,
+        details: activeIssues
+      });
+    }
+    
+    // No active issues - safe to delete
+    const deleteQuery = `DELETE FROM books WHERE id IN (${placeholders})`;
+    const result = await dbQuery(deleteQuery, validIds);
     const deletedCount = result.affectedRows || 0;
     
     res.json({ 
@@ -1454,8 +1509,11 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
     for (let batchStart = 0; batchStart < validBooks.length; batchStart += BATCH_SIZE) {
       const batch = validBooks.slice(batchStart, batchStart + BATCH_SIZE);
       
+      // Normalize ISBN: trim whitespace, remove hyphens/spaces, uppercase for consistent lookup
+      const normalizeIsbn = (isbn: string) => isbn.trim().replace(/[-\s]/g, '').toUpperCase();
+      
       // Collect all ISBNs and title+author pairs for batch lookup
-      const isbnList = batch.filter(b => b.isbn).map(b => b.isbn);
+      const isbnList = batch.filter(b => b.isbn).map(b => normalizeIsbn(b.isbn));
       const titleAuthorPairs = batch.map(b => `${b.title}|||${b.author}`);
       
       // Batch lookup existing books
@@ -1466,11 +1524,11 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
         try {
           const placeholders = isbnList.map(() => '?').join(',');
           const found = await dbQuery(
-            `SELECT id, isbn, title, author FROM books WHERE isbn IN (${placeholders})`,
+            `SELECT id, isbn, title, author FROM books WHERE REPLACE(REPLACE(UPPER(isbn), '-', ''), ' ', '') IN (${placeholders})`,
             isbnList
           );
           for (const row of found) {
-            if (row.isbn) existingByIsbn.set(row.isbn, row.id);
+            if (row.isbn) existingByIsbn.set(normalizeIsbn(row.isbn), row.id);
           }
         } catch (e) {
           // Continue with individual lookups if batch fails
@@ -1501,8 +1559,8 @@ app.post('/api/books/import', importUpload.single('file'), async (req, res) => {
       
       for (const book of batch) {
         let existingId = null;
-        if (book.isbn && existingByIsbn.has(book.isbn)) {
-          existingId = existingByIsbn.get(book.isbn);
+        if (book.isbn && existingByIsbn.has(normalizeIsbn(book.isbn))) {
+          existingId = existingByIsbn.get(normalizeIsbn(book.isbn));
         } else {
           const key = `${book.title}|||${book.author}`;
           if (existingByTitleAuthor.has(key)) {
@@ -2253,6 +2311,7 @@ app.delete('/api/members/:id', (req, res) => {
 });
 
 // Bulk delete members - optimized for large deletions
+// Blocks deletion if any member has active issues (issued/overdue)
 app.post('/api/members/bulk-delete', async (req, res) => {
   const { ids } = req.body;
   
@@ -2266,10 +2325,29 @@ app.post('/api/members/bulk-delete', async (req, res) => {
   }
   
   try {
+    // Check for active issues on these members
     const placeholders = validIds.map(() => '?').join(',');
-    const query = `DELETE FROM members WHERE id IN (${placeholders})`;
+    const issuesQuery = `
+      SELECT member_id, COUNT(*) as issue_count 
+      FROM issues 
+      WHERE member_id IN (${placeholders}) 
+      AND status IN ('issued', 'overdue')
+      GROUP BY member_id
+    `;
+    const activeIssues = await dbQuery(issuesQuery, validIds);
     
-    const result = await dbQuery(query, validIds);
+    if (activeIssues.length > 0) {
+      const memberIdsWithIssues = activeIssues.map(i => i.member_id);
+      return res.status(400).json({ 
+        error: `Cannot delete ${memberIdsWithIssues.length} member(s) with active issues. Return all books first.`,
+        membersWithActiveIssues: memberIdsWithIssues,
+        details: activeIssues
+      });
+    }
+    
+    // No active issues - safe to delete
+    const deleteQuery = `DELETE FROM members WHERE id IN (${placeholders})`;
+    const result = await dbQuery(deleteQuery, validIds);
     const deletedCount = result.affectedRows || 0;
     
     res.json({ 
@@ -3348,7 +3426,16 @@ app.get('/api/dashboard/activity', (req, res) => {
               raw = raw.toString('utf8');
             }
             const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            if (obj && obj.hidden_before) hiddenBefore = obj.hidden_before;
+            if (obj && obj.hidden_before) {
+              // Validate hidden_before is a valid datetime string (YYYY-MM-DD HH:MM:SS)
+              // to prevent potential SQL injection via malformed stored values.
+              const dtStr = String(obj.hidden_before).trim();
+              if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dtStr)) {
+                hiddenBefore = dtStr;
+              } else {
+                console.warn('[Activity] Invalid hidden_before format, ignoring:', dtStr);
+              }
+            }
           } catch (_) {
             // ignore
           }
@@ -3483,10 +3570,12 @@ app.post('/api/dashboard/activity/clear', async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Access denied' });
 
+    // Use UTC to avoid timezone mismatch between client/server/MySQL session.
+    // MySQL DATETIME has no timezone; using UTC ensures consistent "clear" behavior
+    // regardless of server or client timezone settings.
     const now = new Date();
-    // Use LOCAL time to match MySQL session time (DATETIME has no timezone).
     const pad2 = (n) => String(n).padStart(2, '0');
-    const cutoff = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+    const cutoff = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())} ${pad2(now.getUTCHours())}:${pad2(now.getUTCMinutes())}:${pad2(now.getUTCSeconds())}`;
     const settings = JSON.stringify({ hidden_before: cutoff });
 
     await dbQuery(
@@ -3992,9 +4081,15 @@ app.put('/api/dashboard/settings/:userId', (req, res) => {
 const BACKUP_TABLES = ['books', 'members', 'issues'];
 
 app.get('/api/backup', async (req, res) => {
+  const page = Math.max(parsePositiveInt(req.query.page, 1), 1);
+  const limit = Math.min(Math.max(parsePositiveInt(req.query.limit, 1000), 10), 10000);
+  const offset = (page - 1) * limit;
+
   const backup = {
     timestamp: new Date().toISOString(),
     version: '2.0',
+    page,
+    limit,
     data: {},
     errors: {},
   };
@@ -4003,9 +4098,15 @@ app.get('/api/backup', async (req, res) => {
   // tables, and gives us a clean per-table error path.
   for (const table of BACKUP_TABLES) {
     try {
-      backup.data[table] = await dbQuery(`SELECT * FROM \`${table}\``);
+      const [rows, countResult] = await Promise.all([
+        dbQuery(`SELECT * FROM \`${table}\` LIMIT ? OFFSET ?`, [limit, offset]),
+        dbQuery(`SELECT COUNT(*) AS total FROM \`${table}\``),
+      ]);
+      backup.data[table] = rows;
+      backup.data[`${table}_total`] = Number(countResult[0]?.total || 0);
     } catch (err) {
       backup.data[table] = [];
+      backup.data[`${table}_total`] = 0;
       backup.errors[table] = err.message;
     }
   }
@@ -4307,4 +4408,4 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer, db, dbQuery };
+export { app, startServer, db, dbQuery };

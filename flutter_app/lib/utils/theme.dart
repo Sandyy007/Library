@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppSpacing {
   static const double xxs = 2;
@@ -33,83 +34,85 @@ class AppPalette {
   static const Color backgroundLight = Color(0xFFF5F8FC);
   static const Color errorLight = Color(0xFFB3261E);
 
-  // Premium Dark Mode Palette
-  static const Color primaryDark = Color(0xFF5B8DEF);
-  static const Color secondaryDark = Color(0xFF4ECDC4);
-  static const Color tertiaryDark = Color(0xFFFFB347);
-  static const Color surfaceDark = Color(0xFF0D1829);
-  static const Color backgroundDark = Color(0xFF060D17);
-  static const Color cardDark = Color(0xFF111C2D);
-  static const Color elevatedDark = Color(0xFF162338);
-  static const Color borderDark = Color(0xFF1E2D47);
-  static const Color errorDark = Color(0xFFFF6B6B);
+  // Premium Dark Mode Palette — warm slate with refined accents
+  static const Color primaryDark = Color(0xFF7C9BFF);
+  static const Color secondaryDark = Color(0xFF34D399);
+  static const Color tertiaryDark = Color(0xFFFBBF24);
+  static const Color surfaceDark = Color(0xFF171923);
+  static const Color backgroundDark = Color(0xFF0F1118);
+  static const Color cardDark = Color(0xFF1E202B);
+  static const Color elevatedDark = Color(0xFF262836);
+  static const Color borderDark = Color(0xFF2D2F3D);
+  static const Color errorDark = Color(0xFFFC8181);
 }
 
 class AppTypography {
   static TextTheme buildTextTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final primaryText = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF122033);
-    final secondaryText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF445A78);
+    final primaryText = isDark ? const Color(0xFFEDEEF4) : const Color(0xFF122033);
+    final secondaryText = isDark ? const Color(0xFF9B9DAB) : const Color(0xFF445A78);
 
-    return TextTheme(
-      headlineLarge: TextStyle(
+    final base = GoogleFonts.plusJakartaSansTextTheme();
+
+    return base.copyWith(
+      headlineLarge: base.headlineLarge?.copyWith(
         fontSize: 32,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.4,
         color: primaryText,
       ),
-      headlineMedium: TextStyle(
+      headlineMedium: base.headlineMedium?.copyWith(
         fontSize: 28,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
         color: primaryText,
       ),
-      headlineSmall: TextStyle(
+      headlineSmall: base.headlineSmall?.copyWith(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: primaryText,
       ),
-      titleLarge: TextStyle(
+      titleLarge: base.titleLarge?.copyWith(
         fontSize: 20,
         fontWeight: FontWeight.w700,
         color: primaryText,
       ),
-      titleMedium: TextStyle(
+      titleMedium: base.titleMedium?.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: primaryText,
       ),
-      titleSmall: TextStyle(
+      titleSmall: base.titleSmall?.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: primaryText,
       ),
-      bodyLarge: TextStyle(
+      bodyLarge: base.bodyLarge?.copyWith(
         fontSize: 16,
         height: 1.35,
         color: primaryText,
       ),
-      bodyMedium: TextStyle(
+      bodyMedium: base.bodyMedium?.copyWith(
         fontSize: 14,
         height: 1.4,
         color: primaryText,
       ),
-      bodySmall: TextStyle(
+      bodySmall: base.bodySmall?.copyWith(
         fontSize: 12,
         height: 1.4,
         color: secondaryText,
       ),
-      labelLarge: TextStyle(
+      labelLarge: base.labelLarge?.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: primaryText,
       ),
-      labelMedium: TextStyle(
+      labelMedium: base.labelMedium?.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w600,
         color: secondaryText,
       ),
-      labelSmall: TextStyle(
+      labelSmall: base.labelSmall?.copyWith(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         color: secondaryText,
@@ -138,10 +141,10 @@ class AppTheme {
       surfaceContainerLowest: isDark ? AppPalette.cardDark : const Color(0xFFFFFFFF),
       surfaceContainerLow: isDark ? AppPalette.cardDark : const Color(0xFFF8FBFF),
       surfaceContainer: isDark ? AppPalette.elevatedDark : const Color(0xFFF0F4FA),
-      surfaceContainerHigh: isDark ? const Color(0xFF1A2B40) : const Color(0xFFE8EEF8),
-      surfaceContainerHighest: isDark ? const Color(0xFF1E334D) : const Color(0xFFE0E8F0),
-      outline: isDark ? const Color(0xFF2D4059) : const Color(0xFF8B9CB7),
-      outlineVariant: isDark ? const Color(0xFF1E2D47) : const Color(0xFFC5D1E3),
+      surfaceContainerHigh: isDark ? const Color(0xFF2C2E3C) : const Color(0xFFE8EEF8),
+      surfaceContainerHighest: isDark ? const Color(0xFF323446) : const Color(0xFFE0E8F0),
+      outline: isDark ? const Color(0xFF363849) : const Color(0xFF8B9CB7),
+      outlineVariant: isDark ? const Color(0xFF2D2F3D) : const Color(0xFFC5D1E3),
       shadow: isDark ? Colors.black : const Color(0xFF22324D),
     );
 
@@ -157,8 +160,9 @@ class AppTheme {
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       splashFactory: InkRipple.splashFactory,
-      fontFamily: 'Segoe UI',
+      fontFamily: 'Plus Jakarta Sans',
       fontFamilyFallback: const [
+        'Segoe UI',
         'Roboto',
         'NotoSansDevanagari',
         'Nirmala UI',
@@ -167,6 +171,18 @@ class AppTheme {
         'sans-serif',
       ],
       textTheme: textTheme,
+      // Smooth color/typography transitions when the user toggles dark mode
+      // (animation duration matches the page transition; see AppDurations).
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _FadeThroughPageTransitionsBuilder(),
+          TargetPlatform.iOS: _FadeThroughPageTransitionsBuilder(),
+          TargetPlatform.macOS: _FadeThroughPageTransitionsBuilder(),
+          TargetPlatform.windows: _FadeThroughPageTransitionsBuilder(),
+          TargetPlatform.linux: _FadeThroughPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: _FadeThroughPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: false,
@@ -177,11 +193,11 @@ class AppTheme {
         titleTextStyle: textTheme.titleLarge,
       ),
       cardTheme: CardThemeData(
-        elevation: isDark ? 4 : 0,
+        elevation: isDark ? 6 : 0,
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
         color: isDark ? AppPalette.cardDark : colorScheme.surface,
-        shadowColor: isDark ? Colors.black54 : colorScheme.shadow.withValues(alpha: 0.08),
+        shadowColor: isDark ? Colors.black87 : colorScheme.shadow.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
           side: BorderSide(
@@ -252,7 +268,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? const Color(0xFF151F31) : const Color(0xFFF8FBFF),
+        fillColor: isDark ? const Color(0xFF1C1E28) : const Color(0xFFF8FBFF),
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         hintStyle: textTheme.bodyMedium?.copyWith(
           color: colorScheme.onSurface.withValues(alpha: 0.65),
@@ -307,7 +323,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         elevation: isDark ? 6 : 0,
-        backgroundColor: isDark ? AppPalette.elevatedDark : const Color(0xFF173A73),
+        backgroundColor: isDark ? const Color(0xFF323446) : const Color(0xFF173A73),
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: isDark ? Colors.white : Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
@@ -315,18 +331,76 @@ class AppTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
+        backgroundColor: colorScheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.xl),
+          side: isDark ? BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)) : BorderSide.none,
         ),
       ),
       tooltipTheme: TooltipThemeData(
         waitDuration: const Duration(milliseconds: 350),
         textStyle: textTheme.bodySmall?.copyWith(color: Colors.white),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+          color: AppPalette.elevatedDark.withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(AppRadii.sm),
         ),
       ),
     );
   }
+}
+
+/// Page transition that fades the outgoing screen out and the incoming
+/// screen in with a tiny scale-up on the new page. This is the same
+/// "FadeThrough" pattern Material 3 uses for container transforms, but
+/// applied to full-screen routes so navigating between screens feels
+/// premium rather than a horizontal slide.
+class _FadeThroughPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadeThroughPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final fadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: Curves.easeOut,
+      ),
+    );
+    final fadeIn = CurvedAnimation(parent: animation, curve: Curves.easeIn);
+    final scaleIn = Tween<double>(begin: 0.98, end: 1.0).animate(fadeIn);
+    return FadeTransition(
+      opacity: fadeOut,
+      child: FadeTransition(
+        opacity: fadeIn,
+        child: ScaleTransition(scale: scaleIn, child: child),
+      ),
+    );
+  }
+}
+
+/// Convenience: push a route with a fade-through transition instead of
+/// the default horizontal slide. Use this in place of Navigator.push
+/// for in-app navigations; full-screen dialogs / modals can keep their
+/// own transition.
+Future<T?> pushFade<T>(BuildContext context, Widget page) {
+  return Navigator.of(context).push<T>(
+    PageRouteBuilder<T>(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionDuration: AppDurations.normal,
+      reverseTransitionDuration: AppDurations.fast,
+      transitionsBuilder: (context, animation, secondary, child) {
+        final fadeIn = CurvedAnimation(parent: animation, curve: Curves.easeIn);
+        final scaleIn = Tween<double>(begin: 0.98, end: 1.0).animate(fadeIn);
+        return FadeTransition(
+          opacity: fadeIn,
+          child: ScaleTransition(scale: scaleIn, child: child),
+        );
+      },
+    ),
+  );
 }

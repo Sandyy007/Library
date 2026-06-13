@@ -18,7 +18,7 @@ class NotificationBell extends StatelessWidget {
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            TextButton.icon(
+            IconButton(
               onPressed: () => _showNotificationsPanel(context),
               icon: Icon(
                 unreadCount > 0
@@ -26,22 +26,14 @@ class NotificationBell extends StatelessWidget {
                     : Icons.notifications_none_rounded,
                 color: cs.primary,
               ),
-              label: const Text('Notifications'),
-              style: TextButton.styleFrom(
-                backgroundColor: cs.primary.withValues(alpha: 0.1),
-                foregroundColor: cs.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+              tooltip: 'Notifications',
             ),
             if (unreadCount > 0)
               Positioned(
-                right: 6,
-                top: 2,
+                right: 4,
+                top: 4,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
@@ -54,14 +46,14 @@ class NotificationBell extends StatelessWidget {
                     ],
                   ),
                   constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
+                    minWidth: 16,
+                    minHeight: 16,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : unreadCount.toString(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,

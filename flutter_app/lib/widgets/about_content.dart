@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class AboutContent extends StatefulWidget {
   const AboutContent({super.key});
@@ -36,75 +37,74 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
   // Theme-aware colors
   Color _cardBg(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF111C2D)
+        ? const Color(0xFF1E202B)
         : const Color(0xFFFFFFFF);
   }
 
   Color _textColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFE2E8F0)
+        ? const Color(0xFFEDEEF4)
         : const Color(0xFF1A1A2E);
   }
 
   Color _textGrey(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF94A3B8)
+        ? const Color(0xFF9B9DAB)
         : const Color(0xFF6B7280);
   }
 
   Color _lightAccent(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E3A5F)
+        ? const Color(0xFF2C2E3C)
         : const Color(0xFFDEEAFB);
   }
 
   Color _borderColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2D3A4F)
+        ? const Color(0xFF2D2F3D)
         : const Color(0xFFE5E7EB);
   }
 
   Color _primaryBlue(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF5B8DEF)
+        ? const Color(0xFF7C9BFF)
         : const Color(0xFF1565C0);
   }
 
   Color _secondaryBlue(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF4ECDC4)
+        ? const Color(0xFF34D399)
         : const Color(0xFF42A5F5);
   }
 
   Color _tagChipBg(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1E3A5F).withValues(alpha: 0.5)
+        ? const Color(0xFF2C2E3C).withValues(alpha: 0.6)
         : const Color(0xFFDEEAFB).withValues(alpha: 0.5);
   }
 
   Color _iconTealBg(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF1A3A38)
+        ? const Color(0xFF1C2E2E)
         : const Color(0xFFE0F2F1);
   }
 
   Color _iconOrangeBg(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF3D2A1A)
+        ? const Color(0xFF2E261A)
         : const Color(0xFFFBE9E7);
   }
 
   Color _iconPurpleBg(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2D1F3D)
+        ? const Color(0xFF261E30)
         : const Color(0xFFF3E5F5);
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isWide = screenWidth >= 1100;
-    final horizontalPadding = isWide ? 40.0 : 20.0;
+    final responsive = Responsive(context);
+    final horizontalPadding = responsive.pagePadding * 2;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final primaryBlue = _primaryBlue(context);
@@ -123,9 +123,9 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                 end: Alignment.bottomRight,
                 colors: isDark
                     ? [
-                        Color.lerp(const Color(0xFF060D17), const Color(0xFF0A1628), _gradientAnimation.value)!,
-                        Color.lerp(const Color(0xFF0A1628), const Color(0xFF0D2137), _gradientAnimation.value)!,
-                        Color.lerp(const Color(0xFF060D17), const Color(0xFF0F2847), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFF0F1118), const Color(0xFF141622), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFF141622), const Color(0xFF1A1C2A), _gradientAnimation.value)!,
+                        Color.lerp(const Color(0xFF0F1118), const Color(0xFF1E202E), _gradientAnimation.value)!,
                       ]
                     : [
                         Color.lerp(const Color(0xFFEBF2F7), const Color(0xFFF5F9FC), _gradientAnimation.value)!,
@@ -177,7 +177,7 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                 ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1240),
+                    constraints: BoxConstraints(maxWidth: responsive.width * 0.95),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -188,7 +188,7 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: isDark
-                                  ? [const Color(0xFF1E3A5F), const Color(0xFF0D2137)]
+                                  ? [const Color(0xFF2C2E3C), const Color(0xFF1E202B)]
                                   : [const Color(0xFF1565C0), const Color(0xFF1976D2)],
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
@@ -217,7 +217,7 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFFE2E8F0) : Colors.white,
+                                    color: isDark ? const Color(0xFFEDEEF4) : Colors.white,
                                     letterSpacing: 0.3,
                                   ),
                                   textAlign: TextAlign.center,
@@ -789,7 +789,7 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: isDark ? [const Color(0xFF5B8DEF), primaryBlue] : [const Color(0xFF0D2137), primaryBlue],
+                  colors: isDark ? [const Color(0xFF7C9BFF), primaryBlue] : [const Color(0xFF0D2137), primaryBlue],
                 ),
               ),
             ),

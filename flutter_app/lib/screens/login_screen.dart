@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
+import '../widgets/press_scale.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,10 +52,11 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-    final isLargeScreen = screenSize.width >= 1200;
-    final isExtraLargeScreen = screenSize.width >= 1600;
+    final r = Responsive(context);
+    final screenSize = Size(r.width, r.height);
+    final isSmallScreen = r.isCompact;
+    final isLargeScreen = r.isExpanded;
+    final isExtraLargeScreen = r.isExtraExpanded;
 
     return Scaffold(
       body: Stack(
@@ -193,18 +196,18 @@ class _LoginScreenState extends State<LoginScreen>
               colors: isDark
                   ? [
                       Color.lerp(
-                        const Color(0xFF1A1D2E),
-                        const Color(0xFF252A3C),
+                        const Color(0xFF0F1118),
+                        const Color(0xFF171923),
                         _floatingController.value,
                       )!,
                       Color.lerp(
-                        const Color(0xFF252A3C),
-                        const Color(0xFF2D2040),
+                        const Color(0xFF171923),
+                        const Color(0xFF1E202B),
                         _floatingController.value,
                       )!,
                       Color.lerp(
-                        const Color(0xFF2D2040),
-                        const Color(0xFF1A1D2E),
+                        const Color(0xFF1E202B),
+                        const Color(0xFF0F1118),
                         _floatingController.value,
                       )!,
                     ]
@@ -348,9 +351,9 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginCard(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isLargeScreen = screenSize.width >= 1200;
-    final isExtraLargeScreen = screenSize.width >= 1600;
+    final r = Responsive(context);
+    final isLargeScreen = r.isExpanded;
+    final isExtraLargeScreen = r.isExtraExpanded;
 
     // Scale up card for larger screens
     final maxCardWidth = isExtraLargeScreen
@@ -687,11 +690,14 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginButton() {
-    return SizedBox(
+    return PressScale(
+      onTap: _isLoading ? null : _login,
+      pressedScale: 0.97,
+      child: SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _login,
+        onPressed: null, // PressScale handles the tap so we can scale on press
         style: ElevatedButton.styleFrom(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -746,6 +752,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
           ),
         ),
+      ),
       ),
     );
   }

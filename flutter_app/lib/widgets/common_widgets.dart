@@ -280,9 +280,9 @@ class _ShimmerBlockState extends State<ShimmerBlock>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final baseColor =
-        isDark ? const Color(0xFF2D3348) : const Color(0xFFE2E8F0);
+        isDark ? const Color(0xFF2C2E3C) : const Color(0xFFE2E8F0);
     final highlightColor =
-        isDark ? const Color(0xFF3F4562) : const Color(0xFFF1F5F9);
+        isDark ? const Color(0xFF3F4260) : const Color(0xFFF1F5F9);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -528,6 +528,7 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
               fontWeight: FontWeight.w600,
             ),
           ),
+
           const SizedBox(height: 8),
           Text(
             widget.subtitle,
@@ -548,6 +549,58 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
       ),
     );
   }
+}
+
+/// Pre-built empty states for the most common screens. Saves the call
+/// site from re-typing the same copy and keeps a consistent voice across
+/// the app.
+extension EmptyStatePresets on EmptyStateWidget {
+  static Widget noBooks({VoidCallback? onAdd}) => EmptyStateWidget(
+        icon: Icons.menu_book_outlined,
+        title: 'No books yet',
+        subtitle:
+            'Add your first book to start building the library catalogue. '
+            'You can import from CSV or add one at a time.',
+        actionLabel: 'Add a book',
+        onAction: onAdd,
+      );
+
+  static Widget noMembers({VoidCallback? onAdd}) => EmptyStateWidget(
+        icon: Icons.people_outline,
+        title: 'No members yet',
+        subtitle:
+            'Register a member to start tracking who is borrowing from '
+            'the library.',
+        actionLabel: 'Add a member',
+        onAction: onAdd,
+      );
+
+  static Widget noIssues({VoidCallback? onIssue}) => EmptyStateWidget(
+        icon: Icons.assignment_outlined,
+        title: 'No issues recorded',
+        subtitle:
+            'When a member borrows a book, the issue will show up here. '
+            'Issue a book to get started.',
+        actionLabel: 'Issue a book',
+        onAction: onIssue,
+      );
+
+  static Widget noSearchResults({VoidCallback? onClear}) => EmptyStateWidget(
+        icon: Icons.search_off,
+        title: 'No results found',
+        subtitle: 'Try adjusting your search or filters to find what '
+            'you are looking for.',
+        actionLabel: 'Clear filters',
+        onAction: onClear,
+      );
+
+  static Widget noNotifications() => const EmptyStateWidget(
+        icon: Icons.notifications_none,
+        title: 'You are all caught up',
+        subtitle:
+            'New notifications will appear here when something happens '
+            'in the library.',
+      );
 }
 
 /// Truncated text cell with automatic tooltip on overflow.

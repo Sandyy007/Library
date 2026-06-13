@@ -7,6 +7,7 @@ import '../providers/book_provider.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import '../utils/responsive.dart';
 
 class BookDialog extends StatefulWidget {
   final Book? book;
@@ -87,18 +88,14 @@ class _BookDialogState extends State<BookDialog> {
   Widget build(BuildContext context) {
     final isEditing = widget.book != null;
     final colorScheme = Theme.of(context).colorScheme;
-    final screenSize = MediaQuery.of(context).size;
-    final isVerySmallScreen = screenSize.width < 480;
-    final isSmallScreen = screenSize.width < 700;
-    final maxWidth = isVerySmallScreen
-        ? screenSize.width * 0.95
-        : (isSmallScreen ? screenSize.width * 0.98 : 820).toDouble();
-    final maxHeight = screenSize.height * 0.92;
+    final responsive = Responsive(context);
+    final maxWidth = responsive.dialogWidth(maxDesktop: 900);
+    final maxHeight = responsive.height * 0.92;
 
     return Dialog(
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isVerySmallScreen ? 4 : (isSmallScreen ? 8 : 24),
-        vertical: isVerySmallScreen ? 8 : 16,
+        horizontal: responsive.pagePadding,
+        vertical: responsive.pagePadding * 2,
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
@@ -120,12 +117,12 @@ class _BookDialogState extends State<BookDialog> {
               _buildHeader(colorScheme, isEditing),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.all(isVerySmallScreen ? 16 : 24),
+                  padding: EdgeInsets.all(responsive.pagePadding),
                     child: Form(
                       key: _formKey,
-                      child: isVerySmallScreen
+                      child: responsive.isCompact
                           ? _buildCompactLayout(colorScheme, veryCompact: true)
-                          : (isSmallScreen ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme)),
+                          : (responsive.isMedium ? _buildCompactLayout(colorScheme) : _buildWideLayout(colorScheme, responsive)),
                     ),
                 ),
               ),
@@ -218,21 +215,24 @@ class _BookDialogState extends State<BookDialog> {
     );
   }
 
-  Widget _buildWideLayout(ColorScheme colorScheme) {
+  Widget _buildWideLayout(ColorScheme colorScheme, Responsive responsive) {
+    final coverWidth = (responsive.width * 0.25).clamp(180.0, 250.0);
+    final spacing = responsive.pagePadding;
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 210,
+          width: coverWidth,
           child: Column(
             children: [
               _buildCoverCard(colorScheme),
-              const SizedBox(height: 20),
+              SizedBox(height: spacing),
               if (_isInitialized) _buildCopiesCard(colorScheme),
             ],
           ),
         ),
-        const SizedBox(width: 32),
+        SizedBox(width: spacing * 1.5),
         Expanded(child: _buildFormSection(colorScheme)),
       ],
     );
@@ -271,8 +271,19 @@ class _BookDialogState extends State<BookDialog> {
   }
 
   Widget _buildCoverCard(ColorScheme colorScheme, {bool compact = false}) {
+    final responsive = Responsive(context);
+    final isMobile = responsive.isCompact;
+    
+    // Responsive dimensions for book cover
+    final width = (compact 
+        ? (isMobile ? 90.0 : 110.0)
+        : (isMobile ? 140.0 : 170.0));
+    final height = (compact
+        ? (isMobile ? 120.0 : 150.0)
+        : (isMobile ? 180.0 : 220.0));
+    
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(responsive.pagePadding),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
@@ -283,8 +294,8 @@ class _BookDialogState extends State<BookDialog> {
           Stack(
             children: [
               Container(
-                width: compact ? 110 : 170,
-                height: compact ? 150 : 220,
+                width: width,
+                height: height,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   gradient: LinearGradient(

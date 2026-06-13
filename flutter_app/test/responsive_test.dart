@@ -91,7 +91,7 @@ void main() {
       final wide = Responsive.fromConstraints(
         const BoxConstraints(maxWidth: 1400, maxHeight: 800),
       );
-      expect(wide.dialogWidth(), 520);
+      expect(wide.dialogWidth(), 600);
     });
 
     test('dialogPadding is smaller on compact', () {

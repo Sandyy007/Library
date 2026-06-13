@@ -23,12 +23,23 @@ class _AppErrorBoundaryState extends State<AppErrorBoundary> {
     super.initState();
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
-      if (mounted && kDebugMode) {
+      if (!mounted || !kDebugMode) return;
+      // Defer the setState to a post-frame callback. Calling it inside
+      // the onError handler fires while a build/layout pass is in
+      // progress, which the framework treats as
+      // "setState() or markNeedsBuild() called during build". The
+      // error boundary's own rebuild then cascades and triggers
+      // more mouse-tracker / RenderBox errors. Deferring lets the
+      // current frame finish cleanly.
+      final ex = details.exception;
+      final st = details.stack;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         setState(() {
-          _error = details.exception;
-          _stack = details.stack;
+          _error = ex;
+          _stack = st;
         });
-      }
+      });
     };
   }
 

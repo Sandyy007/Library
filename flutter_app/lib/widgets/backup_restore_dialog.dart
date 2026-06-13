@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 
 class BackupRestoreDialog extends StatefulWidget {
   const BackupRestoreDialog({super.key});
@@ -18,13 +19,11 @@ class _BackupRestoreDialogState extends State<BackupRestoreDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-    final maxWidth = (isSmallScreen ? screenSize.width * 0.95 : 600).toDouble();
+    final r = Responsive(context);
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
+        constraints: BoxConstraints(maxWidth: r.dialogWidth(maxDesktop: 600)),
         child: Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Column(

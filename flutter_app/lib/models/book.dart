@@ -1,5 +1,12 @@
 import '../utils/legacy_hindi.dart';
 
+int _toInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
 class Book {
   final int id;
   final String isbn;
@@ -38,7 +45,7 @@ class Book {
     final descriptionRaw = json['description'];
 
     return Book(
-      id: json['id'] ?? 0,
+      id: _toInt(json['id']),
       isbn: json['isbn'] ?? '',
       title: normalizeLegacyHindiToUnicode(json['title'] ?? ''),
       author: normalizeLegacyHindiToUnicode(json['author'] ?? ''),
@@ -51,9 +58,9 @@ class Book {
       status: json['status'] ?? 'available',
       addedDate: json['added_date'] ?? '',
       coverImage: json['cover_image'],
-      totalCopies: json['total_copies'] ?? 1,
+      totalCopies: _toInt(json['total_copies'], 1),
       availableCopies:
-          json['available_copies'] ?? (json['status'] == 'available' ? 1 : 0),
+          _toInt(json['available_copies'], json['status'] == 'available' ? 1 : 0),
       description: descriptionRaw == null
           ? null
           : normalizeLegacyHindiToUnicode(descriptionRaw.toString()),
@@ -149,10 +156,14 @@ class BooksResponse {
 
   factory BooksResponse.fromJson(Map<String, dynamic> json) {
     final dataList = json['data'] as List<dynamic>? ?? [];
+    final paginationJson = json['pagination'];
     return BooksResponse(
       data: dataList.map((item) => Book.fromJson(item)).toList(),
       pagination: BooksPagination.fromJson(
-          Map<String, dynamic>.from(json['pagination'] ?? {})),
+        paginationJson is Map<String, dynamic>
+            ? paginationJson
+            : <String, dynamic>{},
+      ),
     );
   }
 }

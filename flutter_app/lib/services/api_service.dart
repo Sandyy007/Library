@@ -52,6 +52,10 @@ class ApiService {
   static const int maxRetries = 3;  // Max retry attempts for failed requests
   static const Duration retryDelay = Duration(seconds: 2);  // Delay between retries
 
+  /// User-friendly connection error message — avoids leaking server URL.
+  static const String _connectionErrorMessage =
+    'Cannot connect to the server. Please ensure the backend service is running.';
+
   // Persistent HTTP client for connection reuse (keep-alive)
   static http.Client _client = http.Client();
 
@@ -821,7 +825,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error updating book: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout updating book: $e');
@@ -850,7 +854,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error deleting book: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout deleting book: $e');
@@ -1222,7 +1226,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading members: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout loading members: $e');
@@ -1326,7 +1330,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error adding member: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout adding member: $e');
@@ -1360,7 +1364,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error updating member: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout updating member: $e');
@@ -1390,7 +1394,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error deleting member: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout deleting member: $e');
@@ -1561,7 +1565,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading issues: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout loading issues: $e');
@@ -1647,7 +1651,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error issuing book: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout issuing book: $e');
@@ -1677,7 +1681,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error returning book: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout returning book: $e');
@@ -1722,7 +1726,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error updating issue: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout updating issue: $e');
@@ -1752,7 +1756,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error deleting issue: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout deleting issue: $e');
@@ -1791,7 +1795,7 @@ class ApiService {
     } on SocketException catch (e) {
       _log('DEBUG: Socket error loading dashboard stats: $e');
       throw Exception(
-        'Cannot connect to server. Make sure backend is running at http://localhost:3000',
+        _connectionErrorMessage,
       );
     } on TimeoutException catch (e) {
       _log('DEBUG: Timeout loading dashboard stats: $e');

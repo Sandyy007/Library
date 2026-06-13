@@ -13,6 +13,7 @@ import '../widgets/dashboard_content.dart';
 import '../widgets/books_content.dart';
 import '../widgets/members_content.dart';
 import '../widgets/issues_content.dart';
+import '../utils/responsive.dart';
 import '../widgets/reports_content.dart';
 import '../widgets/about_content.dart';
 import '../widgets/search_results_dialog.dart';
@@ -23,7 +24,12 @@ import '../utils/error_utils.dart';
 import 'dart:async';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, this.initialIndex = 0});
+
+  /// Tab to start on (0=Dashboard, 1=Books, 2=Members, 3=Issues,
+  /// 4=Reports, 5=About). Primarily for tests that want to mount
+  /// a specific tab without having to simulate navigation.
+  final int initialIndex;
 
   /// Broadcasts shortcut events to child widgets.
   /// Values: 'new-book', 'new-member', 'new-issue'
@@ -76,6 +82,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
+    _previousIndex = widget.initialIndex;
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -107,11 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _loadInitialData() {
-    // Keep startup fast: Dashboard content will fetch its own alerts/activity.
-    context.read<IssueProvider>().loadStats().catchError(
-      (e) => kDebugMode ? debugPrint('Error loading stats: $e') : null,
-    );
-
+    // Dashboard content will fetch its own alerts/activity.
     // Initialize notifications with current user (if authenticated)
     final authProvider = context.read<AuthProvider>();
     if (authProvider.isAuthenticated && authProvider.user != null) {
@@ -146,20 +150,19 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 900;
-    final isVeryCompact = screenWidth < 600;
-    final showSearchField = screenWidth >= 760;
-    final searchBarWidth = screenWidth >= 1200
-      ? 440.0
-      : (screenWidth >= 1000 ? 380.0 : 320.0);
+    final r = Responsive(context);
+    final isVeryCompact = r.width < Breakpoints.sidebarDrawerThreshold;
+    final showSearchField = r.width >= 760;
+    final searchBarWidth = r.isExtraExpanded
+      ? 480.0
+      : (r.isExpanded ? 440.0 : (r.width >= 1000 ? 380.0 : 320.0));
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
-      drawer: isCompact
+      drawer: isVeryCompact
           ? Drawer(
               child: Sidebar(
                 selectedIndex: _selectedIndex,
@@ -184,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         child: Row(
           children: [
-            if (!isCompact)
+            if (!isVeryCompact)
               Sidebar(
                 selectedIndex: _selectedIndex,
                 onItemSelected: _onItemSelected,
@@ -212,7 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       child: Row(
                         children: [
-                          if (isCompact)
+                          if (isVeryCompact)
                             FocusTraversalOrder(
                               order: const NumericFocusOrder(1),
                               child: Semantics(
@@ -221,20 +224,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 child: Builder(
                                   builder: (context) => Tooltip(
                                     message: 'Open menu',
-                                    child: TextButton.icon(
+                                    child: IconButton(
                                       onPressed: () =>
                                           Scaffold.of(context).openDrawer(),
                                       icon: const Icon(Icons.menu_rounded),
-                                      label: const Text('Menu'),
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                      ),
+                                      tooltip: 'Open menu',
                                     ),
                                   ),
                                 ),
@@ -278,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     'Global search. Press Control and F to focus this field.',
                                 child: Container(
                                   width: searchBarWidth,
-                                  height: 40,
+                                  height: r.inputHeight,
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(12),
@@ -342,16 +336,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                               child: Semantics(
                                 button: true,
                                 label: 'Open search dialog',
-                                child: TextButton.icon(
+                                child: IconButton(
                                   onPressed: () => _showSearchDialog(context),
                                   icon: Icon(
                                     Icons.search_rounded,
                                     color: Theme.of(context).colorScheme.primary,
                                   ),
-                                  label: const Text('Search'),
-                                  style: TextButton.styleFrom(
-                                    shape: const StadiumBorder(),
-                                  ),
+                                  tooltip: 'Search',
                                 ),
                               ),
                             ),
@@ -558,16 +549,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     switch (_selectedIndex) {
       case 0:
         // Dashboard — trigger full reload via IssueProvider stats
-        context.read<IssueProvider>().loadStats().catchError((_) {});
+        context.read<IssueProvider>().loadStats().catchError(
+          (e) => kDebugMode ? debugPrint('Refresh stats: $e') : null,
+        );
         break;
       case 1:
-        context.read<BookProvider>().loadBooks().catchError((_) {});
+        context.read<BookProvider>().loadBooks().catchError(
+          (e) => kDebugMode ? debugPrint('Refresh books: $e') : null,
+        );
         break;
       case 2:
-        context.read<MemberProvider>().loadMembers().catchError((_) {});
+        context.read<MemberProvider>().loadMembers().catchError(
+          (e) => kDebugMode ? debugPrint('Refresh members: $e') : null,
+        );
         break;
       case 3:
-        context.read<IssueProvider>().loadIssues().catchError((_) {});
+        context.read<IssueProvider>().loadIssues().catchError(
+          (e) => kDebugMode ? debugPrint('Refresh issues: $e') : null,
+        );
         break;
       case 4:
         // Reports — no single refresh, just notify
@@ -636,15 +635,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _showSearchDialog(BuildContext context) {
-    final sw = MediaQuery.of(context).size.width;
+    final r = Responsive(context);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Search'),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: sw < 500 ? sw * 0.85 : 300,
-          ),
+        content: SizedBox(
+          width: r.dialogWidth(maxDesktop: 400),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -680,28 +677,32 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _showShortcutHelpDialog() {
+    final r = Responsive(context);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Keyboard Shortcuts'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Ctrl+1..6  Switch tabs'),
-            SizedBox(height: 8),
-            Text('Ctrl+F     Focus search'),
-            SizedBox(height: 8),
-            Text('Ctrl+K     Focus search'),
-            SizedBox(height: 8),
-            Text('Ctrl+R     Refresh current tab'),
-            SizedBox(height: 8),
-            Text('Ctrl+N     Create new item (context-aware)'),
-            SizedBox(height: 8),
-            Text('Ctrl+/     Open this shortcut help'),
-            SizedBox(height: 8),
-            Text('F1        Open this shortcut help'),
-          ],
+        content: SizedBox(
+          width: r.dialogWidth(maxDesktop: 400),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Ctrl+1..6  Switch tabs'),
+              SizedBox(height: 8),
+              Text('Ctrl+F     Focus search'),
+              SizedBox(height: 8),
+              Text('Ctrl+K     Focus search'),
+              SizedBox(height: 8),
+              Text('Ctrl+R     Refresh current tab'),
+              SizedBox(height: 8),
+              Text('Ctrl+N     Create new item (context-aware)'),
+              SizedBox(height: 8),
+              Text('Ctrl+/     Open this shortcut help'),
+              SizedBox(height: 8),
+              Text('F1        Open this shortcut help'),
+            ],
+          ),
         ),
         actions: [
           TextButton(

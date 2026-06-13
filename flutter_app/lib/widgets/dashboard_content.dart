@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
+import '../utils/responsive.dart';
 import 'common_widgets.dart';
 
 enum DashboardDensityMode { compact, detailed }
@@ -151,8 +152,10 @@ class _DashboardContentState extends State<DashboardContent>
   }
 
   DashboardDensityMode _resolveDensityMode(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 900) {
+    // Use the project's shared breakpoint helper so the threshold stays
+    // in sync with the rest of the app (currently medium = 900px).
+    final r = Responsive(context);
+    if (r.isMedium) {
       return DashboardDensityMode.compact;
     }
 
@@ -429,7 +432,8 @@ class _DashboardContentState extends State<DashboardContent>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final contentPadding = constraints.maxWidth < 600 ? 12.0 : (constraints.maxWidth < 900 ? 16.0 : 24.0);
+              final r = Responsive.fromConstraints(constraints);
+              final contentPadding = r.pagePadding;
               return Stack(
                 children: [
                   Positioned.fill(
@@ -438,7 +442,8 @@ class _DashboardContentState extends State<DashboardContent>
                     ),
                   ),
                   SingleChildScrollView(
-                    child: Padding(
+                    child: ResponsiveContent(
+                      maxWidth: 1800,
                       padding: EdgeInsets.all(contentPadding),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,9 +719,9 @@ class _DashboardContentState extends State<DashboardContent>
                   end: Alignment.bottomRight,
                   colors: isDark
                       ? [
-                          const Color(0xFF070D17),
-                          cs.primary.withValues(alpha: glow * 1.5),
-                          cs.secondary.withValues(alpha: glow * 2),
+                          const Color(0xFF0F1118),
+                          cs.primary.withValues(alpha: glow * 1.2),
+                          cs.secondary.withValues(alpha: glow * 1.8),
                         ]
                       : [
                           cs.surface,
@@ -832,13 +837,16 @@ class _DashboardContentState extends State<DashboardContent>
             child: Icon(icon, size: 12, color: cs.primary),
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.85),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -1983,59 +1991,68 @@ class _DashboardContentState extends State<DashboardContent>
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
           if (count > 0) ...[
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () {
-                final ctx = context;
-                // ignore: use_build_context_synchronously
-                Future.microtask(() => _showAlertDetailsPopup(
+            const SizedBox(width: 6),
+            Flexible(
+              fit: FlexFit.loose,
+              child: TextButton(
+                onPressed: () {
+                  final ctx = context;
                   // ignore: use_build_context_synchronously
-                  ctx: ctx,
-                  title: title,
-                  icon: icon,
-                  color: color,
-                  items: items,
-                  type: 'issue',
-                  actions: actions,
-                ));
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Future.microtask(() => _showAlertDetailsPopup(
+                    // ignore: use_build_context_synchronously
+                    ctx: ctx,
+                    title: title,
+                    icon: icon,
+                    color: color,
+                    items: items,
+                    type: 'issue',
+                    actions: actions,
+                  ));
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 14),
+                  ],
+                ),
               ),
             ),
           ],
@@ -2137,20 +2154,24 @@ class _DashboardContentState extends State<DashboardContent>
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isOverdue
-                              ? color.withValues(alpha: 0.12)
-                              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Due: ${dueDateText.isEmpty ? '-' : dueDateText}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isOverdue ? color : Theme.of(context).colorScheme.primary,
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isOverdue
+                                ? color.withValues(alpha: 0.12)
+                                : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Due: ${dueDateText.isEmpty ? '-' : dueDateText}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isOverdue ? color : Theme.of(context).colorScheme.primary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -3181,49 +3202,58 @@ class _DashboardContentState extends State<DashboardContent>
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
           if (count > 0) ...[
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () {
-                final ctx = context;
-                _showAllLowStockPopup(ctx, count);
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+            const SizedBox(width: 6),
+            Flexible(
+              fit: FlexFit.loose,
+              child: TextButton(
+                onPressed: () {
+                  final ctx = context;
+                  _showAllLowStockPopup(ctx, count);
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 14),
+                  ],
+                ),
               ),
             ),
           ],
@@ -3295,18 +3325,22 @@ class _DashboardContentState extends State<DashboardContent>
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$available left',
-                    style: TextStyle(
-                      color: const Color(0xFFF59E0B),
-                      fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$available left',
+                      style: TextStyle(
+                        color: const Color(0xFFF59E0B),
+                        fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -3351,58 +3385,67 @@ class _DashboardContentState extends State<DashboardContent>
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
           if (count > 0) ...[
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () {
-                final ctx = context;
-                // ignore: use_build_context_synchronously
-                Future.microtask(() => _showAlertDetailsPopup(
+            const SizedBox(width: 6),
+            Flexible(
+              fit: FlexFit.loose,
+              child: TextButton(
+                onPressed: () {
+                  final ctx = context;
                   // ignore: use_build_context_synchronously
-                  ctx: ctx,
-                  title: 'Daily Issue-Return Summary',
-                  icon: Icons.today_rounded,
-                  color: color,
-                  items: items,
-                  type: 'daily_summary',
-                ));
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Future.microtask(() => _showAlertDetailsPopup(
+                    // ignore: use_build_context_synchronously
+                    ctx: ctx,
+                    title: 'Daily Issue-Return Summary',
+                    icon: Icons.today_rounded,
+                    color: color,
+                    items: items,
+                    type: 'daily_summary',
+                  ));
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 14),
+                  ],
+                ),
               ),
             ),
           ],
@@ -3414,8 +3457,9 @@ class _DashboardContentState extends State<DashboardContent>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildStatChip('Issued', issuedToday, const Color(0xFF3B82F6)),
-              _buildStatChip('Returned', returnedToday, const Color(0xFF10B981)),
+              Flexible(child: _buildStatChip('Issued', issuedToday, const Color(0xFF3B82F6))),
+              const SizedBox(width: 8),
+              Flexible(child: _buildStatChip('Returned', returnedToday, const Color(0xFF10B981))),
             ],
           ),
         ),
@@ -3478,20 +3522,24 @@ class _DashboardContentState extends State<DashboardContent>
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: status == 'returned'
-                          ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                          : const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      status == 'returned' ? 'Returned' : 'Issued',
-                      style: TextStyle(
-                        color: status == 'returned' ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: status == 'returned'
+                            ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                            : const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        status == 'returned' ? 'Returned' : 'Issued',
+                        style: TextStyle(
+                          color: status == 'returned' ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -3534,58 +3582,67 @@ class _DashboardContentState extends State<DashboardContent>
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
           if (count > 0) ...[
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () {
-                final ctx = context;
-                // ignore: use_build_context_synchronously
-                Future.microtask(() => _showAlertDetailsPopup(
+            const SizedBox(width: 6),
+            Flexible(
+              fit: FlexFit.loose,
+              child: TextButton(
+                onPressed: () {
+                  final ctx = context;
                   // ignore: use_build_context_synchronously
-                  ctx: ctx,
-                  title: 'Most Active Members',
-                  icon: Icons.star_rounded,
-                  color: color,
-                  items: items,
-                  type: 'most_active_members',
-                ));
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Future.microtask(() => _showAlertDetailsPopup(
+                    // ignore: use_build_context_synchronously
+                    ctx: ctx,
+                    title: 'Most Active Members',
+                    icon: Icons.star_rounded,
+                    color: color,
+                    items: items,
+                    type: 'most_active_members',
+                  ));
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 14),
+                  ],
+                ),
               ),
             ),
           ],
@@ -3649,18 +3706,22 @@ class _DashboardContentState extends State<DashboardContent>
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$borrowCount borrows',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$borrowCount borrows',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -3702,58 +3763,67 @@ class _DashboardContentState extends State<DashboardContent>
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
           if (count > 0) ...[
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () {
-                final ctx = context;
-                // ignore: use_build_context_synchronously
-                Future.microtask(() => _showAlertDetailsPopup(
+            const SizedBox(width: 6),
+            Flexible(
+              fit: FlexFit.loose,
+              child: TextButton(
+                onPressed: () {
+                  final ctx = context;
                   // ignore: use_build_context_synchronously
-                  ctx: ctx,
-                  title: 'Most Issued Books',
-                  icon: Icons.trending_up_rounded,
-                  color: color,
-                  items: items,
-                  type: 'most_issued_books',
-                ));
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Future.microtask(() => _showAlertDetailsPopup(
+                    // ignore: use_build_context_synchronously
+                    ctx: ctx,
+                    title: 'Most Issued Books',
+                    icon: Icons.trending_up_rounded,
+                    color: color,
+                    items: items,
+                    type: 'most_issued_books',
+                  ));
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 14),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 14),
+                  ],
+                ),
               ),
             ),
           ],
@@ -3815,34 +3885,37 @@ class _DashboardContentState extends State<DashboardContent>
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$borrowCount borrows',
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$borrowCount borrows',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$available available',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$available available',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),

@@ -8,6 +8,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../utils/responsive.dart';
 import '../providers/report_provider.dart';
 import '../providers/issue_provider.dart';
 import '../models/report_models.dart';
@@ -67,8 +68,8 @@ class _ReportsContentState extends State<ReportsContent>
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 600;
+    final responsive = Responsive(context);
+    final isCompact = responsive.isCompact;
 
     return Scaffold(
       body: Column(
