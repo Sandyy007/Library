@@ -242,29 +242,33 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
               // Footer
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: _history.isEmpty ? null : _exportToPdf,
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('Download PDF'),
-                    ),
-                    Row(
-                      children: [
-                        TextButton.icon(
-                          onPressed: _loadHistory,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Refresh'),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Close'),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _history.isEmpty ? null : _exportToPdf,
+                        icon: const Icon(Icons.picture_as_pdf),
+                        label: const Text('Download PDF'),
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: _loadHistory,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Refresh'),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -734,28 +738,31 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                   },
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildDateChip(
-                      'Issued: ${_formatDate(issue.issueDate)}',
-                      Icons.calendar_today,
-                      const Color(0xFF3B82F6),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildDateChip(
-                      'Due: ${_formatDate(issue.dueDate)}',
-                      Icons.event,
-                      const Color(0xFFF59E0B),
-                    ),
-                    if (issue.returnDate != null) ...[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildDateChip(
+                        'Issued: ${_formatDate(issue.issueDate)}',
+                        Icons.calendar_today,
+                        const Color(0xFF3B82F6),
+                      ),
                       const SizedBox(width: 8),
                       _buildDateChip(
-                        'Returned: ${_formatDate(issue.returnDate!)}',
-                        Icons.check,
-                        const Color(0xFF10B981),
+                        'Due: ${_formatDate(issue.dueDate)}',
+                        Icons.event,
+                        const Color(0xFFF59E0B),
                       ),
+                      if (issue.returnDate != null) ...[
+                        const SizedBox(width: 8),
+                        _buildDateChip(
+                          'Returned: ${_formatDate(issue.returnDate!)}',
+                          Icons.check,
+                          const Color(0xFF10B981),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ],
             ),

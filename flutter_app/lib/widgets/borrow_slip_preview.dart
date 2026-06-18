@@ -135,6 +135,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
               children: [
                 Text(
                   'Borrow Slip',
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -145,6 +146,8 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
                 const SizedBox(height: 2),
                 Text(
                   slip['slip_number'] ?? 'N/A',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.85),
@@ -356,9 +359,13 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          'Issued: ${_formatDate(issue['issue_date'] ?? '')}',
-          style: TextStyle(fontSize: 11, color: subTextColor),
+        Flexible(
+          child: Text(
+            'Issued: ${_formatDate(issue['issue_date'] ?? '')}',
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: TextStyle(fontSize: 11, color: subTextColor),
+          ),
         ),
       ],
     );
@@ -638,30 +645,33 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
           top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              side: BorderSide(color: colorScheme.outline),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                side: BorderSide(color: colorScheme.outline),
+              ),
+              onPressed: () => _printSlip(slip),
+              icon: const Icon(Icons.print_rounded, size: 18),
+              label: const Text('Print'),
             ),
-            onPressed: () => _printSlip(slip),
-            icon: const Icon(Icons.print_rounded, size: 18),
-            label: const Text('Print'),
-          ),
-          const SizedBox(width: 10),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            const SizedBox(width: 10),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => _downloadSlip(slip),
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Download PDF'),
             ),
-            onPressed: () => _downloadSlip(slip),
-            icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Download PDF'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

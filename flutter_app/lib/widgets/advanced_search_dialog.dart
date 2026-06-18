@@ -437,6 +437,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
               text: displayTitle,
               base: const TextStyle(fontWeight: FontWeight.w600),
             ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
           );
         },
       ),
@@ -460,24 +462,29 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
           Row(
             children: [
               if (book.category != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    book.category!,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Theme.of(context).colorScheme.primary,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      book.category!,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
-              const SizedBox(width: 8),
+              if (book.category != null && book.yearPublished != null)
+                const SizedBox(width: 8),
               if (book.yearPublished != null)
                 Text(
                   '${book.yearPublished}',

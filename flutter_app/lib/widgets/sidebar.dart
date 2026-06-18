@@ -246,6 +246,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                             ),
                             textAlign: TextAlign.center,
                             maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           // Subtitless
                           const SizedBox(height: 2),
@@ -287,6 +288,8 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                     user.role.toLowerCase() == 'admin'
                                         ? 'Administrator'
                                         : user.username,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
@@ -427,52 +430,72 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   ),
                   child: Consumer<ThemeProvider>(
                     builder: (context, themeProvider, child) {
+                      final isCollapsed = Responsive(context).shouldCollapseSidebar;
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
-                        child: Row(
-                        children: [
-                          Icon(
-                            Icons.light_mode_rounded,
-                            size: 16,
-                            color: isDark ? const Color(0xFFFCD34D) : const Color(0xFFF59E0B),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Light',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151),
+                        child: isCollapsed
+                            ? Center(
+                                child: SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 20,
+                                      minHeight: 20,
+                                    ),
+                                    icon: Icon(
+                                      themeProvider.isDarkMode
+                                          ? Icons.dark_mode_rounded
+                                          : Icons.light_mode_rounded,
+                                      size: 16,
+                                      color: isDark ? const Color(0xFFFCD34D) : const Color(0xFFF59E0B),
+                                    ),
+                                    onPressed: () => themeProvider.toggleTheme(),
+                                  ),
+                                ),
+                              )
+                            : Row(
+                          children: [
+                            Icon(
+                              Icons.light_mode_rounded,
+                              size: 16,
+                              color: isDark ? const Color(0xFFFCD34D) : const Color(0xFFF59E0B),
                             ),
-                          ),
-                          const Spacer(),
-                          SizedBox(
-                            height: 20,
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              child: Switch(
-                                key: ValueKey(themeProvider.isDarkMode),
-                                value: themeProvider.isDarkMode,
-                                onChanged: (value) => themeProvider.toggleTheme(),
-                                activeThumbColor: isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0),
-                                activeTrackColor:
-                                    (isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0)).withValues(alpha: 0.3),
-                                inactiveThumbColor: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
-                                inactiveTrackColor:
-                                    (isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)).withValues(alpha: 0.3),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                            const SizedBox(width: 8),
+                            Text(
+                              'Light',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151),
                               ),
                             ),
-                          ),
-                          const Spacer(),
-                          Icon(
-                            Icons.dark_mode_rounded,
-                            size: 16,
-                            color: isDark ? const Color(0xFF9B9DAB) : const Color(0xFF6B7280),
-                          ),
-                        ],
+                            const Spacer(),
+                            SizedBox(
+                              height: 20,
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                child: Switch(
+                                  key: ValueKey(themeProvider.isDarkMode),
+                                  value: themeProvider.isDarkMode,
+                                  onChanged: (value) => themeProvider.toggleTheme(),
+                                  activeThumbColor: isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0),
+                                  activeTrackColor: (isDark ? const Color(0xFF7C9BFF) : const Color(0xFF1565C0)).withValues(alpha: 0.3),
+                                  inactiveThumbColor: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                                  inactiveTrackColor: (isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)).withValues(alpha: 0.3),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              Icons.dark_mode_rounded,
+                              size: 16,
+                              color: isDark ? const Color(0xFF9B9DAB) : const Color(0xFF6B7280),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -563,16 +586,18 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                     size: 20,
                                     color: Colors.white,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Logout',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
+                                  if (!responsive.shouldCollapseSidebar) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Logout',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -699,6 +724,8 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                 Expanded(
                   child: Text(
                     title,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -782,6 +809,8 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                 Expanded(
                   child: Text(
                     title,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: isHovered ? FontWeight.w600 : FontWeight.w500,

@@ -143,6 +143,7 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                           ),
                           label: const Text(
                             'Mark all read',
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -331,6 +332,8 @@ class NotificationTile extends StatelessWidget {
                                     fontSize: 14,
                                   ),
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               );
                             },
                           ),

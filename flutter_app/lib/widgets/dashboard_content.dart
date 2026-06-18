@@ -1831,6 +1831,7 @@ class _DashboardContentState extends State<DashboardContent>
       children: [
         Text(
           'Page $currentPage of $totalPages',
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: cs.onSurface.withValues(alpha: 0.7),
               ),
@@ -2679,7 +2680,9 @@ class _DashboardContentState extends State<DashboardContent>
                                 shape: const StadiumBorder(),
                               ),
                             ),
-                            Text('Page $currentPage of $totalPages'),
+                            Text('Page $currentPage of $totalPages',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             TextButton.icon(
                               onPressed: (!isLoading && currentPage < totalPages)
                                   ? () async {

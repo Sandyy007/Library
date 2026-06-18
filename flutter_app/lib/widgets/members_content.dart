@@ -791,7 +791,6 @@ class _MembersContentState extends State<MembersContent>
       if (showType) 140,
       if (showBorrowed) 90,
       110,
-      130,
     ];
     final minTableWidth =
       columnWidths.fold(0.0, (sum, width) => sum + width);
@@ -916,7 +915,6 @@ class _MembersContentState extends State<MembersContent>
                                   dividerThickness: 0.5,
                                   columns: [
                                     DataColumn2(
-                                      fixedWidth: 46,
                                       label: Center(
                                         child: Transform.scale(
                                           scale: 0.85,
@@ -960,42 +958,34 @@ class _MembersContentState extends State<MembersContent>
                                     ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Photo'),
-                                      fixedWidth: 64,
                                     ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Name'),
-                                      fixedWidth: 220,
                                     ),
                                     if (showEmail)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Email'),
-                                        fixedWidth: 220,
                                       ),
                                     if (showPhone)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Phone'),
-                                        fixedWidth: 120,
                                       ),
                                     if (showType)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Type'),
-                                        fixedWidth: 140,
                                       ),
                                     if (showBorrowed)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Borrowed'),
-                                        fixedWidth: 90,
                                       ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Status'),
-                                      fixedWidth: 110,
                                     ),
                                     DataColumn2(
                                       label: Align(
                                         alignment: Alignment.centerRight,
                                         child: _buildHeaderLabel('Actions'),
                                       ),
-                                      fixedWidth: 130,
                                     ),
                                   ],
                                   rows: filteredMembers
@@ -1477,7 +1467,7 @@ class _MembersContentState extends State<MembersContent>
                           const SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [pageIndicator, pagerButtons],
+                            children: [Flexible(child: pageIndicator), pagerButtons],
                           ),
                           if (memberProvider.hasMore) ...[
                             const SizedBox(height: 10),

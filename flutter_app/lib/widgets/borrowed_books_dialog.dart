@@ -167,6 +167,8 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                         children: [
                           Text(
                             'Currently Borrowed Books',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                             style: TextStyle(
                               color: colorScheme.onPrimaryContainer,
                               fontSize: isVerySmallScreen ? 15 : 18,
@@ -241,6 +243,8 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                             limitReached
                                 ? 'Borrowing limit reached! Must return books before borrowing more.'
                                 : 'Can borrow ${_maxAllowed - widget.borrowCount} more book(s)',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
                             style: TextStyle(
                               fontSize: isVerySmallScreen ? 11 : 13,
                               fontWeight: FontWeight.w500,

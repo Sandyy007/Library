@@ -50,7 +50,7 @@ class SearchResultsDialog extends StatelessWidget {
                       child: Column(
                         children: [
                           const TabBar(
-                            isScrollable: false,
+                            isScrollable: true,
                             tabs: [
                               Tab(
                                 text: 'Books',
@@ -105,6 +105,8 @@ class SearchResultsDialog extends StatelessWidget {
                 text: displayTitle,
                 base: const TextStyle(),
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             subtitle: Text(
               'by $displayAuthor • ${book.category ?? 'No category'}',
@@ -113,6 +115,8 @@ class SearchResultsDialog extends StatelessWidget {
                 text: displayAuthor,
                 base: const TextStyle(),
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             trailing: Chip(
               label: Text(book.status),
@@ -146,9 +150,13 @@ class SearchResultsDialog extends StatelessWidget {
                 text: displayName,
                 base: const TextStyle(),
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             subtitle: Text(
               '${member.email ?? 'No email'} • ${member.phone ?? 'No phone'}',
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             trailing: Chip(
               label: Text(member.memberTypeLabel),
@@ -188,6 +196,8 @@ class SearchResultsDialog extends StatelessWidget {
                 text: displayTitle,
                 base: const TextStyle(),
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             subtitle: Text(
               'by $displayAuthor • Issued to: $displayMember',
@@ -196,6 +206,8 @@ class SearchResultsDialog extends StatelessWidget {
                 text: '$displayAuthor$displayMember',
                 base: const TextStyle(),
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
             trailing: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 100),

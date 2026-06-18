@@ -336,7 +336,6 @@ class _BooksContentState extends State<BooksContent>
       if (showCategory) 120,
       if (showCopies) 90,
       120,
-      110,
     ];
     final minTableWidth =
       columnWidths.fold(0.0, (sum, width) => sum + width);
@@ -463,7 +462,6 @@ class _BooksContentState extends State<BooksContent>
                                   dividerThickness: 0.5,
                                   columns: [
                                     DataColumn2(
-                                      fixedWidth: 46,
                                       label: Center(
                                         child: Transform.scale(
                                           scale: 0.85,
@@ -505,44 +503,35 @@ class _BooksContentState extends State<BooksContent>
                                     ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Cover'),
-                                      fixedWidth: 64,
                                     ),
                                     if (showIsbn)
                                       DataColumn2(
                                         label: _buildHeaderLabel('ISBN'),
-                                        fixedWidth: 130,
                                       ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Title'),
-                                      fixedWidth: 240,
                                     ),
                                     if (showAuthor)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Author'),
-                                        fixedWidth: 180,
                                       ),
                                     if (showRack)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Rack'),
-                                        fixedWidth: 70,
                                       ),
                                     if (showCategory)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Category'),
-                                        fixedWidth: 120,
                                       ),
                                     if (showCopies)
                                       DataColumn2(
                                         label: _buildHeaderLabel('Copies'),
-                                        fixedWidth: 90,
                                       ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Status'),
-                                      fixedWidth: 120,
                                     ),
                                     DataColumn2(
                                       label: _buildHeaderLabel('Actions'),
-                                      fixedWidth: 110,
                                     ),
                                   ],
                                   rows: filteredBooks
@@ -952,9 +941,9 @@ class _BooksContentState extends State<BooksContent>
                                   ),
                                 ),
                               ],
-                            ),
                           ),
                         ),
+                      ),
                 ),
               ),
             ),
@@ -1100,7 +1089,7 @@ class _BooksContentState extends State<BooksContent>
                           const SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [pageIndicator, pagerButtons],
+                            children: [Flexible(child: pageIndicator), pagerButtons],
                           ),
                           if (bookProvider.hasMore) ...[
                             const SizedBox(height: 10),

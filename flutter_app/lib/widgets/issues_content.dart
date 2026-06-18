@@ -461,7 +461,6 @@ class _IssuesContentState extends State<IssuesContent> {
       if (showDueDate) 120,
       if (showReturnDate) 120,
       if (showStatus) 105,
-      240,
     ];
     final minTableWidth = columnWidths.fold(0.0, (sum, w) => sum + w);
 
@@ -596,39 +595,32 @@ class _IssuesContentState extends State<IssuesContent> {
                                   columns: [
                                     DataColumn2(
                                       label: _buildIssuesHeaderLabel('Book'),
-                                      fixedWidth: columnWidths[0],
                                     ),
                                     if (showMember)
                                       DataColumn2(
                                         label: _buildIssuesHeaderLabel('Member'),
-                                        fixedWidth: columnWidths[1],
                                       ),
                                     if (showIssueDate)
                                       DataColumn2(
                                         label: _buildIssuesHeaderLabel('Issue Date'),
-                                        fixedWidth: columnWidths[showMember ? 2 : 1],
                                       ),
                                     if (showDueDate)
                                       DataColumn2(
                                         label: _buildIssuesHeaderLabel('Due Date'),
-                                        fixedWidth: columnWidths[showMember && showIssueDate ? 3 : (showMember || showIssueDate ? 2 : 1)],
                                       ),
                                     if (showReturnDate)
                                       DataColumn2(
                                         label: _buildIssuesHeaderLabel('Return'),
-                                        fixedWidth: columnWidths[showMember && showIssueDate && showDueDate ? 4 : 3],
                                       ),
                                     if (showStatus)
                                       DataColumn2(
                                         label: _buildIssuesHeaderLabel('Status'),
-                                        fixedWidth: 105,
                                       ),
                                     DataColumn2(
                                       label: Align(
                                         alignment: Alignment.centerRight,
                                         child: _buildIssuesHeaderLabel('Actions'),
                                       ),
-                                      fixedWidth: 240,
                                     ),
                                   ],
                                   rows: filteredIssues.toList().asMap().entries.map((entry) {
@@ -780,36 +772,39 @@ class _IssuesContentState extends State<IssuesContent> {
                                             ),
                                           ),
                                         DataCell(
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            children: [
-                                              _buildActionButton(
-                                                icon: Icons.description_outlined,
-                                                color: accentTeal,
-                                                tooltip: 'Generate Slip',
-                                                onTap: () => _generateBorrowSlip(context, issue),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              _buildActionButton(
-                                                icon: Icons.edit_outlined,
-                                                color: const Color(0xFFD97706),
-                                                tooltip: 'Edit Issue',
-                                                onTap: () => _showEditIssueDialog(context, issue),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              _buildActionButton(
-                                                icon: Icons.delete_outlined,
-                                                color: const Color(0xFFE11D48),
-                                                tooltip: 'Delete Issue',
-                                                onTap: () => _showDeleteIssueDialog(context, issue),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              if (issue.status == 'issued' || issue.status == 'overdue')
-                                                _buildReturnButtonFor(issue.id, colorScheme)
-                                              else
-                                                const SizedBox(width: 0),
-                                            ],
+                                          SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              mainAxisAlignment: MainAxisAlignment.end,
+                                              children: [
+                                                _buildActionButton(
+                                                  icon: Icons.description_outlined,
+                                                  color: accentTeal,
+                                                  tooltip: 'Generate Slip',
+                                                  onTap: () => _generateBorrowSlip(context, issue),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                _buildActionButton(
+                                                  icon: Icons.edit_outlined,
+                                                  color: const Color(0xFFD97706),
+                                                  tooltip: 'Edit Issue',
+                                                  onTap: () => _showEditIssueDialog(context, issue),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                _buildActionButton(
+                                                  icon: Icons.delete_outlined,
+                                                  color: const Color(0xFFE11D48),
+                                                  tooltip: 'Delete Issue',
+                                                  onTap: () => _showDeleteIssueDialog(context, issue),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                if (issue.status == 'issued' || issue.status == 'overdue')
+                                                  _buildReturnButtonFor(issue.id, colorScheme)
+                                                else
+                                                  const SizedBox(width: 0),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -822,12 +817,12 @@ class _IssuesContentState extends State<IssuesContent> {
                                   child: Container(height: 1, color: headerAccent),
                                 ),
                               ],
+                              ),
                             ),
                           ),
-                        ),
+                  ),
                 ),
               ),
-            ),
 
             // Pagination controls
             if (!issueProvider.isLoading && issueProvider.issues.isNotEmpty)

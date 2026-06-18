@@ -97,10 +97,13 @@ class _ReportsContentState extends State<ReportsContent>
               isCompact ? 12 : 20,
               8,
             ),
-            child: Row(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
               children: [
                 // Tab bar
-                Expanded(
+                SizedBox(
+                  width: isCompact ? 300 : 500,
                   child: TabBar(
                     controller: _tabController,
                     isScrollable: true,
@@ -177,6 +180,7 @@ class _ReportsContentState extends State<ReportsContent>
                 ),
                 const SizedBox(width: 4),
               ],
+            ),
             ),
           ),
           // Tab content

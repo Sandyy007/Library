@@ -103,6 +103,8 @@ class _BackupRestoreDialogState extends State<BackupRestoreDialog> {
                               Expanded(
                                 child: Text(
                                   _statusMessage!,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 3,
                                   style: TextStyle(color: _isError ? Colors.red[800] : Colors.green[800]),
                                 ),
                               ),
@@ -157,75 +159,88 @@ class _BackupRestoreDialogState extends State<BackupRestoreDialog> {
             ? Border.all(color: Colors.orange.withValues(alpha: 0.5))
             : null,
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 32),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 400;
+          return Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                  ),
-                ),
-                if (isWarning) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded,
-                          size: 14, color: Colors.orange[700]),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'Warning: Overwrites existing data',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.orange[700],
-                            fontWeight: FontWeight.w500,
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                    if (isWarning) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              size: 14, color: Colors.orange[700]),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Warning: Overwrites existing data',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.orange[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        ],
                       ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              if (isNarrow) ...[
+                const SizedBox(height: 12),
+              ] else ...[
+                const SizedBox(width: 16),
               ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 18),
-            label: Text(buttonText),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
+              SizedBox(
+                height: 36,
+                child: ElevatedButton.icon(
+                  onPressed: onPressed,
+                  icon: Icon(icon, size: 16),
+                  label: Text(isNarrow ? '' : buttonText),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 16),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

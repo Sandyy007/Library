@@ -315,6 +315,8 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
         // Title - 32px, weight 800
         Text(
           'Uttar Pradesh State Tax Training and Research Institute',
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w800,
@@ -697,6 +699,8 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                     // Title - 16px bold
                     Text(
                       title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
