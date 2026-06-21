@@ -2551,6 +2551,48 @@ class ApiService {
     }
   }
 
+  /// Builds a real .xlsx workbook on the server from client-supplied
+  /// [headers] and [rows] and returns the raw file bytes. Used for the
+  /// report exports whose data is computed on the client.
+  static Future<List<int>> exportSheet({
+    required String filename,
+    required String sheetName,
+    required List<String> headers,
+    required List<List<dynamic>> rows,
+  }) async {
+    final requestHeaders = await getHeaders();
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/export/sheet'),
+            headers: requestHeaders,
+            body: jsonEncode({
+              'filename': filename,
+              'sheetName': sheetName,
+              'headers': headers,
+              'rows': rows,
+            }),
+          )
+          .timeout(longTimeout);
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        _throwIfRateLimited(response);
+        await _throwIfUnauthorized(response);
+        _handleErrorResponse(response, 'Exporting sheet');
+        throw Exception('Failed to export sheet');
+      }
+    } on SocketException catch (_) {
+      throw Exception('Cannot connect to server.');
+    } on TimeoutException catch (_) {
+      throw Exception('Export request timed out.');
+    } catch (e) {
+      _log('DEBUG: Error exporting sheet: $e');
+      rethrow;
+    }
+  }
+
   // ==================== BORROW SLIPS ====================
 
   static Future<Map<String, dynamic>> generateBorrowSlip(int issueId) async {

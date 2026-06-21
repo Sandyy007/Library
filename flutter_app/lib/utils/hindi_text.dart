@@ -117,53 +117,37 @@ String normalizeHindiForPdf(String text) {
   return result.trim();
 }
 
+/// Returns a copy of [base] that renders Hindi/Devanagari glyphs correctly
+/// **without** changing the size, weight, letter-spacing or line-height of the
+/// surrounding UI. The only thing that changes for Hindi text is the font
+/// fallback chain, so Hindi and English read at a consistent scale.
 TextStyle hindiAwareTextStyle(
   BuildContext context, {
   required String text,
   required TextStyle base,
 }) {
-  final defaultSize = DefaultTextStyle.of(context).style.fontSize ?? 14;
-  final effectiveSize = base.fontSize ?? defaultSize;
+  const devanagariFallback = [
+    'NotoSansDevanagari',
+    'Nirmala UI',
+    'Mangal',
+    'Noto Sans Devanagari',
+  ];
 
   if (containsDevanagari(text)) {
-    return base.copyWith(
-      fontSize: (effectiveSize * 1.15).clamp(10, 30).toDouble(),
-      letterSpacing: 0.5,
-      height: 1.5,
-      fontFamilyFallback: const [
-        'NotoSansDevanagari',
-        'Nirmala UI',
-        'Mangal',
-        'Noto Sans Devanagari',
-        'Kruti Dev 010',
-        'DevLys',
-      ],
-    );
+    return base.copyWith(fontFamilyFallback: devanagariFallback);
   }
 
   if (looksLikeLegacyHindi(text)) {
     return base.copyWith(
-      fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
-      letterSpacing: 0.3,
-      height: 1.4,
       fontFamily: 'KrutiDev',
       fontFamilyFallback: const [
         'KrutiDev',
         'Kruti Dev 010',
-        'NotoSansDevanagari',
-        'Nirmala UI',
-        'Mangal',
+        ...devanagariFallback,
         'DevLys',
       ],
     );
   }
 
-  return base.copyWith(
-    fontFamilyFallback: const [
-      'NotoSansDevanagari',
-      'Nirmala UI',
-      'Mangal',
-      'Noto Sans Devanagari',
-    ],
-  );
+  return base.copyWith(fontFamilyFallback: devanagariFallback);
 }

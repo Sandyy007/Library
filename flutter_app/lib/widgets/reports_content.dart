@@ -16,6 +16,7 @@ import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/hindi_pdf_helper.dart';
+import '../services/api_service.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -163,6 +164,16 @@ class _ReportsContentState extends State<ReportsContent>
                         child: Row(
                           children: [
                             Icon(Icons.table_chart, color: const Color(0xFF10B981), size: 18),
+                            SizedBox(width: 8),
+                            Text('Export to Excel'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'csv',
+                        child: Row(
+                          children: [
+                            Icon(Icons.description_rounded, color: const Color(0xFF2563EB), size: 18),
                             SizedBox(width: 8),
                             Text('Export to CSV'),
                           ],
@@ -1505,9 +1516,33 @@ class _ReportsContentState extends State<ReportsContent>
 
         await File(path).writeAsBytes(bytes, flush: true);
       } else if (type == 'excel') {
+        final data = await _buildSheetData(exportName);
+        final bytes = await ApiService.exportSheet(
+          filename: 'report_${exportName}_$date',
+          sheetName: exportName.replaceAll('_', ' '),
+          headers: data.headers,
+          rows: data.rows,
+        );
+        final path = await FilePicker.platform.saveFile(
+          dialogTitle: 'Save Excel Report',
+          fileName: 'report_${exportName}_$date.xlsx',
+          type: FileType.custom,
+          allowedExtensions: const ['xlsx'],
+        );
+
+        if (!mounted) return;
+        if (path == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Export cancelled')));
+          return;
+        }
+
+        await File(path).writeAsBytes(bytes, flush: true);
+      } else if (type == 'csv') {
         final csv = await _buildCsv(exportName);
         final path = await FilePicker.platform.saveFile(
-          dialogTitle: 'Save Excel (CSV) Report',
+          dialogTitle: 'Save CSV Report',
           fileName: 'report_${exportName}_$date.csv',
           type: FileType.custom,
           allowedExtensions: const ['csv'],
@@ -1742,13 +1777,31 @@ class _ReportsContentState extends State<ReportsContent>
   }
 
   Future<String> _buildCsv(String exportName) async {
-    final reportProvider = context.read<ReportProvider>();
     final now = DateTime.now();
     final generatedOn = '${now.day.toString().padLeft(2, '0')}-'
         '${_getMonthName(now.month)}-${now.year} '
         '${now.hour.toString().padLeft(2, '0')}:'
         '${now.minute.toString().padLeft(2, '0')}:'
         '${now.second.toString().padLeft(2, '0')} IST';
+
+    final data = await _buildSheetData(exportName);
+
+    final buffer = StringBuffer();
+    // Add generation timestamp as comment
+    buffer.writeln('# Generated on: $generatedOn');
+    buffer.writeln(data.headers.map(_csvEscape).join(','));
+    for (final row in data.rows) {
+      buffer.writeln(row.map(_csvEscape).join(','));
+    }
+    return buffer.toString();
+  }
+
+  /// Builds the headers + rows for the current report, shared by the CSV and
+  /// the real Excel (.xlsx) exports so both stay in sync.
+  Future<({List<String> headers, List<List<String>> rows})> _buildSheetData(
+    String exportName,
+  ) async {
+    final reportProvider = context.read<ReportProvider>();
 
     List<String> headers;
     List<List<String>> rows;
@@ -1822,14 +1875,7 @@ class _ReportsContentState extends State<ReportsContent>
       ];
     }
 
-    final buffer = StringBuffer();
-    // Add generation timestamp as comment
-    buffer.writeln('# Generated on: $generatedOn');
-    buffer.writeln(headers.map(_csvEscape).join(','));
-    for (final row in rows) {
-      buffer.writeln(row.map(_csvEscape).join(','));
-    }
-    return buffer.toString();
+    return (headers: headers, rows: rows);
   }
 
   String _csvEscape(String value) {

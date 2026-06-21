@@ -4124,9 +4124,9 @@ app.get('/api/backup', async (req, res) => {
 
 // Allowed tables and their valid columns for restore (whitelist to prevent SQL injection)
 const RESTORE_SCHEMA = {
-  books: ['id','isbn','title','author','rack_number','category','publisher','year_published','cover_image','total_copies','available_copies','description','status','created_at'],
+  books: ['id','isbn','title','author','rack_number','category','publisher','year_published','cover_image','total_copies','available_copies','description','status','added_date'],
   members: ['id','name','email','phone','member_type','membership_date','profile_photo','address','expiry_date','is_active','created_at'],
-  issues: ['id','book_id','member_id','issue_date','due_date','return_date','status','fine_amount','returned_at','created_at'],
+  issues: ['id','book_id','member_id','issue_date','due_date','return_date','status','notes','issued_at','returned_at'],
 };
 
 app.post('/api/restore', (req, res) => {
@@ -4181,7 +4181,19 @@ app.post('/api/restore', (req, res) => {
   });
 });
 
-// Export data to CSV format - Optimized for large datasets with streaming
+// Format a JS Date for exports: "01-Feb-2024" (date only) or
+// "01-Feb-2024 10:30" when a time component is present.
+const EXPORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function formatExportDate(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const base = pad(d.getDate()) + '-' + EXPORT_MONTHS[d.getMonth()] + '-' + d.getFullYear();
+  if (d.getHours() || d.getMinutes() || d.getSeconds()) {
+    return base + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  return base;
+}
+
+// Export data to CSV/XLSX format - Optimized for large datasets with streaming
 app.get('/api/export/:type', async (req, res) => {
   const { type } = req.params;
   const { format = 'json' } = req.query;
@@ -4238,6 +4250,7 @@ app.get('/api/export/:type', async (req, res) => {
 
         const csvEscape = (val) => {
           if (val === null || val === undefined) return '';
+          if (val instanceof Date) return formatExportDate(val);
           const str = String(val);
           if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
             return '"' + str.replace(/"/g, '""') + '"';
@@ -4264,6 +4277,34 @@ app.get('/api/export/:type', async (req, res) => {
       } finally {
         connection.release();
       }
+    } else if (format === 'xlsx') {
+      // Real Excel (.xlsx) export using the xlsx workbook builder.
+      const [results] = await db.promise().query(query);
+      if (!results || results.length === 0) {
+        return res.status(404).json({ error: 'No data to export' });
+      }
+      const columns = Object.keys(results[0]);
+      const data = results.map((row) => {
+        const out = {};
+        for (const c of columns) {
+          const v = row[c];
+          out[c] = v instanceof Date ? formatExportDate(v) : v;
+        }
+        return out;
+      });
+      const ws = xlsx.utils.json_to_sheet(data, { header: columns });
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Export');
+      const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename=' + filename + '_' + Date.now() + '.xlsx'
+      );
+      res.send(buf);
     } else {
       // JSON export: still load into memory, but cap at EXPORT_ROW_LIMIT.
       const [results] = await db.promise().query(query);
@@ -4284,6 +4325,33 @@ app.get('/api/export/:type', async (req, res) => {
     } else {
       res.end();
     }
+  }
+});
+
+// Build a real .xlsx workbook from client-supplied rows (used for the
+// report exports whose data is computed on the client).
+app.post('/api/export/sheet', (req, res) => {
+  try {
+    const { filename = 'export', sheetName = 'Report', headers = [], rows = [] } = req.body || {};
+    if (!Array.isArray(headers) || !Array.isArray(rows)) {
+      return res.status(400).json({ error: 'headers and rows must be arrays' });
+    }
+    const aoa = [headers, ...rows];
+    const ws = xlsx.utils.aoa_to_sheet(aoa);
+    const wb = xlsx.utils.book_new();
+    // Excel sheet names are limited to 31 chars and cannot contain []:*?/\
+    const safeSheet = String(sheetName).replace(/[\[\]:*?/\\]/g, ' ').slice(0, 31) || 'Report';
+    xlsx.utils.book_append_sheet(wb, ws, safeSheet);
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const safeName = String(filename).replace(/[^a-zA-Z0-9_\-]/g, '_') || 'export';
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename=' + safeName + '.xlsx');
+    res.send(buf);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -19,7 +19,6 @@ import '../utils/hindi_text.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/dashboard_screen.dart';
@@ -41,51 +40,8 @@ class _IssuesContentState extends State<IssuesContent> {
   Timer? _searchDebounceTimer;
   StreamSubscription<void>? _dataChangedSub;
 
-  bool _containsDevanagari(String text) {
-    return text.codeUnits.any((c) => c >= 0x0900 && c <= 0x097F);
-  }
-
-  bool _looksLikeLegacyHindi(String text) {
-    return text.codeUnits.where((c) => c >= 0x20 && c <= 0x7E).length > text.length * 0.4 &&
-        text.codeUnits.any((c) => c >= 0x0900 && c <= 0x097F);
-  }
-
   TextStyle _textStyleForHindi(String text, TextStyle base) {
-    final defaultSize = DefaultTextStyle.of(context).style.fontSize ?? 14;
-    final effectiveSize = base.fontSize ?? defaultSize;
-
-    if (_containsDevanagari(text)) {
-      final devanagariBase = GoogleFonts.notoSansDevanagari(textStyle: base);
-      return devanagariBase.copyWith(
-        fontSize: (effectiveSize * 1.15).clamp(10, 30).toDouble(),
-        letterSpacing: 0.5,
-        height: 1.5,
-        fontFamilyFallback: const [
-          'NotoSansDevanagari',
-          'Nirmala UI',
-          'Mangal',
-          'Noto Sans Devanagari',
-        ],
-      );
-    }
-
-    if (_looksLikeLegacyHindi(text)) {
-      return base.copyWith(
-        fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
-        letterSpacing: 0.3,
-        height: 1.4,
-        fontFamily: 'KrutiDev',
-        fontFamilyFallback: const [
-          'KrutiDev',
-          'Kruti Dev 010',
-          'NotoSansDevanagari',
-          'Nirmala UI',
-          'Mangal',
-        ],
-      );
-    }
-
-    return base;
+    return hindiAwareTextStyle(context, text: text, base: base);
   }
 
   Future<T?> _showSearchPicker<T>({
@@ -462,6 +418,7 @@ class _IssuesContentState extends State<IssuesContent> {
       if (showDueDate) 120,
       if (showReturnDate) 120,
       if (showStatus) 105,
+      210, // actions column
     ];
     final minTableWidth = columnWidths.fold(0.0, (sum, w) => sum + w);
 
@@ -618,6 +575,7 @@ class _IssuesContentState extends State<IssuesContent> {
                                         label: _buildIssuesHeaderLabel('Status'),
                                       ),
                                     DataColumn2(
+                                      fixedWidth: 210,
                                       label: Align(
                                         alignment: Alignment.centerRight,
                                         child: _buildIssuesHeaderLabel('Actions'),
@@ -773,8 +731,8 @@ class _IssuesContentState extends State<IssuesContent> {
                                             ),
                                           ),
                                         DataCell(
-                                          SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
+                                          Align(
+                                            alignment: Alignment.centerRight,
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               mainAxisAlignment: MainAxisAlignment.end,
@@ -1779,102 +1737,36 @@ class _IssuesContentState extends State<IssuesContent> {
 
   void _showDeleteIssueDialog(BuildContext context, dynamic issue) {
     final messenger = ScaffoldMessenger.of(context);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 12),
-            Text('Delete Issue'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Are you sure you want to delete this issue record?'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    normalizeHindiForDisplay(issue.bookTitle),
-                    style: _textStyleForHindi(
-                      normalizeHindiForDisplay(issue.bookTitle),
-                      const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Issued to: ${normalizeHindiForDisplay(issue.memberName)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  Text(
-                    'Status: ${issue.status}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'This action cannot be undone.',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              try {
-                await ApiService.deleteIssue(issue.id);
-                if (mounted) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Issue deleted successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  _loadAllData();
-                }
-              } catch (e) {
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(getOperationErrorMessage('Delete issue', e)),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    () async {
+      final confirmed = await showPremiumConfirm(
+        context: context,
+        icon: Icons.delete_outline_rounded,
+        title: 'Delete Issue',
+        message:
+            'Delete the issue record for "${normalizeHindiForDisplay(issue.bookTitle)}" '
+            '(issued to ${normalizeHindiForDisplay(issue.memberName)})? '
+            'This action cannot be undone.',
+        confirmLabel: 'Delete',
+        confirmIcon: Icons.delete_outline_rounded,
+        destructive: true,
+      );
+      if (confirmed != true || !mounted) return;
+      try {
+        await ApiService.deleteIssue(issue.id);
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Issue deleted successfully')),
+          );
+          _loadAllData();
+        }
+      } catch (e) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(getOperationErrorMessage('Delete issue', e))),
+          );
+        }
+      }
+    }();
   }
 
   Future<Uint8List?> _loadPdfLogo() async {

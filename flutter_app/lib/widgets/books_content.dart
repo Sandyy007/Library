@@ -41,67 +41,8 @@ class _BooksContentState extends State<BooksContent>
   static const Duration _hoverDuration = Duration(milliseconds: 150);
   static const Duration _pulseDuration = Duration(seconds: 2);
 
-  bool _containsDevanagari(String text) {
-    return RegExp(r'[\u0900-\u097F]').hasMatch(text);
-  }
-
-  bool _looksLikeLegacyHindi(String text) {
-    final s = text.trim();
-    if (s.isEmpty) return false;
-    if (_containsDevanagari(s)) return false;
-
-    final letters = RegExp(r'[A-Za-z]').allMatches(s).length;
-    if (letters < 6) return false;
-    final special = RegExp(r'[;*]').allMatches(s).length;
-    if (special < 1) return false;
-    final ratio = letters / s.length.clamp(1, 1 << 30);
-    return ratio >= 0.55;
-  }
-
   TextStyle _textStyleForHindi(String text, TextStyle base) {
-    final defaultSize = DefaultTextStyle.of(context).style.fontSize ?? 14;
-    final effectiveSize = base.fontSize ?? defaultSize;
-
-    // If the content is already Unicode Hindi, just help Windows pick a good font.
-    if (_containsDevanagari(text)) {
-      final devanagariBase = GoogleFonts.notoSansDevanagari(textStyle: base);
-      return devanagariBase.copyWith(
-        fontSize: (effectiveSize * 1.15).clamp(10, 30).toDouble(),
-        letterSpacing: 0.5,
-        height: 1.5,
-        fontFamilyFallback: const [
-          'NotoSansDevanagari',
-          'Nirmala UI',
-          'Mangal',
-          'Noto Sans Devanagari',
-        ],
-      );
-    }
-
-    if (_looksLikeLegacyHindi(text)) {
-      return base.copyWith(
-        fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
-        letterSpacing: 0.3,
-        height: 1.4,
-        fontFamily: 'KrutiDev',
-        fontFamilyFallback: const [
-          'KrutiDev',
-          'Kruti Dev 010',
-          'NotoSansDevanagari',
-          'Nirmala UI',
-          'Mangal',
-        ],
-      );
-    }
-
-    return base.copyWith(
-      fontFamilyFallback: const [
-        'NotoSansDevanagari',
-        'Nirmala UI',
-        'Mangal',
-        'Noto Sans Devanagari',
-      ],
-    );
+    return hindiAwareTextStyle(context, text: text, base: base);
   }
 
   @override

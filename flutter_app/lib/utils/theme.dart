@@ -39,7 +39,7 @@ class AppPalette {
   static const Color secondaryDark = Color(0xFF34D399);
   static const Color tertiaryDark = Color(0xFFFBBF24);
   static const Color surfaceDark = Color(0xFF171923);
-  static const Color backgroundDark = Color(0xFF0F1118);
+  static const Color backgroundDark = Color(0xFF0A0C12);
   static const Color cardDark = Color(0xFF1E202B);
   static const Color elevatedDark = Color(0xFF262836);
   static const Color borderDark = Color(0xFF2D2F3D);
@@ -138,12 +138,12 @@ class AppTheme {
       error: isDark ? AppPalette.errorDark : AppPalette.errorLight,
     ).copyWith(
       surface: isDark ? AppPalette.surfaceDark : AppPalette.surfaceLight,
-      surfaceContainerLowest: isDark ? AppPalette.cardDark : const Color(0xFFFFFFFF),
-      surfaceContainerLow: isDark ? AppPalette.cardDark : const Color(0xFFF8FBFF),
-      surfaceContainer: isDark ? AppPalette.elevatedDark : const Color(0xFFF0F4FA),
-      surfaceContainerHigh: isDark ? const Color(0xFF2C2E3C) : const Color(0xFFE8EEF8),
-      surfaceContainerHighest: isDark ? const Color(0xFF323446) : const Color(0xFFE0E8F0),
-      outline: isDark ? const Color(0xFF363849) : const Color(0xFF8B9CB7),
+      surfaceContainerLowest: isDark ? const Color(0xFF12141C) : const Color(0xFFFFFFFF),
+      surfaceContainerLow: isDark ? const Color(0xFF171A23) : const Color(0xFFF8FBFF),
+      surfaceContainer: isDark ? const Color(0xFF1D212C) : const Color(0xFFF0F4FA),
+      surfaceContainerHigh: isDark ? const Color(0xFF252A37) : const Color(0xFFE8EEF8),
+      surfaceContainerHighest: isDark ? const Color(0xFF2F3543) : const Color(0xFFE0E8F0),
+      outline: isDark ? const Color(0xFF3A3D4F) : const Color(0xFF8B9CB7),
       outlineVariant: isDark ? const Color(0xFF2D2F3D) : const Color(0xFFC5D1E3),
       shadow: isDark ? Colors.black : const Color(0xFF22324D),
     );

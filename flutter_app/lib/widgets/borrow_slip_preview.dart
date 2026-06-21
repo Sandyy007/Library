@@ -57,6 +57,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
     };
     final status = (issue['status'] ?? 'issued').toString().toLowerCase();
     final statusColor = statusColors[status] ?? colorScheme.primary;
+    final statusLabel = _capitalize(status).toUpperCase();
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -84,7 +85,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // ── Header ──
-                  _buildHeader(colorScheme, slip, statusColor),
+                  _buildHeader(colorScheme, slip, statusColor, statusLabel),
                   // ── Content ──
                   Flexible(
                     child: SingleChildScrollView(
@@ -103,7 +104,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme, Map<String, dynamic> slip, Color statusColor) {
+  Widget _buildHeader(ColorScheme colorScheme, Map<String, dynamic> slip, Color statusColor, String statusLabel) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 12, 20),
       decoration: BoxDecoration(
@@ -162,10 +163,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
             ),
             child: Text(
-              'ACTIVE',
+              statusLabel,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -680,6 +681,19 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
 
   String _formatDate(String isoDate) {
     if (isoDate.isEmpty || isoDate == 'null') return 'N/A';
+    // Read the calendar date directly to avoid UTC->local day shifts on
+    // date-only values, then render as dd-MMM-yyyy.
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(isoDate.trim());
+    if (m != null) {
+      final monthIdx = int.parse(m.group(2)!) - 1;
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return '${m.group(3)}-${months[monthIdx]}-${m.group(1)}';
+      }
+    }
     try {
       final date = DateTime.parse(isoDate);
       return DateFormat('dd-MMM-yyyy').format(date);
@@ -831,10 +845,10 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Text(
-                            'Uttar Pradesh State Tax Training\n    and Research Institute',
+                            'Uttar Pradesh State Tax Training\nand Research Institute',
                             style: pw.TextStyle(
                               font: boldFont,
-                              fontSize: 1,
+                              fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.white,
                               fontFallback: HindiPdfHelper.boldFontFallback,

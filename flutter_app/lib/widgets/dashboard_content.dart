@@ -1700,7 +1700,18 @@ class _DashboardContentState extends State<DashboardContent>
     required String value,
   }) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 8),
+          child: child,
+        ),
+      ),
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1750,6 +1761,7 @@ class _DashboardContentState extends State<DashboardContent>
             ),
           ),
         ],
+      ),
       ),
     );
   }

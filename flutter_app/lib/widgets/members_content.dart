@@ -48,48 +48,7 @@ class _MembersContentState extends State<MembersContent>
   late Animation<double> _statusPulse;
 
   TextStyle _textStyleForHindi(String text, TextStyle base) {
-    final defaultSize = DefaultTextStyle.of(context).style.fontSize ?? 14;
-    final effectiveSize = base.fontSize ?? defaultSize;
-
-    if (containsDevanagari(text)) {
-      final devanagariBase = GoogleFonts.notoSansDevanagari(textStyle: base);
-      return devanagariBase.copyWith(
-        fontSize: (effectiveSize * 1.15).clamp(10, 30).toDouble(),
-        letterSpacing: 0.5,
-        height: 1.5,
-        fontFamilyFallback: const [
-          'NotoSansDevanagari',
-          'Nirmala UI',
-          'Mangal',
-          'Noto Sans Devanagari',
-        ],
-      );
-    }
-
-    if (looksLikeLegacyHindi(text)) {
-      return base.copyWith(
-        fontSize: (effectiveSize * 1.12).clamp(10, 30).toDouble(),
-        letterSpacing: 0.3,
-        height: 1.4,
-        fontFamily: 'KrutiDev',
-        fontFamilyFallback: const [
-          'KrutiDev',
-          'Kruti Dev 010',
-          'NotoSansDevanagari',
-          'Nirmala UI',
-          'Mangal',
-        ],
-      );
-    }
-
-    return base.copyWith(
-      fontFamilyFallback: const [
-        'NotoSansDevanagari',
-        'Nirmala UI',
-        'Mangal',
-        'Noto Sans Devanagari',
-      ],
-    );
+    return hindiAwareTextStyle(context, text: text, base: base);
   }
 
   @override

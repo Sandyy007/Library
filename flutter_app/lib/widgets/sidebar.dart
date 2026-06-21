@@ -237,17 +237,16 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           const SizedBox(height: 8),
                           // Institute Name - compact single line
                           Text(
-                            'Uttar Pradesh State Tax\nTraining & Research Institute',
+                            'Uttar Pradesh State Tax Training & Research Institute',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 20,
+                              fontSize: 15.5,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.2,
                               height: 1.3,
                             ),
                             textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
                           ),
                           // Subtitless
                           const SizedBox(height: 4),
@@ -322,7 +321,12 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                   responsive.shouldCollapseSidebar ? 0 : 12,
                   8,
                 ),
-                child: ListView(
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    scrollbars: false,
+                    overscroll: false,
+                  ),
+                  child: ListView(
                   shrinkWrap: true,
                   children: [
                     // Navigation Items
@@ -404,6 +408,7 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                       onTap: () => _showBackupRestore(context),
                     ),
                   ],
+                ),
                 ),
               ),
             ),
