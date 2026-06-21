@@ -18,6 +18,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
+import 'premium_dialog.dart';
 import '../screens/dashboard_screen.dart';
 
 enum MemberStatusFilter { all, active, inactive }
@@ -1804,28 +1805,15 @@ class _MembersContentState extends State<MembersContent>
     final messenger = ScaffoldMessenger.of(context);
     final memberProvider = context.read<MemberProvider>();
     final issueProvider = context.read<IssueProvider>();
-    final cs = Theme.of(context).colorScheme;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPremiumConfirm(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete selected members'),
-        content: Text('Delete ${ids.length} selected member(s)?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.error,
-              foregroundColor: cs.onError,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      icon: Icons.delete_sweep_rounded,
+      title: 'Delete selected members',
+      message: 'Delete ${ids.length} selected member(s)? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmIcon: Icons.delete_outline_rounded,
+      destructive: true,
     );
 
     if (confirmed != true || !mounted) return;
@@ -1888,65 +1876,45 @@ class _MembersContentState extends State<MembersContent>
     final issueProvider = context.read<IssueProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final cs = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: cs.error),
-            const SizedBox(width: 8),
-            const Text('Delete Member'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to delete this member? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.error,
-              foregroundColor: cs.onError,
+    () async {
+      final confirmed = await showPremiumConfirm(
+        context: context,
+        icon: Icons.person_remove_rounded,
+        title: 'Delete Member',
+        message: 'Are you sure you want to delete this member? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        confirmIcon: Icons.delete_outline_rounded,
+        destructive: true,
+      );
+      if (confirmed != true || !mounted) return;
+      try {
+        await memberProvider.deleteMember(id);
+        await memberProvider.loadMembers();
+        await issueProvider.loadStats();
+        if (mounted) {
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Member deleted successfully'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
             ),
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              try {
-                await memberProvider.deleteMember(id);
-                await memberProvider.loadMembers();
-                await issueProvider.loadStats();
-                if (mounted) {
-                  messenger.clearSnackBars();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: const Text('Member deleted successfully'),
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  messenger.clearSnackBars();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(getOperationErrorMessage('Delete member', e)),
-                      backgroundColor: cs.error,
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(getOperationErrorMessage('Delete member', e)),
+              backgroundColor: cs.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    }();
   }
 }
 

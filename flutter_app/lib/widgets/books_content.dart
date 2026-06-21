@@ -17,6 +17,7 @@ import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
 import '../widgets/common_widgets.dart';
 import '../screens/dashboard_screen.dart';
+import 'premium_dialog.dart';
 
 class BooksContent extends StatefulWidget {
   const BooksContent({super.key});
@@ -1738,60 +1739,42 @@ class _BooksContentState extends State<BooksContent>
     final bookProvider = context.read<BookProvider>();
     final issueProvider = context.read<IssueProvider>();
     final messenger = ScaffoldMessenger.of(context);
-    final cs = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: cs.error),
-            const SizedBox(width: 8),
-            const Text('Delete Book'),
-          ],
-        ),
-        content: const Text('Are you sure you want to delete this book?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+    () async {
+      final confirmed = await showPremiumConfirm(
+        context: context,
+        icon: Icons.delete_outline_rounded,
+        title: 'Delete Book',
+        message: 'Are you sure you want to delete this book? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        confirmIcon: Icons.delete_outline_rounded,
+        destructive: true,
+      );
+      if (confirmed != true || !mounted) return;
+      try {
+        await bookProvider.deleteBook(id);
+
+        if (!mounted) return;
+        setState(() => _selectedBookIds.remove(id));
+
+        // Reload books to reflect deletion in UI
+        await bookProvider.loadBooks();
+        await issueProvider.loadStats();
+        if (!mounted) return;
+
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Book deleted successfully'),
+            duration: Duration(seconds: 5),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.error,
-              foregroundColor: cs.onError,
-            ),
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              try {
-                await bookProvider.deleteBook(id);
-
-                if (!mounted) return;
-                setState(() => _selectedBookIds.remove(id));
-
-                // Reload books to reflect deletion in UI
-                await bookProvider.loadBooks();
-                await issueProvider.loadStats();
-                if (!mounted) return;
-
-                messenger.clearSnackBars();
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: const Text('Book deleted successfully'),
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                messenger.showSnackBar(
-                  SnackBar(content: Text(getOperationErrorMessage('Delete book', e))),
-                );
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+        );
+      } catch (e) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(content: Text(getOperationErrorMessage('Delete book', e))),
+        );
+      }
+    }();
   }
 
   Future<void> _deleteSelectedBooks() async {
@@ -1803,26 +1786,14 @@ class _BooksContentState extends State<BooksContent>
     final bookProvider = context.read<BookProvider>();
     final issueProvider = context.read<IssueProvider>();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPremiumConfirm(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete selected books'),
-        content: Text('Delete ${ids.length} selected book(s)?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      icon: Icons.delete_sweep_rounded,
+      title: 'Delete selected books',
+      message: 'Delete ${ids.length} selected book(s)? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmIcon: Icons.delete_outline_rounded,
+      destructive: true,
     );
 
     if (confirmed != true || !mounted) return;
@@ -2484,43 +2455,60 @@ class _CategoryEditDialogState extends State<_CategoryEditDialog> {
   @override
   Widget build(BuildContext context) {
     final isNew = widget.initialName.isEmpty;
-    return AlertDialog(
-      title: Text(isNew ? 'Add Category' : 'Edit Category'),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Category Name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+    return PremiumDialogShell(
+      icon: isNew ? Icons.create_new_folder_rounded : Icons.drive_file_rename_outline_rounded,
+      title: isNew ? 'Add Category' : 'Edit Category',
+      subtitle: isNew
+          ? 'Create a new category for your books'
+          : 'Update this category\'s details',
+      maxWidth: 460,
+      scrollable: false,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'Category Name',
+              prefixIcon: const Icon(Icons.category_rounded),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
+              filled: true,
+              fillColor: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.4),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descController,
-              decoration: InputDecoration(
-                labelText: 'Description (optional)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _descController,
+            decoration: InputDecoration(
+              labelText: 'Description (optional)',
+              prefixIcon: const Icon(Icons.notes_rounded),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              maxLines: 2,
+              filled: true,
+              fillColor: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.4),
             ),
-          ],
-        ),
+            maxLines: 2,
+          ),
+        ],
       ),
       actions: [
-        TextButton(
+        PremiumDialogButton.secondary(
+          label: 'Cancel',
           onPressed: () => Navigator.of(context).pop(null),
-          child: const Text('Cancel'),
         ),
-        ElevatedButton(
+        PremiumDialogButton.primary(
+          label: isNew ? 'Add' : 'Save',
+          icon: isNew ? Icons.add_rounded : Icons.save_rounded,
           onPressed: () {
             final n = _nameController.text.trim();
             if (n.isEmpty) return;
@@ -2531,7 +2519,6 @@ class _CategoryEditDialogState extends State<_CategoryEditDialog> {
                   : _descController.text.trim(),
             });
           },
-          child: Text(isNew ? 'Add' : 'Save'),
         ),
       ],
     );

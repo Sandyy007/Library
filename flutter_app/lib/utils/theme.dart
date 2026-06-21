@@ -52,7 +52,7 @@ class AppTypography {
     final primaryText = isDark ? const Color(0xFFEDEEF4) : const Color(0xFF122033);
     final secondaryText = isDark ? const Color(0xFF9B9DAB) : const Color(0xFF445A78);
 
-    final base = GoogleFonts.dmSansTextTheme();
+    final base = GoogleFonts.plusJakartaSansTextTheme();
 
     return base.copyWith(
       headlineLarge: base.headlineLarge?.copyWith(
@@ -160,7 +160,7 @@ class AppTheme {
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       splashFactory: InkRipple.splashFactory,
-      fontFamily: 'DM Sans',
+      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
       fontFamilyFallback: const [
         'Segoe UI',
         'Roboto',

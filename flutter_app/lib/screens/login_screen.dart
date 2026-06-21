@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   late AnimationController _animationController;
   late AnimationController _floatingController;
+  late AnimationController _rotationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
@@ -36,6 +37,10 @@ class _LoginScreenState extends State<LoginScreen>
       duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: true);
+    _rotationController = AnimationController(
+      duration: const Duration(seconds: 18),
+      vsync: this,
+    )..repeat();
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
@@ -236,6 +241,22 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // Premium cover gradient palettes for the floating 3D books.
+  static const List<List<Color>> _coverPalettes = [
+    [Color(0xFF7C3AED), Color(0xFF4C1D95)], // violet
+    [Color(0xFF2563EB), Color(0xFF1E3A8A)], // blue
+    [Color(0xFF0EA5E9), Color(0xFF0C4A6E)], // sky
+    [Color(0xFF14B8A6), Color(0xFF0F766E)], // teal
+    [Color(0xFFEC4899), Color(0xFF9D174D)], // pink
+    [Color(0xFFF59E0B), Color(0xFF92400E)], // amber
+    [Color(0xFF6366F1), Color(0xFF312E81)], // indigo
+  ];
+
+  List<Color> _coverFor(double delay) {
+    final idx = (delay * 10).round().abs() % _coverPalettes.length;
+    return _coverPalettes[idx];
+  }
+
   Widget _buildFloatingBook({
     double? left,
     double? right,
@@ -246,44 +267,33 @@ class _LoginScreenState extends State<LoginScreen>
     double delay = 0,
   }) {
     return AnimatedBuilder(
-      animation: _floatingController,
+      animation: Listenable.merge([_floatingController, _rotationController]),
       builder: (context, child) {
-        final value = math.sin(
-          (_floatingController.value + delay) * math.pi * 2,
-        );
+        // Gentle vertical bob.
+        final bob = math.sin((_floatingController.value + delay) * math.pi * 2);
+        // Slow, continuous oscillating spin around the Y axis for a true 3D feel.
+        final spin = _rotationController.value * 2 * math.pi + delay * math.pi * 2;
+        final angleY = rotation + math.sin(spin) * 0.7;
+        final tiltX = -0.14 + bob * 0.06;
+
         return Positioned(
           left: left,
           right: right,
-          top: top != null ? top + (value * 10) : null,
-          bottom: bottom != null ? bottom + (value * 10) : null,
-          child: Transform.rotate(
-            angle: rotation + (value * 0.05),
-            child: Transform.scale(scale: scale, child: _buildBookIcon()),
+          top: top != null ? top + (bob * 14) : null,
+          bottom: bottom != null ? bottom + (bob * 14) : null,
+          child: Transform.scale(
+            scale: scale,
+            child: _Book3D(
+              width: 76,
+              height: 104,
+              depth: 20,
+              angleY: angleY,
+              tiltX: tiltX,
+              cover: _coverFor(delay),
+            ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildBookIcon() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.menu_book_rounded,
-        size: 40,
-        color: Colors.purple.withValues(alpha: 0.6),
-      ),
     );
   }
 
@@ -380,7 +390,29 @@ class _LoginScreenState extends State<LoginScreen>
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(isLargeScreen ? 32 : 28),
-            color: Theme.of(context).colorScheme.surface,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.alphaBlend(
+                  Colors.white.withValues(alpha: 0.04),
+                  Theme.of(context).colorScheme.surface,
+                ),
+                Theme.of(context).colorScheme.surface,
+              ],
+            ),
+            border: Border.all(
+              color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                blurRadius: 36,
+                spreadRadius: -8,
+                offset: const Offset(0, 18),
+              ),
+            ],
           ),
           padding: EdgeInsets.all(cardPadding),
           child: Form(
@@ -938,8 +970,212 @@ class _LoginScreenState extends State<LoginScreen>
   void dispose() {
     _animationController.dispose();
     _floatingController.dispose();
+    _rotationController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+}
+
+
+/// A premium, true-3D book rendered with a perspective transform.
+///
+/// The book is composed of three faces — the front cover, the bound spine
+/// on the left, and a cream "pages" block along the top — assembled with
+/// [Transform] rotations so it reads as a real object in space. Drive
+/// [angleY] / [tiltX] from an animation controller to make it rotate and
+/// float.
+class _Book3D extends StatelessWidget {
+  const _Book3D({
+    required this.width,
+    required this.height,
+    required this.depth,
+    required this.angleY,
+    required this.tiltX,
+    required this.cover,
+  });
+
+  final double width;
+  final double height;
+  final double depth;
+  final double angleY;
+  final double tiltX;
+  final List<Color> cover;
+
+  @override
+  Widget build(BuildContext context) {
+    final spineTop = Color.lerp(cover.first, Colors.black, 0.22)!;
+    final spineBottom = Color.lerp(cover.last, Colors.black, 0.42)!;
+    const pageColor = Color(0xFFF4ECD8);
+    const pageShade = Color(0xFFD9CFB4);
+
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.0013) // perspective
+        ..rotateX(tiltX)
+        ..rotateY(angleY),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // ── Spine (left bound edge, receding into depth) ──
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Transform(
+                alignment: Alignment.centerLeft,
+                transform: Matrix4.identity()..rotateY(-math.pi / 2),
+                child: Container(
+                  width: depth,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [spineTop, spineBottom],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 2,
+                      height: height * 0.5,
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Page block (top edge, receding into depth) ──
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: Transform(
+                alignment: Alignment.topCenter,
+                transform: Matrix4.identity()..rotateX(math.pi / 2),
+                child: Container(
+                  height: depth,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [pageShade, pageColor, pageShade],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Front cover ──
+            Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: cover,
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(3),
+                  bottomLeft: Radius.circular(3),
+                  topRight: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                    offset: const Offset(8, 12),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Glossy diagonal highlight.
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.28),
+                            Colors.white.withValues(alpha: 0.0),
+                            Colors.black.withValues(alpha: 0.12),
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Binding accent line near the spine.
+                  Positioned(
+                    left: width * 0.12,
+                    top: 8,
+                    bottom: 8,
+                    child: Container(
+                      width: 1.5,
+                      color: Colors.white.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  // Cover artwork: title bars + emblem.
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      width * 0.22,
+                      height * 0.16,
+                      width * 0.12,
+                      height * 0.12,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 4,
+                          width: width * 0.45,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          height: 4,
+                          width: width * 0.32,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.auto_stories_rounded,
+                          size: width * 0.34,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

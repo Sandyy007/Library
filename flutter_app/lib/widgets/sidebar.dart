@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/responsive.dart';
@@ -237,11 +238,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           // Institute Name - compact single line
                           Text(
                             'Uttar Pradesh State Tax\nTraining & Research Institute',
-                            style: TextStyle(
+                            style: GoogleFonts.plusJakartaSans(
                               fontSize: 20,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               color: Colors.white,
-                              letterSpacing: 0.2,
+                              letterSpacing: 0.3,
                               height: 1.3,
                             ),
                             textAlign: TextAlign.center,
@@ -249,13 +250,14 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                             overflow: TextOverflow.ellipsis,
                           ),
                           // Subtitless
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(
-                            'Library Management System',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: const Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.7),
-                              letterSpacing: 0.5,
+                            'LIBRARY MANAGEMENT SYSTEM',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.75),
+                              letterSpacing: 1.6,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -379,11 +381,11 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                           padding: const EdgeInsets.only(left: 8, bottom: 4),
                           child: Text(
                             'QUICK ACTIONS',
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                               color: isDark ? const Color(0xFF9B9DAB) : const Color(0xFF6B7280),
-                              letterSpacing: 1.2,
+                              letterSpacing: 1.4,
                             ),
                           ),
                         ),
@@ -645,29 +647,45 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
       child: GestureDetector(
         onTap: () => Future.microtask(() => widget.onItemSelected(index)),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
           transform: Matrix4.diagonal3Values(isHovered ? 1.02 : 1.0, isHovered ? 1.02 : 1.0, 1.0),
-          padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 10, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 10, vertical: 9),
           decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? const Color(0xFF262836) : const Color(0xFFDEEAFB))
-                : hoverColor,
-            borderRadius: BorderRadius.circular(10),
+            gradient: isSelected
+                ? LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: isDark
+                        ? [
+                            activeColor.withValues(alpha: 0.26),
+                            activeColor.withValues(alpha: 0.10),
+                          ]
+                        : [
+                            const Color(0xFFE3EEFD),
+                            const Color(0xFFF1F6FE),
+                          ],
+                  )
+                : null,
+            color: isSelected ? null : hoverColor,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(color: activeColor.withValues(alpha: isDark ? 0.35 : 0.20))
+                : null,
             boxShadow: isHovered
                 ? [
                     BoxShadow(
                       color: activeColor.withValues(alpha: isDark ? 0.25 : 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : (isSelected
                     ? [
                         BoxShadow(
-                          color: activeColor.withValues(alpha: 0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                          color: activeColor.withValues(alpha: isDark ? 0.18 : 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ]
                     : null),
@@ -678,22 +696,32 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
               // Left accent bar (active only) - expanded only
               if (!isCollapsed && isSelected)
                 Container(
-                  width: 3,
-                  height: 32,
+                  width: 3.5,
+                  height: 34,
                   margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
-                    color: activeColor,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(3),
-                      bottomRight: Radius.circular(3),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        activeColor,
+                        isDark ? const Color(0xFF5B8DEF) : const Color(0xFF42A5F5),
+                      ],
                     ),
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
                 ),
-              // Icon container 32x32 (compact)
+              // Icon container 34x34 (compact)
               AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 32,
-                height: 32,
+                duration: const Duration(milliseconds: 200),
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   gradient: isSelected
                       ? LinearGradient(
@@ -706,7 +734,16 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                         )
                       : null,
                   color: isSelected ? null : iconBg,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: activeColor.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Icon(
                   icon,
@@ -720,20 +757,40 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
               ),
               // Label - expanded only
               if (!isCollapsed) ...[
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     title,
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      letterSpacing: isSelected ? 0.1 : 0.2,
                       color: isSelected
                           ? activeColor
                           : isHovered
                               ? activeColor
                               : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
+                    ),
+                  ),
+                ),
+                // Active trailing indicator dot
+                AnimatedScale(
+                  duration: const Duration(milliseconds: 200),
+                  scale: isSelected ? 1.0 : 0.0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: activeColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: activeColor.withValues(alpha: 0.6),
+                          blurRadius: 6,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -811,9 +868,10 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                     title,
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
                       fontWeight: isHovered ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: 0.2,
                       color: isHovered ? activeColor : (isDark ? const Color(0xFFEDEEF4) : const Color(0xFF374151)),
                     ),
                   ),

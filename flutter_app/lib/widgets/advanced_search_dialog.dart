@@ -5,7 +5,7 @@ import '../providers/search_provider.dart';
 import '../models/book.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
-import '../utils/responsive.dart';
+import 'premium_dialog.dart';
 
 class AdvancedSearchDialog extends StatefulWidget {
   const AdvancedSearchDialog({super.key});
@@ -81,301 +81,248 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final responsive = Responsive(context);
-    final maxWidth = responsive.dialogWidth(maxDesktop: 900);
-    final maxHeight = responsive.height * 0.92;
-
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    return PremiumDialogShell(
+      icon: Icons.manage_search_rounded,
+      title: 'Advanced Search',
+      subtitle: 'Find books by title, author, ISBN, category and more',
+      maxWidth: 900,
+      scrollable: false,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search for books...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: _performSearch,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.4),
+            ),
+            onSubmitted: (_) => _performSearch(),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
+          const SizedBox(height: 20),
+          // Filters row
+          Consumer<SearchProvider>(
+            builder: (context, provider, _) {
+              final categoryOptions = <String, String>{
+                'all': 'All Categories',
+              };
+              for (final name in _categoryNames) {
+                categoryOptions[name] = name;
+              }
+              // Ensure current selection always remains selectable.
+              if (provider.categoryFilter != 'all' &&
+                  !categoryOptions.containsKey(
+                    provider.categoryFilter,
+                  )) {
+                categoryOptions[provider.categoryFilter] =
+                    provider.categoryFilter;
+              }
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _buildFilterDropdown(
+                    'Search In',
+                    provider.searchType,
+                    {
+                      'all': 'All Fields',
+                      'title': 'Title',
+                      'author': 'Author',
+                      'isbn': 'ISBN',
+                    },
+                    (value) => provider.setSearchType(value ?? 'all'),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search_rounded,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 28,
+                  _buildFilterDropdown(
+                    'Category',
+                    provider.categoryFilter,
+                    categoryOptions,
+                    (value) => provider.setCategoryFilter(value ?? 'all'),
+                  ),
+                  _buildFilterDropdown(
+                    'Availability',
+                    provider.availabilityFilter,
+                    {
+                      'all': 'All',
+                      'available': 'Available',
+                      'borrowed': 'Borrowed',
+                    },
+                    (value) => provider.setAvailabilityFilter(
+                      value ?? 'all',
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Advanced Search',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                  ),
+                  _buildFilterDropdown(
+                    'Sort By',
+                    provider.sortBy,
+                    {
+                      'title': 'Title',
+                      'author': 'Author',
+                      'year': 'Year',
+                      'popularity': 'Popularity',
+                    },
+                    (value) => provider.setSortBy(value ?? 'title'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _resetAll(provider),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Reset Filters'),
+                  ),
+                  if (_categoriesLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6, top: 2),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close,
-                          color: Theme.of(context).colorScheme.onPrimary),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+          ),
+          // Results
+          Expanded(
+            child: Consumer<SearchProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(),
                     ),
-                  ],
-                ),
-              ),
-              // Search & Filters
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
+                  );
+                }
+
+                if (provider.lastQuery.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search_outlined,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Enter a search term',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Use filters to narrow down your search',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (provider.searchBooks.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.search_off_outlined,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No results for "${provider.lastQuery}"',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Try different keywords or adjust filters',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search for books...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.search),
-                          onPressed: _performSearch,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        '${provider.searchBooks.length} results found',
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.color,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      onSubmitted: (_) => _performSearch(),
                     ),
-                    const SizedBox(height: 20),
-                    // Filters row
-                    Consumer<SearchProvider>(
-                      builder: (context, provider, _) {
-                        final categoryOptions = <String, String>{
-                          'all': 'All Categories',
-                        };
-                        for (final name in _categoryNames) {
-                          categoryOptions[name] = name;
-                        }
-                        // Ensure current selection always remains selectable.
-                        if (provider.categoryFilter != 'all' &&
-                            !categoryOptions.containsKey(
-                              provider.categoryFilter,
-                            )) {
-                          categoryOptions[provider.categoryFilter] =
-                              provider.categoryFilter;
-                        }
-
-                        return Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
-                            _buildFilterDropdown(
-                              'Search In',
-                              provider.searchType,
-                              {
-                                'all': 'All Fields',
-                                'title': 'Title',
-                                'author': 'Author',
-                                'isbn': 'ISBN',
-                              },
-                              (value) => provider.setSearchType(value ?? 'all'),
-                            ),
-                            _buildFilterDropdown(
-                              'Category',
-                              provider.categoryFilter,
-                              categoryOptions,
-                              (value) =>
-                                  provider.setCategoryFilter(value ?? 'all'),
-                            ),
-                            _buildFilterDropdown(
-                              'Availability',
-                              provider.availabilityFilter,
-                              {
-                                'all': 'All',
-                                'available': 'Available',
-                                'borrowed': 'Borrowed',
-                              },
-                              (value) => provider.setAvailabilityFilter(
-                                value ?? 'all',
-                              ),
-                            ),
-                            _buildFilterDropdown(
-                              'Sort By',
-                              provider.sortBy,
-                              {
-                                'title': 'Title',
-                                'author': 'Author',
-                                'year': 'Year',
-                                'popularity': 'Popularity',
-                              },
-                              (value) => provider.setSortBy(value ?? 'title'),
-                            ),
-                            TextButton.icon(
-                              onPressed: () => _resetAll(provider),
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('Reset Filters'),
-                            ),
-                            if (_categoriesLoading)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 6, top: 2),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: provider.searchBooks.length,
+                        separatorBuilder: (_, i) => Divider(
+                          height: 1,
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.2),
+                        ),
+                        itemBuilder: (context, index) =>
+                            _buildBookTile(provider.searchBooks[index]),
+                      ),
                     ),
                   ],
-                ),
-              ),
-              const Divider(height: 1),
-              // Results
-              Flexible(
-                child: Consumer<SearchProvider>(
-                  builder: (context, provider, _) {
-                    if (provider.isLoading) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(40),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
-
-                    if (provider.lastQuery.isEmpty) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(40),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.search_outlined,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Enter a search term',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Use filters to narrow down your search',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (provider.searchBooks.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.search_off_outlined,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No results for "${provider.lastQuery}"',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Try different keywords or adjust filters',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            '${provider.searchBooks.length} results found',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodySmall?.color,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: provider.searchBooks.length,
-                            separatorBuilder: (_, i) => Divider(
-                              height: 1,
-                              color: Theme.of(
-                                context,
-                              ).dividerColor.withValues(alpha: 0.2),
-                            ),
-                            itemBuilder: (context, index) =>
-                                _buildBookTile(provider.searchBooks[index]),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const Divider(height: 1),
-              // Footer
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Close'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
+        ],
       ),
+      actions: [
+        PremiumDialogButton.secondary(
+          label: 'Close',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
     );
   }
 

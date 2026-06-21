@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
+import 'premium_dialog.dart';
 
 class MemberDialog extends StatefulWidget {
   final Member? member;
@@ -90,153 +91,100 @@ class _MemberDialogState extends State<MemberDialog> {
     final isEditing = widget.member != null;
     final colorScheme = Theme.of(context).colorScheme;
     final responsive = Responsive(context);
-    final maxWidth = responsive.dialogWidth(maxDesktop: 900);
-    final maxHeight = responsive.height * 0.92;
     final isVerySmallScreen = responsive.isCompact;
     final isSmallScreen = responsive.isMedium;
 
-    return Dialog(
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: responsive.pagePadding,
-        vertical: responsive.pagePadding * 2,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [BoxShadow(color: colorScheme.shadow.withValues(alpha: 0.15), blurRadius: 32, offset: const Offset(0, 8))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(colorScheme, isEditing),
-              Expanded(child: SingleChildScrollView(
-                padding: EdgeInsets.all(responsive.pagePadding),
-                child: isVerySmallScreen
-                    ? _buildCompactLayout(colorScheme, responsive, veryCompact: true)
-                    : (isSmallScreen ? _buildCompactLayout(colorScheme, responsive) : _buildWideLayout(colorScheme, responsive)),
-              )),
-              _buildFooter(colorScheme, isEditing),
-            ],
-          ),
+    return PremiumDialogShell(
+      icon: isEditing ? Icons.manage_accounts_rounded : Icons.person_add_rounded,
+      title: isEditing ? 'Edit Member' : 'Add New Member',
+      subtitle: isEditing
+          ? 'Update member information and privileges'
+          : 'Fill in the details to register a new member',
+      headerTrailing: isEditing ? _buildActiveStatusControl(colorScheme) : null,
+      body: isVerySmallScreen
+          ? _buildCompactLayout(colorScheme, responsive, veryCompact: true)
+          : (isSmallScreen
+              ? _buildCompactLayout(colorScheme, responsive)
+              : _buildWideLayout(colorScheme, responsive)),
+      actions: [
+        PremiumDialogButton.secondary(
+          label: 'Cancel',
+          onPressed: () => Navigator.of(context).pop(),
         ),
-      ),
+        PremiumDialogButton.primary(
+          label: isEditing ? 'Update Member' : 'Add Member',
+          icon: isEditing ? Icons.save_rounded : Icons.add_rounded,
+          loading: _isUploading,
+          onPressed: _isUploading ? null : _saveMember,
+        ),
+      ],
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme, bool isEditing) {
+  /// Active/inactive status control shown in the header when editing.
+  Widget _buildActiveStatusControl(ColorScheme colorScheme) {
     final isVerySmallScreen = MediaQuery.of(context).size.width < 480;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        isVerySmallScreen ? 16 : 24,
-        isVerySmallScreen ? 14 : 20,
-        isVerySmallScreen ? 8 : 16,
-        isVerySmallScreen ? 14 : 20,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colorScheme.primaryContainer, colorScheme.primaryContainer.withValues(alpha: 0.7)],
+    if (isVerySmallScreen) {
+      return Transform.scale(
+        scale: 0.75,
+        child: Switch(
+          value: _isActive,
+          onChanged: (value) => setState(() => _isActive = value),
         ),
-        borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(color: colorScheme.primary.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(isVerySmallScreen ? 10 : 14),
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(color: colorScheme.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
-              ],
-            ),
-            child: Icon(isEditing ? Icons.edit_square : Icons.person_add, color: colorScheme.onPrimary, size: isVerySmallScreen ? 20 : 26),
-          ),
-          SizedBox(width: isVerySmallScreen ? 10 : 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isEditing ? 'Edit Member' : 'Add New Member',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onPrimaryContainer,
-                    fontSize: isVerySmallScreen ? 16 : null,
-                  ),
-                ),
-                if (!isVerySmallScreen) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    isEditing ? 'Update member information and privileges' : 'Fill in the details to register a new member',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
-                  ),
-                ],
-              ],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: _isActive
+                ? Colors.green.withValues(alpha: 0.15)
+                : colorScheme.errorContainer,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: _isActive
+                  ? Colors.green.withValues(alpha: 0.4)
+                  : colorScheme.error.withValues(alpha: 0.4),
             ),
           ),
-          if (isEditing) ...[
-            if (isVerySmallScreen)
-              Transform.scale(
-                scale: 0.75,
-                child: Switch(value: _isActive, onChanged: (value) => setState(() => _isActive = value)),
-              )
-            else ...[
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                width: 10,
+                height: 10,
                 decoration: BoxDecoration(
-                  color: _isActive ? Colors.green.withValues(alpha: 0.15) : colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: _isActive ? Colors.green.withValues(alpha: 0.4) : colorScheme.error.withValues(alpha: 0.4)),
+                  shape: BoxShape.circle,
+                  color: _isActive ? Colors.green : colorScheme.error,
                   boxShadow: [
-                    BoxShadow(color: (_isActive ? Colors.green : colorScheme.error).withValues(alpha: 0.1), blurRadius: 8),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _isActive ? Colors.green : colorScheme.error,
-                        boxShadow: [BoxShadow(color: (_isActive ? Colors.green : colorScheme.error).withValues(alpha: 0.6), blurRadius: 6)],
-                      ),
+                    BoxShadow(
+                      color: (_isActive ? Colors.green : colorScheme.error)
+                          .withValues(alpha: 0.6),
+                      blurRadius: 6,
                     ),
-                    const SizedBox(width: 8),
-                    Text(_isActive ? 'Active' : 'Inactive', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _isActive ? Colors.green : colorScheme.error)),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12),
+              Text(
+                _isActive ? 'Active' : 'Inactive',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _isActive ? Colors.green : colorScheme.error,
                 ),
-                child: Switch(value: _isActive, onChanged: (value) => setState(() => _isActive = value)),
               ),
             ],
-          ],
-          SizedBox(width: isVerySmallScreen ? 4 : 12),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Container(
-              padding: EdgeInsets.all(isVerySmallScreen ? 6 : 8),
-              decoration: BoxDecoration(color: colorScheme.surface.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.close, size: isVerySmallScreen ? 18 : 22, color: colorScheme.onPrimaryContainer),
-            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        Switch(
+          value: _isActive,
+          onChanged: (value) => setState(() => _isActive = value),
+        ),
+      ],
     );
   }
 
@@ -504,43 +452,6 @@ class _MemberDialogState extends State<MemberDialog> {
         if (value == null || value.isEmpty) return 'Member type is required';
         return null;
       },
-    );
-  }
-
-  Widget _buildFooter(ColorScheme colorScheme, bool isEditing) {
-    final isVerySmallScreen = MediaQuery.of(context).size.width < 480;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        isVerySmallScreen ? 16 : 24,
-        isVerySmallScreen ? 14 : 20,
-        isVerySmallScreen ? 16 : 24,
-        isVerySmallScreen ? 14 : 20,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-        border: Border(top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2))),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: const Text('Cancel'),
-            ),
-            const SizedBox(width: 16),
-            FilledButton.icon(
-              onPressed: _isUploading ? null : _saveMember,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              icon: _isUploading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Icon(isEditing ? Icons.save : Icons.add),
-              label: Text(isEditing ? 'Update Member' : 'Add Member'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

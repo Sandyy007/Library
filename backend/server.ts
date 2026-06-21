@@ -20,11 +20,17 @@ import xlsx from 'xlsx';
 import compression from 'compression';
 import dotenv from 'dotenv';
 
-// Always resolve .env relative to this file so running from other working directories still works
-// In dev (tsx): __dirname is backend/; in prod (dist/): __dirname is backend/dist/
-// The .env file is always in backend/
+// Always resolve .env relative to this file so running from other working directories still works.
+// The .env file always lives in backend/, but __dirname differs by runtime:
+//   - prod (dist/server.js): __dirname is backend/dist/  -> ../.env
+//   - dev (tsx) / tests (ts-jest): __dirname is backend/ -> ./.env
+// Try both candidates and load the first one that exists.
 const isProduction = process.env.NODE_ENV === 'production';
-const envPath = path.join(__dirname, '..', '.env');
+const envCandidates = [
+  path.join(__dirname, '..', '.env'),
+  path.join(__dirname, '.env'),
+];
+const envPath = envCandidates.find((p) => fs.existsSync(p)) || envCandidates[0];
 dotenv.config({ path: envPath });
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';

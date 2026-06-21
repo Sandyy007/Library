@@ -12,6 +12,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
 import 'common_widgets.dart';
+import 'premium_dialog.dart';
 
 enum DashboardDensityMode { compact, detailed }
 
@@ -320,24 +321,14 @@ class _DashboardContentState extends State<DashboardContent>
 
   Future<void> _clearRecentActivity() async {
     final messenger = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPremiumConfirm(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear recent activity'),
-        content: const Text(
-          'This will hide all current items from the Recent Activity list (it will not delete books/issues/members). Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+      icon: Icons.cleaning_services_rounded,
+      title: 'Clear recent activity',
+      message:
+          'This will hide all current items from the Recent Activity list. It will not delete books, issues, or members. Continue?',
+      confirmLabel: 'Clear',
+      confirmIcon: Icons.delete_sweep_rounded,
     );
     if (confirmed != true || !mounted) return;
 
@@ -1829,12 +1820,14 @@ class _DashboardContentState extends State<DashboardContent>
     final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Text(
-          'Page $currentPage of $totalPages',
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.7),
-              ),
+        Flexible(
+          child: Text(
+            'Page $currentPage of $totalPages',
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: cs.onSurface.withValues(alpha: 0.7),
+                ),
+          ),
         ),
         const Spacer(),
         TextButton.icon(
@@ -1868,9 +1861,12 @@ class _DashboardContentState extends State<DashboardContent>
   Widget _buildAlertsScrollControls(BuildContext context) {
     return Row(
       children: [
-        Text(
-          'Scroll alerts',
-          style: Theme.of(context).textTheme.bodySmall,
+        Flexible(
+          child: Text(
+            'Scroll alerts',
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
         const Spacer(),
         IconButton(
