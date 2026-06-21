@@ -729,10 +729,10 @@ class _DashboardContentState extends State<DashboardContent>
               child: CustomPaint(
                 painter: _DotGridPainter(
                   color: isDark
-                      ? cs.primary.withValues(alpha: 0.08 + 0.04 * pulse)
+                      ? cs.onSurface.withValues(alpha: 0.035)
                       : cs.primary.withValues(alpha: 0.03),
-                  spacing: isDark ? 22 : 26,
-                  radius: isDark ? 1.5 : 1.1,
+                  spacing: isDark ? 34 : 26,
+                  radius: isDark ? 1.0 : 1.1,
                 ),
               ),
             ),
@@ -1979,7 +1979,7 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Flexible(
+          Expanded(
             child: Text(
               title,
               style: TextStyle(
@@ -1989,33 +1989,27 @@ class _DashboardContentState extends State<DashboardContent>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          Flexible(
-            fit: FlexFit.loose,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.2),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
               ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           if (count > 0) ...[
             const SizedBox(width: 6),
-            Flexible(
-              fit: FlexFit.loose,
-              child: TextButton(
+            TextButton(
                 onPressed: () {
                   final ctx = context;
                   // ignore: use_build_context_synchronously
@@ -2053,7 +2047,6 @@ class _DashboardContentState extends State<DashboardContent>
                   ],
                 ),
               ),
-            ),
           ],
         ],
       ),
@@ -3194,7 +3187,7 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Flexible(
+          Expanded(
             child: Text(
               'Low stock',
               style: TextStyle(
@@ -3204,33 +3197,27 @@ class _DashboardContentState extends State<DashboardContent>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          Flexible(
-            fit: FlexFit.loose,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.2),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
               ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           if (count > 0) ...[
             const SizedBox(width: 6),
-            Flexible(
-              fit: FlexFit.loose,
-              child: TextButton(
+            TextButton(
                 onPressed: () {
                   final ctx = context;
                   _showAllLowStockPopup(ctx, count);
@@ -3258,7 +3245,6 @@ class _DashboardContentState extends State<DashboardContent>
                   ],
                 ),
               ),
-            ),
           ],
         ],
       ),
@@ -3379,7 +3365,7 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Flexible(
+          Expanded(
             child: Text(
               'Today\'s Activity',
               style: TextStyle(
@@ -3389,33 +3375,27 @@ class _DashboardContentState extends State<DashboardContent>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          Flexible(
-            fit: FlexFit.loose,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.2),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
               ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           if (count > 0) ...[
             const SizedBox(width: 6),
-            Flexible(
-              fit: FlexFit.loose,
-              child: TextButton(
+            TextButton(
                 onPressed: () {
                   final ctx = context;
                   // ignore: use_build_context_synchronously
@@ -3452,7 +3432,6 @@ class _DashboardContentState extends State<DashboardContent>
                   ],
                 ),
               ),
-            ),
           ],
         ],
       ),
@@ -3578,7 +3557,7 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Flexible(
+          Expanded(
             child: Text(
               'Most Active Members',
               style: TextStyle(
@@ -3588,33 +3567,27 @@ class _DashboardContentState extends State<DashboardContent>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          Flexible(
-            fit: FlexFit.loose,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.2),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
               ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           if (count > 0) ...[
             const SizedBox(width: 6),
-            Flexible(
-              fit: FlexFit.loose,
-              child: TextButton(
+            TextButton(
                 onPressed: () {
                   final ctx = context;
                   // ignore: use_build_context_synchronously
@@ -3651,7 +3624,6 @@ class _DashboardContentState extends State<DashboardContent>
                   ],
                 ),
               ),
-            ),
           ],
         ],
       ),
@@ -3761,7 +3733,7 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Flexible(
+          Expanded(
             child: Text(
               'Most Issued Books',
               style: TextStyle(
@@ -3771,33 +3743,27 @@ class _DashboardContentState extends State<DashboardContent>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          Flexible(
-            fit: FlexFit.loose,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.2),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
               ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           if (count > 0) ...[
             const SizedBox(width: 6),
-            Flexible(
-              fit: FlexFit.loose,
-              child: TextButton(
+            TextButton(
                 onPressed: () {
                   final ctx = context;
                   // ignore: use_build_context_synchronously
@@ -3834,7 +3800,6 @@ class _DashboardContentState extends State<DashboardContent>
                   ],
                 ),
               ),
-            ),
           ],
         ],
       ),
