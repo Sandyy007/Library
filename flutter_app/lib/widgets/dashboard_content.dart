@@ -1979,15 +1979,17 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const Spacer(),
           Flexible(
             fit: FlexFit.loose,
             child: Container(
@@ -3192,15 +3194,17 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(
               'Low stock',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const Spacer(),
           Flexible(
             fit: FlexFit.loose,
             child: Container(
@@ -3375,15 +3379,17 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(
               'Today\'s Activity',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const Spacer(),
           Flexible(
             fit: FlexFit.loose,
             child: Container(
@@ -3572,15 +3578,17 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(
               'Most Active Members',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const Spacer(),
           Flexible(
             fit: FlexFit.loose,
             child: Container(
@@ -3753,15 +3761,17 @@ class _DashboardContentState extends State<DashboardContent>
       ),
       title: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(
               'Most Issued Books',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const Spacer(),
           Flexible(
             fit: FlexFit.loose,
             child: Container(

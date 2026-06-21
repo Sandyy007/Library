@@ -1216,7 +1216,13 @@ class _MembersContentState extends State<MembersContent>
                                                   idx,
                                                   SizedBox(
                                                     width: 120,
-                                                    child: Row(
+                                                    child: FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      alignment:
+                                                          Alignment.centerRight,
+                                                      child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
                                                       mainAxisAlignment:
                                                           MainAxisAlignment
                                                               .end,
@@ -1300,6 +1306,7 @@ class _MembersContentState extends State<MembersContent>
                                                               const Color(0xFFE11D48),
                                                         ),
                                                       ],
+                                                    ),
                                                     ),
                                                   ),
                                                 ),
