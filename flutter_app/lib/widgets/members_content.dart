@@ -1768,7 +1768,6 @@ class _MembersContentState extends State<MembersContent>
     if (ids.isEmpty) return;
 
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final memberProvider = context.read<MemberProvider>();
     final issueProvider = context.read<IssueProvider>();
 
@@ -1815,24 +1814,18 @@ class _MembersContentState extends State<MembersContent>
       if (!mounted) return;
       setState(() => _selectedMemberIds.clear());
 
-      messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Deleted $deletedCount member(s) successfully.'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
+      showAppSnack(
+        context,
+        message: 'Deleted $deletedCount member(s) successfully.',
+        type: AppSnackType.success,
       );
     } catch (e) {
       if (!mounted) return;
       navigator.maybePop();
-      messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(getOperationErrorMessage('Bulk delete', e)),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
+      showAppSnack(
+        context,
+        message: getOperationErrorMessage('Bulk delete', e),
+        type: AppSnackType.error,
       );
     }
   }
@@ -1840,8 +1833,6 @@ class _MembersContentState extends State<MembersContent>
   void _deleteMember(int id) {
     final memberProvider = context.read<MemberProvider>();
     final issueProvider = context.read<IssueProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final cs = Theme.of(context).colorScheme;
     () async {
       final confirmed = await showPremiumConfirm(
         context: context,
@@ -1858,25 +1849,18 @@ class _MembersContentState extends State<MembersContent>
         await memberProvider.loadMembers();
         await issueProvider.loadStats();
         if (mounted) {
-          messenger.clearSnackBars();
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Member deleted successfully'),
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 4),
-            ),
+          showAppSnack(
+            context,
+            message: 'Member deleted successfully',
+            type: AppSnackType.success,
           );
         }
       } catch (e) {
         if (mounted) {
-          messenger.clearSnackBars();
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(getOperationErrorMessage('Delete member', e)),
-              backgroundColor: cs.error,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
-            ),
+          showAppSnack(
+            context,
+            message: getOperationErrorMessage('Delete member', e),
+            type: AppSnackType.error,
           );
         }
       }

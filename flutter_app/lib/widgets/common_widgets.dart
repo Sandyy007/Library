@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../utils/color_extensions.dart';
 
 /// Reusable status badge with dot indicator, border, and themed colors.
@@ -393,13 +394,20 @@ class AnimatedCounter extends StatelessWidget {
   final Duration duration;
   final TextAlign? textAlign;
 
+  /// When true (default) large numbers are grouped with thousands
+  /// separators, e.g. 4210 -> "4,210", for a more polished read.
+  final bool useGrouping;
+
   const AnimatedCounter({
     super.key,
     required this.value,
     this.style,
     this.duration = const Duration(milliseconds: 800),
     this.textAlign,
+    this.useGrouping = true,
   });
+
+  static final NumberFormat _grouped = NumberFormat.decimalPattern();
 
   @override
   Widget build(BuildContext context) {
@@ -409,7 +417,7 @@ class AnimatedCounter extends StatelessWidget {
       curve: Curves.easeOutCubic,
       builder: (context, animatedValue, child) {
         return Text(
-          animatedValue.toString(),
+          useGrouping ? _grouped.format(animatedValue) : animatedValue.toString(),
           style: style,
           textAlign: textAlign,
         );
@@ -1049,6 +1057,137 @@ class _HoverWrapState extends State<HoverWrap> {
                 )],
         ),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+
+/// Semantic type for [showAppSnack].
+enum AppSnackType { success, error, info, warning }
+
+/// Shows a premium, icon-led floating snackbar with a colored accent strip.
+/// Use this instead of a bare [SnackBar] for consistent, polished feedback.
+/// Optionally pass [actionLabel] + [onAction] (e.g. an "Undo").
+void showAppSnack(
+  BuildContext context, {
+  required String message,
+  AppSnackType type = AppSnackType.info,
+  String? actionLabel,
+  VoidCallback? onAction,
+  Duration duration = const Duration(seconds: 3),
+}) {
+  final cs = Theme.of(context).colorScheme;
+  final (Color accent, IconData icon) = switch (type) {
+    AppSnackType.success => (const Color(0xFF10B981), Icons.check_circle_rounded),
+    AppSnackType.error => (cs.error, Icons.error_outline_rounded),
+    AppSnackType.warning => (const Color(0xFFF59E0B), Icons.warning_amber_rounded),
+    AppSnackType.info => (cs.primary, Icons.info_outline_rounded),
+  };
+
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.clearSnackBars();
+  messenger.showSnackBar(
+    SnackBar(
+      behavior: SnackBarBehavior.floating,
+      duration: duration,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      padding: EdgeInsets.zero,
+      content: _AppSnackContent(
+        message: message,
+        accent: accent,
+        icon: icon,
+        actionLabel: actionLabel,
+        onAction: onAction == null
+            ? null
+            : () {
+                messenger.hideCurrentSnackBar();
+                onAction();
+              },
+      ),
+    ),
+  );
+}
+
+class _AppSnackContent extends StatelessWidget {
+  const _AppSnackContent({
+    required this.message,
+    required this.accent,
+    required this.icon,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String message;
+  final Color accent;
+  final IconData icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(offset: Offset(0, (1 - t) * 12), child: child),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF21242F) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(width: 5, color: accent),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Icon(icon, color: accent, size: 22),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ),
+              ),
+              if (actionLabel != null && onAction != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: TextButton(
+                    onPressed: onAction,
+                    style: TextButton.styleFrom(foregroundColor: accent),
+                    child: Text(
+                      actionLabel!,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 6),
+            ],
+          ),
+        ),
       ),
     );
   }

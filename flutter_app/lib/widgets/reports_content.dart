@@ -17,6 +17,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
+import 'common_widgets.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -267,7 +268,10 @@ class _ReportsContentState extends State<ReportsContent>
                     separatorBuilder: (_, i) => const Divider(),
                     itemBuilder: (context, index) {
                       final book = provider.popularBooks[index];
-                      return _buildPopularBookTile(book, index + 1);
+                      return StaggeredFadeSlide(
+                        index: index,
+                        child: _buildPopularBookTile(book, index + 1),
+                      );
                     },
                   ),
                 ),
@@ -415,7 +419,10 @@ class _ReportsContentState extends State<ReportsContent>
                     separatorBuilder: (_, i) => const Divider(),
                     itemBuilder: (context, index) {
                       final member = provider.activeMembers[index];
-                      return _buildActiveMemberTile(member, index + 1);
+                      return StaggeredFadeSlide(
+                        index: index,
+                        child: _buildActiveMemberTile(member, index + 1),
+                      );
                     },
                   ),
                 ),
@@ -877,6 +884,8 @@ class _ReportsContentState extends State<ReportsContent>
           );
         }).toList(),
       ),
+      swapAnimationDuration: const Duration(milliseconds: 700),
+      swapAnimationCurve: Curves.easeOutCubic,
     );
   }
 
@@ -1101,6 +1110,8 @@ class _ReportsContentState extends State<ReportsContent>
                               },
                             ),
                           ),
+                          swapAnimationDuration: const Duration(milliseconds: 700),
+                          swapAnimationCurve: Curves.easeOutCubic,
                         ),
                       ),
                     ],

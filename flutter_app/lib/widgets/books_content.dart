@@ -1434,14 +1434,17 @@ class _BooksContentState extends State<BooksContent>
                         : null,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    category,
-                    style: TextStyle(
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
+                  Flexible(
+                    child: Text(
+                      category,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
                     ),
                   ),
                 ],
@@ -1679,7 +1682,6 @@ class _BooksContentState extends State<BooksContent>
   void _deleteBook(int id) {
     final bookProvider = context.read<BookProvider>();
     final issueProvider = context.read<IssueProvider>();
-    final messenger = ScaffoldMessenger.of(context);
     () async {
       final confirmed = await showPremiumConfirm(
         context: context,
@@ -1702,17 +1704,17 @@ class _BooksContentState extends State<BooksContent>
         await issueProvider.loadStats();
         if (!mounted) return;
 
-        messenger.clearSnackBars();
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Book deleted successfully'),
-            duration: Duration(seconds: 5),
-          ),
+        showAppSnack(
+          context,
+          message: 'Book deleted successfully',
+          type: AppSnackType.success,
         );
       } catch (e) {
         if (!mounted) return;
-        messenger.showSnackBar(
-          SnackBar(content: Text(getOperationErrorMessage('Delete book', e))),
+        showAppSnack(
+          context,
+          message: getOperationErrorMessage('Delete book', e),
+          type: AppSnackType.error,
         );
       }
     }();
@@ -1723,7 +1725,6 @@ class _BooksContentState extends State<BooksContent>
     if (ids.isEmpty) return;
 
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final bookProvider = context.read<BookProvider>();
     final issueProvider = context.read<IssueProvider>();
 
@@ -1772,16 +1773,19 @@ class _BooksContentState extends State<BooksContent>
       if (!mounted) return;
       setState(() => _selectedBookIds.clear());
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Deleted $deletedCount book(s) successfully.'),
-          duration: const Duration(seconds: 3),
-        ),
+      showAppSnack(
+        context,
+        message: 'Deleted $deletedCount book(s) successfully.',
+        type: AppSnackType.success,
       );
     } catch (e) {
       if (!mounted) return;
       navigator.maybePop();
-      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Bulk delete', e))));
+      showAppSnack(
+        context,
+        message: getOperationErrorMessage('Bulk delete', e),
+        type: AppSnackType.error,
+      );
     }
   }
 
