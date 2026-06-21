@@ -50,8 +50,9 @@ if ($Test) {
 
     Write-Host "Running integration smoke test..." -ForegroundColor Yellow
     Set-Location backend
-    # Boot the server in the background, run the smoke test, then stop it.
-    $nodeProcess = Start-Process -FilePath "node" -ArgumentList "server.js" -PassThru -NoNewWindow -RedirectStandardOutput "stdout.log" -RedirectStandardError "stderr.log"
+    # Compile first, then boot the compiled server for the smoke test.
+    npm run build
+    $nodeProcess = Start-Process -FilePath "node" -ArgumentList "dist/server.js" -PassThru -NoNewWindow -RedirectStandardOutput "stdout.log" -RedirectStandardError "stderr.log"
     try {
         Start-Sleep -Seconds 3
         node integration_test.js
@@ -69,9 +70,10 @@ if ($Test) {
 # Dev mode: start the backend and the Flutter app together.
 if ($Dev) {
     Write-Host "Starting development session..." -ForegroundColor Yellow
-    $backend = Start-Process -FilePath "node" -ArgumentList "backend\server.js" -PassThru -NoNewWindow
+    # Backend runs from TypeScript via tsx (no compile step needed in dev).
+    $backend = Start-Process -FilePath "cmd" -ArgumentList "/c", "npm", "run", "dev" -WorkingDirectory "backend" -PassThru
     try {
-        Start-Sleep -Seconds 3
+        Start-Sleep -Seconds 4
         Set-Location flutter_app
         flutter run -d windows
     } finally {
@@ -97,9 +99,16 @@ if ($Release -or $Installer) {
     
     Set-Location $ProjectRoot
     
-    Write-Host "Installing backend dependencies..." -ForegroundColor Yellow
+    Write-Host "Building backend (compile TypeScript + bundle server.js)..." -ForegroundColor Yellow
     Set-Location backend
-    npm install --production
+    npm install
+    npm run build:release
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Backend build failed!" -ForegroundColor Red
+        exit 1
+    }
+    # Slim node_modules to production-only deps for bundling
+    npm prune --production
     Set-Location $ProjectRoot
     
     Write-Host "Release build complete." -ForegroundColor Green

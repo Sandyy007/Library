@@ -23,16 +23,25 @@ if errorlevel 1 (
 cd ..
 
 echo.
-echo Step 2: Installing backend dependencies...
+echo Step 2: Building backend (compile TypeScript + bundle server.js)...
 echo.
 cd backend
-call npm install --production
+call npm install
 if errorlevel 1 (
     echo.
     echo ERROR: npm install failed!
     pause
     exit /b 1
 )
+call npm run build:release
+if errorlevel 1 (
+    echo.
+    echo ERROR: Backend build failed!
+    pause
+    exit /b 1
+)
+REM Slim node_modules to production-only deps for bundling
+call npm prune --production
 cd ..
 
 echo.

@@ -8,7 +8,13 @@ echo.
 echo Starting backend server on http://localhost:3000
 echo Press Ctrl+C to stop the server
 echo.
-node server.js
+if exist "server.js" (
+    node server.js
+) else if exist "dist\server.js" (
+    node dist\server.js
+) else (
+    echo No compiled server found. Run "npm run build" first.
+)
 if errorlevel 1 (
     echo.
     echo Error: Backend server failed to start.

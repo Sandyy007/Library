@@ -60,7 +60,6 @@ Source: "flutter_app\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flag
 Source: "backend\server.js"; DestDir: "{app}\backend"; Flags: ignoreversion
 Source: "backend\package.json"; DestDir: "{app}\backend"; Flags: ignoreversion
 Source: "backend\package-lock.json"; DestDir: "{app}\backend"; Flags: ignoreversion
-Source: "backend\hash.js"; DestDir: "{app}\backend"; Flags: ignoreversion
 Source: "backend\seed.js"; DestDir: "{app}\backend"; Flags: ignoreversion
 Source: "backend\.env.example"; DestDir: "{app}\backend"; Flags: ignoreversion
 
