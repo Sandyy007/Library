@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SDLC Document — UPSTTRI Library Management System</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm 20mm 18mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #1f2933; font-size: 11pt; line-height: 1.55; margin: 0;
+  }
+  h1, h2, h3, h4 { color: #0f3d6e; line-height: 1.25; }
+  h1 { font-size: 22pt; margin: 0 0 4px; }
+  h2 { font-size: 16pt; margin: 26px 0 8px; border-bottom: 2px solid #2563eb; padding-bottom: 4px; }
+  h3 { font-size: 13pt; margin: 18px 0 6px; color: #1d4ed8; }
+  h4 { font-size: 11.5pt; margin: 12px 0 4px; color: #334155; }
+  p { margin: 6px 0; text-align: justify; }
+  ul, ol { margin: 6px 0 6px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  code { background: #eef2ff; color: #3730a3; padding: 1px 5px; border-radius: 4px; font-size: 9.5pt; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 9.8pt; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #1e3a8a; color: #fff; font-weight: 600; }
+  tr:nth-child(even) td { background: #f1f5f9; }
+  .cover {
+    height: 250mm; display: flex; flex-direction: column; justify-content: center;
+    align-items: center; text-align: center; page-break-after: always;
+  }
+  .cover .badge {
+    background: linear-gradient(135deg,#1e3a8a,#2563eb); color:#fff; border-radius: 16px;
+    padding: 40px 50px; box-shadow: 0 10px 30px rgba(30,58,138,.3);
+  }
+  .cover h1 { color:#fff; font-size: 30pt; }
+  .cover .sub { color:#dbeafe; font-size: 14pt; margin-top: 8px; letter-spacing: .5px; }
+  .cover .meta { margin-top: 40px; color:#334155; font-size: 11pt; }
+  .cover .org { font-size: 12pt; color:#475569; margin-top: 6px; }
+  .tag { display:inline-block; background:#dbeafe; color:#1e40af; border-radius: 20px; padding: 3px 12px; font-size: 9pt; margin: 2px; }
+  .note { background:#f0f9ff; border-left: 4px solid #0284c7; padding: 8px 12px; margin: 10px 0; }
+  .pagebreak { page-break-before: always; }
+  .toc li { margin: 4px 0; }
+  .phase { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin:10px 0; }
+  footer { text-align:center; font-size: 8pt; color:#94a3b8; margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="badge">
+    <h1>Software Development<br>Life Cycle (SDLC)</h1>
+    <div class="sub">Library Management System</div>
+  </div>
+  <div class="meta">
+    <div class="org"><strong>Uttar Pradesh State Tax Training &amp; Research Institute (UPSTTRI)</strong></div>
+    <div>Version 1.1.2 &nbsp;·&nbsp; Document Revision 1.0</div>
+    <div>Date: June 2026</div>
+  </div>
+  <div style="margin-top:30px;">
+    <span class="tag">Flutter Desktop</span>
+    <span class="tag">Node.js + Express</span>
+    <span class="tag">MySQL</span>
+    <span class="tag">REST API</span>
+    <span class="tag">JWT Auth</span>
+  </div>
+</div>
+
+<h1>SDLC Document</h1>
+<p style="color:#64748b;margin-top:0;">A complete walkthrough of how the UPSTTRI Library Management System was planned, designed, built, tested, deployed, and is maintained.</p>
+
+<h2>Table of Contents</h2>
+<ol class="toc">
+  <li>Introduction &amp; Document Purpose</li>
+  <li>Project Overview</li>
+  <li>SDLC Model Selected &amp; Justification</li>
+  <li>Phase 1 — Requirement Analysis &amp; Planning</li>
+  <li>Phase 2 — System Design</li>
+  <li>Phase 3 — Implementation / Development</li>
+  <li>Phase 4 — Testing &amp; Quality Assurance</li>
+  <li>Phase 5 — Deployment &amp; Release</li>
+  <li>Phase 6 — Maintenance &amp; Support</li>
+  <li>Risk Management</li>
+  <li>Project Timeline &amp; Milestones</li>
+  <li>Conclusion</li>
+</ol>
+
+<div class="pagebreak"></div>
+<h2>1. Introduction &amp; Document Purpose</h2>
+<p>This document describes the Software Development Life Cycle (SDLC) followed for the design and delivery of the <strong>UPSTTRI Library Management System</strong>. The SDLC is a structured framework that defines the activities performed at each stage of software development, ensuring the final product is reliable, maintainable, secure, and aligned with stakeholder expectations.</p>
+<p>The purpose of this document is to:</p>
+<ul>
+  <li>Provide a single reference describing how the system moves from concept to a maintained production application.</li>
+  <li>Capture the requirements, design decisions, technology choices, and quality controls applied at each phase.</li>
+  <li>Serve as onboarding material for new developers and as an audit trail for stakeholders at the institute.</li>
+</ul>
+
+<h2>2. Project Overview</h2>
+<p>The Library Management System is a production-ready <strong>Windows desktop application</strong> built for the Uttar Pradesh State Tax Training &amp; Research Institute. It digitises and automates the core operations of a library: cataloguing books, managing members, issuing and returning books, tracking overdue items, and generating analytical reports.</p>
+
+<h3>2.1 Goals</h3>
+<ul>
+  <li>Replace manual register-based book tracking with a fast, searchable digital catalogue.</li>
+  <li>Automate due-date calculation, overdue detection, and fine computation.</li>
+  <li>Provide administrators with real-time dashboards, reports, and exportable data.</li>
+  <li>Enforce strong security suitable for a government institution.</li>
+</ul>
+
+<h3>2.2 Stakeholders</h3>
+<table>
+  <tr><th>Stakeholder</th><th>Role / Interest</th></tr>
+  <tr><td>Institute Administration</td><td>Project sponsor; defines policy, approves budget and rollout.</td></tr>
+  <tr><td>Librarian / Admin User</td><td>Primary day-to-day user managing books, members, and circulation.</td></tr>
+  <tr><td>Members (Students, Faculty, Staff)</td><td>Beneficiaries whose records and loans are managed in the system.</td></tr>
+  <tr><td>Development Team</td><td>Designs, builds, tests, and maintains the software.</td></tr>
+  <tr><td>IT / Systems Support</td><td>Handles deployment, database hosting, and backups.</td></tr>
+</table>
+
+<h3>2.3 Technology Stack</h3>
+<table>
+  <tr><th>Layer</th><th>Technology</th></tr>
+  <tr><td>Frontend</td><td>Flutter 3.10+ · Material 3 · Provider state management</td></tr>
+  <tr><td>Backend</td><td>Node.js · Express 4 · REST API (TypeScript build pipeline)</td></tr>
+  <tr><td>Database</td><td>MySQL 8.0+ with connection pooling and auto-migrations</td></tr>
+  <tr><td>Authentication</td><td>JWT (HS256) · bcrypt · Helmet · express-rate-limit</td></tr>
+  <tr><td>Charts &amp; Reports</td><td>FL Chart · pdf + printing packages</td></tr>
+  <tr><td>File Handling</td><td>Multer (backend) · file_picker (Flutter) · CSV/XLSX</td></tr>
+  <tr><td>Packaging</td><td>Inno Setup installer for Windows 10/11 (64-bit)</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+<h2>3. SDLC Model Selected &amp; Justification</h2>
+<p>The project adopted an <strong>Iterative &amp; Incremental model</strong> with Agile practices. The system was delivered in successive increments — authentication first, then book management, member management, circulation, reporting, and finally polish features such as notifications, backup/restore, and PDF export.</p>
+
+<h3>3.1 Why Iterative / Incremental?</h3>
+<ul>
+  <li><strong>Evolving requirements:</strong> Library workflows and member categories were refined as stakeholders saw working software, which suits iterative feedback better than a rigid Waterfall plan.</li>
+  <li><strong>Early usable value:</strong> Each increment produced a working module that could be demonstrated and validated.</li>
+  <li><strong>Risk reduction:</strong> Integration risks (Flutter ⇄ Node ⇄ MySQL) were discovered early because a thin end-to-end slice was built first.</li>
+  <li><strong>Continuous testing:</strong> Automated Jest API tests and a CI workflow allowed each increment to be validated before the next began.</li>
+</ul>
+
+<div class="note">Although the model is iterative, every increment still passed through all classic SDLC phases — requirements, design, implementation, testing, and integration — in miniature. The sections below describe these phases as applied across the project.</div>
+
+<h2>4. Phase 1 — Requirement Analysis &amp; Planning</h2>
+<p>In this phase the team gathered, analysed, and documented what the system must do and the constraints it must operate under.</p>
+
+<h3>4.1 Functional Requirements</h3>
+<table>
+  <tr><th>ID</th><th>Requirement</th></tr>
+  <tr><td>FR-1</td><td>Admin authentication via username/password with secure session tokens and forced password change on first login.</td></tr>
+  <tr><td>FR-2</td><td>Full CRUD for books including ISBN, author, category, rack number, publisher, year, cover image, and multi-copy tracking.</td></tr>
+  <tr><td>FR-3</td><td>Full CRUD for members with profile photos, member types, and active/inactive status.</td></tr>
+  <tr><td>FR-4</td><td>Issue and return books with automatic due-date calculation and fine computation for overdue items.</td></tr>
+  <tr><td>FR-5</td><td>Real-time dashboard with KPIs, charts, actionable alerts, and a recent-activity feed.</td></tr>
+  <tr><td>FR-6</td><td>Reports (issued, overdue, popular books, active members, category and monthly stats) exportable to PDF/Excel.</td></tr>
+  <tr><td>FR-7</td><td>In-app notifications for overdue, due-soon, new-book, and system events.</td></tr>
+  <tr><td>FR-8</td><td>Global search and advanced multi-field search across books, members, and issues.</td></tr>
+  <tr><td>FR-9</td><td>Bulk import (CSV/XLSX), bulk delete, and CSV/JSON export of catalogue data.</td></tr>
+  <tr><td>FR-10</td><td>Full JSON backup and restore of books, members, and issues.</td></tr>
+</table>
+
+<h3>4.2 Non-Functional Requirements</h3>
+<table>
+  <tr><th>Category</th><th>Requirement</th></tr>
+  <tr><td>Security</td><td>JWT auth, bcrypt hashing, parameterised SQL, Helmet headers, CORS whitelist, rate limiting.</td></tr>
+  <tr><td>Performance</td><td>Indexed hot-path queries; paginated list endpoints; sub-second list loads for typical catalogues.</td></tr>
+  <tr><td>Usability</td><td>Premium Material 3 UI, dark/light themes, responsive layouts, Hindi/Devanagari support in PDFs.</td></tr>
+  <tr><td>Reliability</td><td>Connection pooling, auto-migrations on boot, graceful error handling.</td></tr>
+  <tr><td>Portability</td><td>Single-machine Windows desktop deployment with bundled backend.</td></tr>
+  <tr><td>Maintainability</td><td>Modular Flutter widgets/providers and a documented REST API.</td></tr>
+</table>
+
+<h3>4.3 Feasibility &amp; Planning</h3>
+<ul>
+  <li><strong>Technical feasibility:</strong> Flutter desktop + Node/MySQL is a proven, free, open-source stack runnable on existing institute hardware.</li>
+  <li><strong>Operational feasibility:</strong> A single admin role keeps training and operations simple for library staff.</li>
+  <li><strong>Economic feasibility:</strong> No licensing cost; runs on commodity Windows machines.</li>
+</ul>
+
+<div class="pagebreak"></div>
+<h2>5. Phase 2 — System Design</h2>
+<p>The design phase translated requirements into an architecture, data model, and interface design.</p>
+
+<h3>5.1 Architecture Overview</h3>
+<p>The system follows a three-tier client–server architecture:</p>
+<div class="phase">
+  <strong>Presentation Tier</strong> — Flutter Windows desktop app. Uses the Provider pattern for state management with dedicated providers for auth, books, members, issues, reports, dashboard, notifications, search, and theme.
+</div>
+<div class="phase">
+  <strong>Application Tier</strong> — Node.js + Express REST API. Handles authentication, business rules (due dates, fines, availability), validation, file uploads, and report aggregation. On Windows the app can auto-launch the bundled backend process.
+</div>
+<div class="phase">
+  <strong>Data Tier</strong> — MySQL 8 database accessed through a connection pool. Runtime migrations add performance indexes on boot.
+</div>
+
+<h3>5.2 Data Model (Core Entities)</h3>
+<table>
+  <tr><th>Table</th><th>Purpose</th></tr>
+  <tr><td><code>users</code></td><td>Admin accounts; password hash, role, forced password-change flag.</td></tr>
+  <tr><td><code>books</code></td><td>Catalogue records with copies, status, cover image, and indexed search fields.</td></tr>
+  <tr><td><code>book_categories</code></td><td>Genre/category master list.</td></tr>
+  <tr><td><code>members</code></td><td>Library members with type, photo, membership/expiry dates, active flag.</td></tr>
+  <tr><td><code>member_categories</code></td><td>Borrowing limits and loan periods per category.</td></tr>
+  <tr><td><code>issues</code></td><td>Circulation records: issue/due/return dates and status.</td></tr>
+  <tr><td><code>notifications</code></td><td>In-app alerts with type, read state, and related entity references.</td></tr>
+  <tr><td><code>dashboard_settings</code></td><td>Per-user widget layout and visibility.</td></tr>
+  <tr><td><code>book_recommendations</code></td><td>Tracks recommendation scores from borrowing history.</td></tr>
+</table>
+
+<h3>5.3 Key Relationships</h3>
+<ul>
+  <li>An <code>issue</code> links one <code>book</code> to one <code>member</code> (foreign keys with cascade delete).</li>
+  <li>A <code>member</code> optionally belongs to a <code>member_category</code> defining its loan limits.</li>
+  <li><code>notifications</code> and <code>dashboard_settings</code> reference a <code>user</code>.</li>
+</ul>
+
+<h3>5.4 API Design</h3>
+<p>The backend exposes a versioned REST API under <code>/api</code>. All endpoints except health and login require a <code>Bearer</code> token. Resources are grouped as Auth, Books, Members, Issues, Categories, Dashboard, Reports, Notifications, Search, Data Operations, and Uploads. List endpoints support pagination and filtering.</p>
+
+<h3>5.5 Security Design</h3>
+<table>
+  <tr><th>Layer</th><th>Measure</th></tr>
+  <tr><td>Authentication</td><td>JWT HS256, bcrypt (10 rounds), admin-only enforcement server-side.</td></tr>
+  <tr><td>Brute force</td><td>Login limiter: 15 attempts per 15-minute window per IP.</td></tr>
+  <tr><td>SQL</td><td>100% parameterised queries — no string interpolation.</td></tr>
+  <tr><td>Transport / headers</td><td>Helmet (CSP, X-Frame, HSTS), CORS whitelist.</td></tr>
+  <tr><td>File uploads</td><td>Extension + MIME validation, size caps, sanitised filenames.</td></tr>
+  <tr><td>Token storage</td><td>OS keychain via flutter_secure_storage with SharedPreferences fallback.</td></tr>
+</table>
+
+<div class="pagebreak"></div>
+<h2>6. Phase 3 — Implementation / Development</h2>
+<p>Development proceeded in increments, with the frontend and backend evolving together against the agreed API contract.</p>
+
+<h3>6.1 Backend Development</h3>
+<ul>
+  <li>Built with Express 4; routes organised by resource with shared middleware for auth, validation (express-validator), compression, logging (morgan), and rate limiting.</li>
+  <li>TypeScript source (<code>server.ts</code>) compiled to <code>dist/server.js</code>; a bundle script produces a release artifact.</li>
+  <li>Auto-migrations create indexes and runtime-only tables on boot, so a fresh install works without manual schema steps.</li>
+  <li>Business logic centralises due-date calculation by member category, availability counters, and overdue/fine handling.</li>
+</ul>
+
+<h3>6.2 Frontend Development</h3>
+<ul>
+  <li>Single-window desktop shell with a premium sidebar navigation and content widgets per module (dashboard, books, members, issues, reports).</li>
+  <li>State managed through nine Provider classes; an <code>ApiService</code> wraps all HTTP calls and a <code>BackendService</code> manages the bundled backend lifecycle.</li>
+  <li>Reusable dialogs (book, member, advanced search, backup/restore, borrow slip) and skeleton loaders for perceived performance.</li>
+  <li>Devanagari font bundling enables correct Hindi rendering in generated PDFs.</li>
+</ul>
+
+<h3>6.3 Coding Standards &amp; Version Control</h3>
+<ul>
+  <li>Git used for version control with a CI workflow (<code>.github/workflows/test.yml</code>) running automated tests.</li>
+  <li>Secrets kept out of the repository via <code>.env</code> (with a committed <code>.env.example</code> template).</li>
+  <li>Flutter static analysis (<code>flutter analyze</code>) and lint rules enforce code quality.</li>
+</ul>
+
+<h2>7. Phase 4 — Testing &amp; Quality Assurance</h2>
+<p>Testing was continuous and layered to validate each increment before integration.</p>
+
+<h3>7.1 Test Levels</h3>
+<table>
+  <tr><th>Level</th><th>Approach</th></tr>
+  <tr><td>Unit / API</td><td>Jest + supertest test suites under <code>backend/__tests__</code> covering auth, books, members, issues, categories, search, reports, notifications, dashboard, and health endpoints.</td></tr>
+  <tr><td>Integration</td><td><code>integration_test.js</code> and smoke-test scripts exercise full request flows against a running server.</td></tr>
+  <tr><td>System</td><td>End-to-end manual validation of Flutter UI against the live backend.</td></tr>
+  <tr><td>Performance</td><td>Large-import test tooling validates bulk CSV/XLSX ingestion.</td></tr>
+</table>
+
+<h3>7.2 Test Types Covered</h3>
+<ul>
+  <li><strong>Functional:</strong> Each endpoint and screen validated against its requirement.</li>
+  <li><strong>Security:</strong> Auth enforcement, rate limiting, and injection-resistant restore logic verified.</li>
+  <li><strong>Regression:</strong> CI runs the Jest suite on every change to catch breakage early.</li>
+  <li><strong>Usability:</strong> Theme switching, responsiveness, and dialog flows reviewed with stakeholders.</li>
+</ul>
+
+<div class="note">Continuous Integration: the GitHub Actions workflow runs the backend test suite automatically, providing a quality gate before changes are merged.</div>
+
+<div class="pagebreak"></div>
+<h2>8. Phase 5 — Deployment &amp; Release</h2>
+<p>The system is packaged as a self-contained Windows desktop product.</p>
+
+<h3>8.1 Build Process</h3>
+<ol>
+  <li>Backend: <code>npm run build:release</code> compiles TypeScript and bundles the server.</li>
+  <li>Frontend: <code>flutter build windows</code> produces the release runner.</li>
+  <li>Packaging: <code>iscc installer.iss</code> (Inno Setup) creates a single installer that bundles the app and backend.</li>
+</ol>
+
+<h3>8.2 Deployment Steps</h3>
+<ol>
+  <li>Provision MySQL 8 and create the <code>library_management</code> database.</li>
+  <li>Load <code>database/schema_v2.sql</code> to create tables and seed defaults.</li>
+  <li>Configure backend <code>.env</code> with database credentials and a strong JWT secret.</li>
+  <li>Install the application via the generated installer; the app launches the bundled backend automatically.</li>
+  <li>Log in with the default admin account and complete the forced password change.</li>
+</ol>
+
+<h3>8.3 Release Versioning</h3>
+<p>Semantic versioning is used (current release <strong>1.1.2</strong>). The version is defined in <code>pubspec.yaml</code> and surfaced in the app's About section.</p>
+
+<h2>9. Phase 6 — Maintenance &amp; Support</h2>
+<p>After release the system enters ongoing maintenance, which covers four standard categories:</p>
+<table>
+  <tr><th>Type</th><th>Activities</th></tr>
+  <tr><td>Corrective</td><td>Fixing defects reported by users or surfaced by monitoring and logs.</td></tr>
+  <tr><td>Adaptive</td><td>Updating to new Flutter/Node/MySQL versions and OS changes.</td></tr>
+  <tr><td>Perfective</td><td>Adding enhancements such as new reports, member types, or UI refinements.</td></tr>
+  <tr><td>Preventive</td><td>Refactoring, dependency updates, security patching, and routine backups.</td></tr>
+</table>
+<ul>
+  <li><strong>Backups:</strong> Built-in JSON backup/restore plus regular MySQL dumps protect against data loss.</li>
+  <li><strong>Monitoring:</strong> Health endpoints (<code>/api/health</code>, <code>/api/health/detailed</code>) confirm service and database status.</li>
+  <li><strong>Support:</strong> Issues triaged, prioritised, and released in incremental updates.</li>
+</ul>
+
+<div class="pagebreak"></div>
+<h2>10. Risk Management</h2>
+<table>
+  <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+  <tr><td>Data loss / corruption</td><td>High</td><td>Automated JSON backups, MySQL dumps, foreign-key integrity, transactional updates.</td></tr>
+  <tr><td>Unauthorised access</td><td>High</td><td>JWT auth, bcrypt, admin-only enforcement, rate limiting, secure token storage.</td></tr>
+  <tr><td>Bulk-import errors</td><td>Medium</td><td>Smart header mapping, validation, and dedicated large-import tests.</td></tr>
+  <tr><td>Dependency / version drift</td><td>Medium</td><td>Pinned versions, CI test gate, periodic adaptive maintenance.</td></tr>
+  <tr><td>Single-machine failure</td><td>Medium</td><td>Documented reinstall + restore procedure; portable backup files.</td></tr>
+</table>
+
+<h2>11. Project Timeline &amp; Milestones</h2>
+<table>
+  <tr><th>Milestone</th><th>Increment Focus</th></tr>
+  <tr><td>M1</td><td>Foundation: auth, database schema, API skeleton, app shell.</td></tr>
+  <tr><td>M2</td><td>Book management with categories, cover images, and multi-copy tracking.</td></tr>
+  <tr><td>M3</td><td>Member management with types, photos, and status control.</td></tr>
+  <tr><td>M4</td><td>Issue/return circulation with due dates and fine calculation.</td></tr>
+  <tr><td>M5</td><td>Dashboard, reports, charts, and PDF/Excel export.</td></tr>
+  <tr><td>M6</td><td>Notifications, search, recommendations, backup/restore, bulk operations.</td></tr>
+  <tr><td>M7</td><td>Hardening, testing, installer packaging, and release 1.1.2.</td></tr>
+</table>
+
+<h2>12. Conclusion</h2>
+<p>The UPSTTRI Library Management System was delivered through a disciplined, iterative SDLC that balanced rapid stakeholder feedback with rigorous engineering practices. Each phase — from requirement analysis through design, implementation, testing, deployment, and maintenance — contributed to a secure, performant, and user-friendly product. The modular architecture and automated test coverage position the system for straightforward future enhancement and long-term maintainability.</p>
+
+<footer>UPSTTRI Library Management System — SDLC Document · Version 1.1.2 · Confidential</footer>
+
+</body>
+</html>

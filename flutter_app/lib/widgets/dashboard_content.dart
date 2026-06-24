@@ -4531,18 +4531,21 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
                     ),
                   ),
                   SizedBox(height: widget.isCompact ? 2 : 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      widget.title,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w600,
-                        fontSize: widget.isCompact ? 10 : 11,
-                        letterSpacing: 0.2,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.title,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w600,
+                          fontSize: widget.isCompact ? 10 : 11,
+                          letterSpacing: 0.2,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
                     ),
                   ),
                 ],

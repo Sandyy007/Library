@@ -11,9 +11,16 @@ class AboutContent extends StatefulWidget {
 class _AboutContentState extends State<AboutContent> with TickerProviderStateMixin {
   int? _hoveredFeatureIndex;
   int? _hoveredGalleryIndex;
+  bool _heroHovered = false;
 
   late AnimationController _gradientController;
   late Animation<double> _gradientAnimation;
+
+  // Drives the staggered entrance animation for each section.
+  AnimationController? _entranceController;
+  // Slow "Ken Burns" zoom for hero / featured imagery.
+  AnimationController? _kenBurnsController;
+  Animation<double>? _kenBurnsAnimation;
 
   @override
   void initState() {
@@ -26,12 +33,61 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _gradientController, curve: Curves.easeInOut),
     );
+
+    _ensureEntranceControllers();
+  }
+
+  // Lazily creates the entrance / Ken Burns controllers. Called from both
+  // initState and build so the widget survives hot reloads that add these
+  // fields to an already-mounted State (where initState will not re-run).
+  void _ensureEntranceControllers() {
+    if (_entranceController != null) return;
+
+    _entranceController = AnimationController(
+      duration: const Duration(milliseconds: 1600),
+      vsync: this,
+    )..forward();
+
+    _kenBurnsController = AnimationController(
+      duration: const Duration(seconds: 18),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _kenBurnsAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _kenBurnsController!, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _gradientController.dispose();
+    _entranceController?.dispose();
+    _kenBurnsController?.dispose();
     super.dispose();
+  }
+
+  // Wraps a section in a staggered fade + slide-up entrance animation.
+  Widget _animatedSection(int index, Widget child, {int total = 7}) {
+    _ensureEntranceControllers();
+    final span = total + 2;
+    final start = (index / span).clamp(0.0, 1.0);
+    final end = ((index + 2) / span).clamp(0.0, 1.0);
+    final curved = CurvedAnimation(
+      parent: _entranceController!,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, _) {
+        return Opacity(
+          opacity: curved.value,
+          child: Transform.translate(
+            offset: Offset(0, 36 * (1 - curved.value)),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   // Theme-aware colors
@@ -107,8 +163,6 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     final horizontalPadding = responsive.pagePadding * 2;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final primaryBlue = _primaryBlue(context);
-
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AnimatedBuilder(
@@ -150,61 +204,19 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Developed under guidance highlight
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isDark
-                                  ? [const Color(0xFF2C2E3C), const Color(0xFF1E202B)]
-                                  : [const Color(0xFF1565C0), const Color(0xFF1976D2)],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryBlue.withValues(alpha: 0.4),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.psychology_rounded,
-                                color: Colors.white,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: Text(
-                                  'Developed under guidance of Mr. Vinod Kumar Yadav (Joint Director)',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFFEDEEF4) : Colors.white,
-                                    letterSpacing: 0.3,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _animatedSection(0, _buildGuidanceBanner(context)),
                         const SizedBox(height: 24),
-                        _buildHeroCard(context),
+                        _animatedSection(1, _buildHeroCard(context)),
                         const SizedBox(height: 32),
-                        _buildAboutTextCard(context),
+                        _animatedSection(2, _buildHighlightsBand(context)),
                         const SizedBox(height: 32),
-                        _buildCoreFeaturesSection(context),
+                        _animatedSection(3, _buildAboutTextCard(context)),
                         const SizedBox(height: 32),
-                        _buildOperationalExcellenceCard(context),
+                        _animatedSection(4, _buildCoreFeaturesSection(context)),
                         const SizedBox(height: 32),
-                        _buildGallerySection(context),
+                        _animatedSection(5, _buildOperationalExcellenceCard(context)),
+                        const SizedBox(height: 32),
+                        _animatedSection(6, _buildGallerySection(context)),
                         const SizedBox(height: 16),
                       ],
                     ),
@@ -214,6 +226,192 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // GUIDANCE BANNER - with office logo + glow
+  // ═══════════════════════════════════════════
+  Widget _buildGuidanceBanner(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryBlue = _primaryBlue(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF2C2E3C), const Color(0xFF1E202B)]
+              : [const Color(0xFF1565C0), const Color(0xFF1976D2)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: primaryBlue.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.psychology_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              'Developed under guidance of Mr. Vinod Kumar Yadav (Joint Director)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFFEDEEF4) : Colors.white,
+                letterSpacing: 0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // HIGHLIGHTS BAND - animated stat-style cards
+  // ═══════════════════════════════════════════
+  Widget _buildHighlightsBand(BuildContext context) {
+    final highlights = [
+      {
+        'icon': Icons.eco_rounded,
+        'value': '100%',
+        'label': 'Paperless Records',
+        'color': const Color(0xFF059669),
+      },
+      {
+        'icon': Icons.bolt_rounded,
+        'value': 'Real-Time',
+        'label': 'Stock Tracking',
+        'color': const Color(0xFF2563EB),
+      },
+      {
+        'icon': Icons.verified_user_rounded,
+        'value': 'Secure',
+        'label': 'Audited Access',
+        'color': const Color(0xFFD97706),
+      },
+      {
+        'icon': Icons.hub_rounded,
+        'value': 'Centralized',
+        'label': 'Knowledge Hub',
+        'color': const Color(0xFF7C3AED),
+      },
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final perRow = constraints.maxWidth >= 760 ? 4 : 2;
+        final cardWidth = (constraints.maxWidth - (perRow - 1) * 16) / perRow;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: List.generate(highlights.length, (index) {
+            final h = highlights[index];
+            return SizedBox(
+              width: cardWidth,
+              child: _buildHighlightCard(
+                context,
+                h['icon'] as IconData,
+                h['value'] as String,
+                h['label'] as String,
+                h['color'] as Color,
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildHighlightCard(
+      BuildContext context, IconData icon, String value, String label, Color color) {
+    final cardBg = _cardBg(context);
+    final textColor = _textColor(context);
+    final textGrey = _textGrey(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withValues(alpha: 0.7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(height: 14),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: textGrey,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -391,58 +589,149 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
     final textGrey = _textGrey(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AnimatedScale(
-      scale: _hoveredFeatureIndex == 0 ? 1.02 : 1.0,
-      duration: const Duration(milliseconds: 200),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.1),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
+    return MouseRegion(
+      onEnter: (_) {
+        if (mounted) setState(() => _heroHovered = true);
+      },
+      onExit: (_) {
+        if (mounted) setState(() => _heroHovered = false);
+      },
+      child: AnimatedScale(
+        scale: _heroHovered ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.1),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Image.asset(
-            'assets/images/Lib1.jpeg',
-            fit: BoxFit.cover,
-            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded) return child;
-              return AnimatedOpacity(
-                opacity: frame == null ? 0 : 1,
-                duration: const Duration(seconds: 1),
-                curve: Curves.easeOut,
-                child: child,
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              debugPrint('Image load error: $error');
-              return Container(
-                color: lightAccent,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.broken_image_rounded,
-                        size: 64,
-                        color: primaryBlue.withValues(alpha: 0.5),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Ken Burns slow-zoom hero image
+                AnimatedBuilder(
+                  animation: _kenBurnsAnimation!,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _kenBurnsAnimation!.value,
+                      child: child,
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/images/Lib1.jpeg',
+                    fit: BoxFit.cover,
+                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                      if (wasSynchronouslyLoaded) return child;
+                      return AnimatedOpacity(
+                        opacity: frame == null ? 0 : 1,
+                        duration: const Duration(seconds: 1),
+                        curve: Curves.easeOut,
+                        child: child,
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('Image load error: $error');
+                      return Container(
+                        color: lightAccent,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.broken_image_rounded,
+                                size: 64,
+                                color: primaryBlue.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Image not loading',
+                                style: TextStyle(color: textGrey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Bottom gradient scrim for legible caption
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
+                        stops: const [0.55, 1.0],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Image not loading',
-                        style: TextStyle(color: textGrey),
+                    ),
+                  ),
+                ),
+                // Floating caption with app logo
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/App_Logo.png',
+                          width: 26,
+                          height: 26,
+                          errorBuilder: (_, _, _) => Icon(
+                            Icons.local_library_rounded,
+                            size: 26,
+                            color: primaryBlue,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'UPSTTRI Central Library',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                            shadows: [
+                              Shadow(color: Colors.black54, blurRadius: 6),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -901,18 +1190,154 @@ class _AboutContentState extends State<AboutContent> with TickerProviderStateMix
           final crossAxisCount = constraints.maxWidth >= 900 ? 4 : (constraints.maxWidth >= 600 ? 3 : 2);
           final itemWidth = (constraints.maxWidth - (crossAxisCount - 1) * 12) / crossAxisCount;
 
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: List.generate(galleryItems.length, (index) {
-              return SizedBox(
-                width: itemWidth,
-                height: itemWidth * 0.75,
-                child: _buildGalleryItem(context, index, galleryItems[index]),
-              );
-            }),
+          return Column(
+            children: [
+              // Cinematic featured banner
+              _buildFeaturedGalleryItem(context, galleryItems[1]),
+              const SizedBox(height: 12),
+              // Remaining images in a responsive grid
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: List.generate(galleryItems.length, (index) {
+                  return SizedBox(
+                    width: itemWidth,
+                    height: itemWidth * 0.75,
+                    child: _buildGalleryItem(context, index, galleryItems[index]),
+                  );
+                }),
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildFeaturedGalleryItem(BuildContext context, String assetPath) {
+    final borderColor = _borderColor(context);
+    final lightAccent = _lightAccent(context);
+    final primaryBlue = _primaryBlue(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isHovered = _hoveredGalleryIndex == -1;
+
+    return MouseRegion(
+      onEnter: (_) => _scheduleGalleryHover(-1),
+      onExit: (_) => _scheduleGalleryHover(null),
+      child: AnimatedScale(
+        scale: isHovered ? 1.01 : 1.0,
+        duration: const Duration(milliseconds: 250),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: isHovered
+                    ? (isDark ? Colors.black.withValues(alpha: 0.45) : Colors.black.withValues(alpha: 0.18))
+                    : (isDark ? Colors.black.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.08)),
+                blurRadius: isHovered ? 18 : 12,
+                offset: Offset(0, isHovered ? 8 : 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: AspectRatio(
+              aspectRatio: 16 / 6,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  AnimatedBuilder(
+                    animation: _kenBurnsAnimation!,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _kenBurnsAnimation!.value,
+                        child: child,
+                      );
+                    },
+                    child: Image.asset(
+                      assetPath,
+                      fit: BoxFit.cover,
+                      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                        if (wasSynchronouslyLoaded) return child;
+                        return AnimatedOpacity(
+                          opacity: frame == null ? 0 : 1,
+                          duration: const Duration(seconds: 1),
+                          curve: Curves.easeOut,
+                          child: child,
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: lightAccent,
+                          child: Center(
+                            child: Icon(
+                              Icons.collections_rounded,
+                              size: 48,
+                              color: primaryBlue.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.55),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 24,
+                    bottom: 22,
+                    right: 24,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'FEATURED',
+                            style: TextStyle(
+                              color: primaryBlue,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Inside the UPSTTRI Library',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

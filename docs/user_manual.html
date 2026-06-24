@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>User Manual — UPSTTRI Library Management System</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm 20mm 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI","Helvetica Neue",Arial,sans-serif; color:#1f2933; font-size: 11pt; line-height: 1.55; margin:0; }
+  h1,h2,h3,h4 { color:#0f3d6e; line-height: 1.25; }
+  h1 { font-size: 22pt; margin: 0 0 4px; }
+  h2 { font-size: 16pt; margin: 26px 0 8px; border-bottom: 2px solid #16a34a; padding-bottom:4px; }
+  h3 { font-size: 13pt; margin: 18px 0 6px; color:#15803d; }
+  h4 { font-size: 11.5pt; margin: 12px 0 4px; color:#334155; }
+  p { margin:6px 0; text-align: justify; }
+  ul,ol { margin:6px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  code { background:#ecfdf5; color:#065f46; padding:1px 5px; border-radius:4px; font-size: 9.5pt; }
+  table { border-collapse: collapse; width:100%; margin:10px 0; font-size: 9.8pt; }
+  th,td { border:1px solid #cbd5e1; padding:6px 8px; text-align:left; vertical-align:top; }
+  th { background:#15803d; color:#fff; font-weight:600; }
+  tr:nth-child(even) td { background:#f1f5f9; }
+  .cover { height:250mm; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; page-break-after:always; }
+  .cover .badge { background:linear-gradient(135deg,#166534,#16a34a); color:#fff; border-radius:16px; padding:40px 50px; box-shadow:0 10px 30px rgba(22,101,52,.3); }
+  .cover h1 { color:#fff; font-size:30pt; }
+  .cover .sub { color:#dcfce7; font-size:14pt; margin-top:8px; letter-spacing:.5px; }
+  .cover .meta { margin-top:40px; color:#334155; font-size:11pt; }
+  .cover .org { font-size:12pt; color:#475569; margin-top:6px; }
+  .pagebreak { page-break-before:always; }
+  .step { background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #16a34a; border-radius:6px; padding:8px 12px; margin:8px 0; }
+  .tip { background:#eff6ff; border-left:4px solid #2563eb; padding:8px 12px; margin:10px 0; }
+  .warn { background:#fef2f2; border-left:4px solid #dc2626; padding:8px 12px; margin:10px 0; }
+  .kbd { background:#1e293b; color:#fff; border-radius:4px; padding:1px 7px; font-size:9pt; }
+  footer { text-align:center; font-size:8pt; color:#94a3b8; margin-top:30px; }
+  .toc li { margin:4px 0; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="badge">
+    <h1>User Manual</h1>
+    <div class="sub">Library Management System</div>
+  </div>
+  <div class="meta">
+    <div class="org"><strong>Uttar Pradesh State Tax Training &amp; Research Institute (UPSTTRI)</strong></div>
+    <div>Application Version 1.1.2</div>
+    <div>Windows Desktop Edition · June 2026</div>
+  </div>
+</div>
+
+<h1>User Manual</h1>
+<p style="color:#64748b;margin-top:0;">A step-by-step guide for librarians and administrators to operate the UPSTTRI Library Management System.</p>
+
+<h2>Table of Contents</h2>
+<ol class="toc">
+  <li>About This Manual</li>
+  <li>Getting Started (Install, Launch, Log In)</li>
+  <li>Understanding the Interface</li>
+  <li>The Dashboard</li>
+  <li>Managing Books</li>
+  <li>Managing Members</li>
+  <li>Issuing &amp; Returning Books</li>
+  <li>Reports &amp; Analytics</li>
+  <li>Notifications</li>
+  <li>Search &amp; Recommendations</li>
+  <li>Backup, Restore &amp; Data Export</li>
+  <li>Settings &amp; Themes</li>
+  <li>Troubleshooting &amp; FAQ</li>
+  <li>Keyboard &amp; Quick Tips</li>
+</ol>
+
+<div class="pagebreak"></div>
+<h2>1. About This Manual</h2>
+<p>This manual explains how to use the UPSTTRI Library Management System — a desktop application for managing books, members, and the daily issue/return operations of the library. It is written for the <strong>administrator/librarian</strong>, who is the only role that signs in to the system.</p>
+<p>Each section walks through a task with numbered steps. Look out for the coloured boxes:</p>
+<div class="tip"><strong>Tip</strong> — a helpful shortcut or best practice.</div>
+<div class="warn"><strong>Caution</strong> — an action that cannot easily be undone.</div>
+
+<h2>2. Getting Started</h2>
+
+<h3>2.1 System Requirements</h3>
+<table>
+  <tr><th>Item</th><th>Requirement</th></tr>
+  <tr><td>Operating System</td><td>Windows 10 or 11 (64-bit)</td></tr>
+  <tr><td>Database</td><td>MySQL 8.0+ (installed and running)</td></tr>
+  <tr><td>Disk Space</td><td>~300 MB for the application plus space for the database and uploads</td></tr>
+  <tr><td>Display</td><td>1366×768 or higher recommended</td></tr>
+</table>
+
+<h3>2.2 Installing the Application</h3>
+<div class="step">1. Run the provided installer (created with Inno Setup) and follow the on-screen prompts.</div>
+<div class="step">2. Ensure MySQL is running and the <code>library_management</code> database has been created and loaded from <code>schema_v2.sql</code> (your IT team usually does this once).</div>
+<div class="step">3. Launch the application from the Start Menu or desktop shortcut. The bundled backend service starts automatically.</div>
+
+<h3>2.3 Logging In</h3>
+<div class="step">1. On the login screen, enter your <strong>username</strong> and <strong>password</strong>.</div>
+<div class="step">2. Click <strong>Login</strong>.</div>
+<div class="step">3. On first login you are required to change the default password. Choose a strong new password and confirm it.</div>
+<table>
+  <tr><th>Role</th><th>Default Username</th><th>Default Password</th></tr>
+  <tr><td>Admin</td><td><code>admin</code></td><td><code>Library#123</code></td></tr>
+</table>
+<div class="warn">Only admin accounts can sign in. After too many failed attempts (15 within 15 minutes) login is temporarily blocked to protect against brute-force attacks. Wait a few minutes and try again.</div>
+<div class="tip">Change the default password immediately and store the new one securely. Sessions expire automatically; if you are logged out, simply sign in again.</div>
+
+<div class="pagebreak"></div>
+<h2>3. Understanding the Interface</h2>
+<p>After login the main window appears with two areas:</p>
+<ul>
+  <li><strong>Sidebar (left):</strong> primary navigation, quick actions, theme toggle, and logout.</li>
+  <li><strong>Content area (right):</strong> shows the screen for the selected menu item.</li>
+</ul>
+
+<h3>3.1 Sidebar Navigation</h3>
+<table>
+  <tr><th>Menu Item</th><th>What it opens</th></tr>
+  <tr><td>Dashboard</td><td>Overview with KPIs, charts, alerts, and recent activity.</td></tr>
+  <tr><td>Books</td><td>The book catalogue with add/edit/delete and import/export.</td></tr>
+  <tr><td>Members</td><td>The member directory with profiles and history.</td></tr>
+  <tr><td>Issues &amp; Returns</td><td>Issue books, process returns, and handle overdue items.</td></tr>
+  <tr><td>Reports</td><td>Analytical reports with PDF/Excel export.</td></tr>
+  <tr><td>About Us</td><td>Application and institute information, version details.</td></tr>
+</table>
+
+<h3>3.2 Quick Actions &amp; Top Bar</h3>
+<ul>
+  <li><strong>Advanced Search</strong> — open a multi-field search dialog from the sidebar quick actions.</li>
+  <li><strong>Backup &amp; Restore</strong> — open data backup tools from the sidebar quick actions.</li>
+  <li><strong>Notification bell</strong> — shows unread alerts with a count badge.</li>
+  <li><strong>Theme toggle</strong> — switch between light and dark mode.</li>
+  <li><strong>Logout</strong> — sign out securely.</li>
+</ul>
+
+<h2>4. The Dashboard</h2>
+<p>The Dashboard is the home screen and updates in real time.</p>
+<h3>4.1 What You See</h3>
+<ul>
+  <li><strong>KPI cards:</strong> total books, issued, available, overdue, and active members.</li>
+  <li><strong>Library Statistics chart:</strong> a bar chart of books by category.</li>
+  <li><strong>Book Status Distribution:</strong> a pie chart of available vs issued copies.</li>
+  <li><strong>Actionable Alerts:</strong> colour-coded sections for overdue, due-today, and low-stock items, each with a <strong>View All</strong> option.</li>
+  <li><strong>Recent Activity:</strong> a live feed that refreshes automatically every few seconds.</li>
+</ul>
+<div class="tip">Use the alerts panel each morning to quickly spot overdue loans and books due back that day.</div>
+
+<div class="pagebreak"></div>
+<h2>5. Managing Books</h2>
+<p>Open <strong>Books</strong> from the sidebar to view the catalogue. Each book shows its title, author, category, availability, and cover image.</p>
+
+<h3>5.1 Adding a Book</h3>
+<div class="step">1. Click <strong>Add Book</strong>.</div>
+<div class="step">2. Fill in the details: title and author (required), plus ISBN, category, rack number, publisher, year, and description.</div>
+<div class="step">3. Set <strong>Total Copies</strong>. The available count is tracked automatically as books are issued and returned.</div>
+<div class="step">4. Optionally upload a <strong>cover image</strong> and preview it.</div>
+<div class="step">5. Click <strong>Save</strong>.</div>
+
+<h3>5.2 Editing or Deleting a Book</h3>
+<ul>
+  <li><strong>Edit:</strong> click the edit icon on a book row, change the fields, and save.</li>
+  <li><strong>Delete:</strong> click the delete icon and confirm. Use <strong>bulk delete</strong> to remove several selected books at once.</li>
+</ul>
+<div class="warn">Deleting a book also removes its issue records. Make sure no copies are currently on loan before deleting.</div>
+
+<h3>5.3 Categories</h3>
+<p>Manage genres/categories from the books area. You can create, rename, and delete categories used when classifying books.</p>
+
+<h3>5.4 Importing Books in Bulk</h3>
+<div class="step">1. Click <strong>Import</strong> and choose a <code>.csv</code> or <code>.xlsx</code> file.</div>
+<div class="step">2. The system maps common column headers automatically (title, author, ISBN, category, etc.).</div>
+<div class="step">3. Review and confirm the import.</div>
+<div class="tip">Search and filter the catalogue by title, author, category, year, or availability to quickly find a book.</div>
+
+<h3>5.5 Exporting Books</h3>
+<p>Export the catalogue to <strong>CSV</strong> or <strong>JSON</strong> for backup or external reporting using the export option in the books toolbar.</p>
+
+<div class="pagebreak"></div>
+<h2>6. Managing Members</h2>
+<p>Open <strong>Members</strong> to view the member directory. Members are grouped by type, each with its own borrowing limits.</p>
+
+<h3>6.1 Member Types &amp; Limits</h3>
+<table>
+  <tr><th>Type</th><th>Max Books</th><th>Loan Period</th></tr>
+  <tr><td>Student / Guest</td><td>3</td><td>14 days</td></tr>
+  <tr><td>Staff</td><td>5</td><td>21 days</td></tr>
+  <tr><td>Faculty</td><td>10</td><td>30 days</td></tr>
+</table>
+
+<h3>6.2 Adding a Member</h3>
+<div class="step">1. Click <strong>Add Member</strong>.</div>
+<div class="step">2. Enter name (required), email, phone, address, and member type.</div>
+<div class="step">3. Set the membership date and optional expiry date.</div>
+<div class="step">4. Optionally upload a <strong>profile photo</strong>.</div>
+<div class="step">5. Click <strong>Save</strong>.</div>
+
+<h3>6.3 Editing, Activating &amp; Deactivating</h3>
+<ul>
+  <li><strong>Edit:</strong> click the edit icon, update details, and save.</li>
+  <li><strong>Activate / Deactivate:</strong> toggle a member's status. Deactivated members cannot borrow new books.</li>
+  <li><strong>Bulk delete</strong> and <strong>CSV/JSON export</strong> are available from the toolbar.</li>
+</ul>
+
+<h3>6.4 Viewing Borrowing History</h3>
+<p>Open a member to see their current loans and full borrowing history, including statistics dialogs that summarise their activity.</p>
+
+<h2>7. Issuing &amp; Returning Books</h2>
+<p>Open <strong>Issues &amp; Returns</strong> to manage circulation.</p>
+
+<h3>7.1 Issuing a Book</h3>
+<div class="step">1. Click <strong>Issue Book</strong>.</div>
+<div class="step">2. Select the <strong>member</strong> and the <strong>book</strong> (only available copies can be issued).</div>
+<div class="step">3. The <strong>due date</strong> is calculated automatically from the member's type.</div>
+<div class="step">4. Confirm to issue. The available copy count decreases automatically.</div>
+<div class="tip">You can print a borrow slip for the member after issuing.</div>
+
+<h3>7.2 Returning a Book</h3>
+<div class="step">1. Find the active issue in the list (filter by member or overdue status if needed).</div>
+<div class="step">2. Click <strong>Return</strong>.</div>
+<div class="step">3. If the book is overdue, a <strong>fine</strong> is calculated and shown.</div>
+<div class="step">4. Confirm. The copy becomes available again immediately.</div>
+
+<h3>7.3 Overdue &amp; Reminders</h3>
+<ul>
+  <li>Overdue and due-soon items appear on the dashboard and in this screen.</li>
+  <li>Use <strong>Send Reminder</strong> to record a reminder, or <strong>Mark Returned</strong> to process a return directly.</li>
+  <li>You can edit an issue to extend the due date or change its status.</li>
+</ul>
+
+<div class="pagebreak"></div>
+<h2>8. Reports &amp; Analytics</h2>
+<p>Open <strong>Reports</strong> to generate insights about library usage. Each report can be exported to <strong>PDF</strong> or <strong>Excel</strong>.</p>
+<table>
+  <tr><th>Report</th><th>Shows</th></tr>
+  <tr><td>Library Statistics</td><td>Books grouped by category (bar chart).</td></tr>
+  <tr><td>Book Status Distribution</td><td>Available vs issued copies (pie chart).</td></tr>
+  <tr><td>Popular Books</td><td>Books ranked by number of times borrowed.</td></tr>
+  <tr><td>Active Members</td><td>Most active members with statistics.</td></tr>
+  <tr><td>Overdue Report</td><td>Full list of currently overdue loans.</td></tr>
+  <tr><td>Monthly Statistics</td><td>Circulation trends over time.</td></tr>
+</table>
+<div class="tip">Reports support Hindi/Devanagari text, so member and book names in Hindi render correctly in exported PDFs.</div>
+
+<h2>9. Notifications</h2>
+<p>The notification bell in the top bar shows an unread count.</p>
+<ul>
+  <li>Click the bell to view notifications: overdue, due-soon, new-book, system, and status messages.</li>
+  <li>Mark notifications as read individually or all at once.</li>
+  <li>Delete notifications you no longer need.</li>
+  <li>Notifications refresh automatically and update instantly after you change data.</li>
+</ul>
+
+<h2>10. Search &amp; Recommendations</h2>
+<h3>10.1 Global &amp; Advanced Search</h3>
+<ul>
+  <li>Use the <strong>Advanced Search</strong> quick action to search across books, members, and issues with multiple filters.</li>
+  <li>Results open in a dialog where you can jump directly to a record.</li>
+</ul>
+<h3>10.2 Recommendations</h3>
+<p>Open a member to view book recommendations generated from their borrowing history — useful for suggesting titles at the desk.</p>
+
+<div class="pagebreak"></div>
+<h2>11. Backup, Restore &amp; Data Export</h2>
+<p>Open <strong>Backup &amp; Restore</strong> from the sidebar quick actions.</p>
+<h3>11.1 Creating a Backup</h3>
+<div class="step">1. Click <strong>Backup</strong> to download a single JSON file containing books, members, and issues.</div>
+<div class="step">2. Store the file in a safe location (external drive or network share).</div>
+<div class="tip">Perform regular backups — at minimum weekly, and always before a large import or before deleting records.</div>
+
+<h3>11.2 Restoring from Backup</h3>
+<div class="step">1. Click <strong>Restore</strong> and select a previously created JSON backup file.</div>
+<div class="step">2. Confirm to restore the data.</div>
+<div class="warn">Restoring replaces existing data with the backup contents. Only restore from a trusted, verified backup file.</div>
+
+<h3>11.3 Exporting Data</h3>
+<p>Books, members, and issues can each be exported to CSV or JSON from their respective screens for use in spreadsheets or other systems.</p>
+
+<h2>12. Settings &amp; Themes</h2>
+<ul>
+  <li><strong>Theme:</strong> use the toggle in the sidebar to switch between light and dark mode. The choice is remembered.</li>
+  <li><strong>Dashboard widgets:</strong> widget visibility and layout are saved per user.</li>
+  <li><strong>Password:</strong> you are prompted to change the default password on first login; keep it secure.</li>
+</ul>
+
+<h2>13. Troubleshooting &amp; FAQ</h2>
+<table>
+  <tr><th>Problem</th><th>Solution</th></tr>
+  <tr><td>Cannot log in</td><td>Check username/password. After 15 failed tries, wait 15 minutes. Confirm the backend and MySQL are running.</td></tr>
+  <tr><td>App shows no data / connection error</td><td>Ensure MySQL is running and the database is loaded. Restart the application so the bundled backend relaunches.</td></tr>
+  <tr><td>Session expired message</td><td>This is normal after inactivity. Simply log in again.</td></tr>
+  <tr><td>Cannot issue a book</td><td>The book may have no available copies, or the member is inactive or at their borrowing limit.</td></tr>
+  <tr><td>Import didn't map columns</td><td>Check your CSV/XLSX headers (title, author, ISBN, category) and re-import.</td></tr>
+  <tr><td>Hindi text looks wrong in PDF</td><td>The app bundles a Devanagari font; ensure you are using the built-in export rather than copying text externally.</td></tr>
+</table>
+
+<h2>14. Keyboard &amp; Quick Tips</h2>
+<ul>
+  <li>Check the <strong>Dashboard alerts</strong> daily for overdue and due-today items.</li>
+  <li>Use <strong>Advanced Search</strong> to locate records fast instead of scrolling.</li>
+  <li>Run a <strong>Backup</strong> before bulk imports or bulk deletes.</li>
+  <li>Keep member types accurate — they control borrowing limits and loan periods automatically.</li>
+  <li>Export reports to <strong>PDF</strong> for printing and <strong>Excel</strong> for further analysis.</li>
+</ul>
+
+<footer>UPSTTRI Library Management System — User Manual · Version 1.1.2 · Confidential</footer>
+
+</body>
+</html>

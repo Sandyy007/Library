@@ -128,8 +128,7 @@ class _BooksContentState extends State<BooksContent>
     final allCategories = <String>{
       ..._apiCategories,
       ...bookCategories,
-    }.toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    }.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return ['All Categories', ...allCategories];
   }
 
@@ -164,8 +163,9 @@ class _BooksContentState extends State<BooksContent>
             ? BoxDecoration(
                 border: Border(
                   left: BorderSide(
-                    color:
-                        isHovered ? const Color(0xFF1D9E75) : Colors.transparent,
+                    color: isHovered
+                        ? const Color(0xFF1D9E75)
+                        : Colors.transparent,
                     width: 3,
                   ),
                 ),
@@ -197,9 +197,7 @@ class _BooksContentState extends State<BooksContent>
         ),
         side: WidgetStateProperty.resolveWith(
           (states) => BorderSide(
-            color: enabled
-                ? borderColor
-                : borderColor.withValues(alpha: 0.45),
+            color: enabled ? borderColor : borderColor.withValues(alpha: 0.45),
           ),
         ),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -229,40 +227,41 @@ class _BooksContentState extends State<BooksContent>
 
     const accentTeal = Color(0xFF1D9E75);
     final headerAccent = isDark
-      ? colorScheme.primary.withValues(alpha: 0.45)
-      : const Color(0xFFBFE9E3);
+        ? colorScheme.primary.withValues(alpha: 0.45)
+        : const Color(0xFFBFE9E3);
     final rowHoverColor = isDark
-      ? colorScheme.primary.withValues(alpha: 0.12)
-      : const Color(0xFFF0FAF7);
+        ? colorScheme.primary.withValues(alpha: 0.12)
+        : const Color(0xFFF0FAF7);
     final zebraColor = isDark
-      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.18)
-      : const Color(0xFFFAFAFA);
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.18)
+        : const Color(0xFFFAFAFA);
     final tableBorderColor = isDark
-      ? colorScheme.outlineVariant.withValues(alpha: 0.55)
-      : const Color(0xFFE5E7EB);
+        ? colorScheme.outlineVariant.withValues(alpha: 0.55)
+        : const Color(0xFFE5E7EB);
     final tableShadowColor = isDark
-      ? Colors.black.withValues(alpha: 0.32)
-      : Colors.black.withValues(alpha: 0.06);
+        ? Colors.black.withValues(alpha: 0.32)
+        : Colors.black.withValues(alpha: 0.06);
     final headerBackground = isDark
-      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.65)
-      : Colors.white.withValues(alpha: 0.9);
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.65)
+        : Colors.white.withValues(alpha: 0.9);
     final mutedText = isDark
-      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
-      : const Color(0xFF6B7280);
-    final titleTextColor =
-      isDark ? colorScheme.onSurface : const Color(0xFF1A1A2E);
+        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
+        : const Color(0xFF6B7280);
+    final titleTextColor = isDark
+        ? colorScheme.onSurface
+        : const Color(0xFF1A1A2E);
     final authorTextColor = isDark
-      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.85)
-      : const Color(0xFF666666);
+        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.85)
+        : const Color(0xFF666666);
     final categoryTextColor = isDark
-      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
-      : const Color(0xFF777777);
+        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
+        : const Color(0xFF777777);
     final isbnTextColor = isDark
-      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.75)
-      : const Color(0xFF888888);
+        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.75)
+        : const Color(0xFF888888);
     final searchFill = isDark
-      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
-      : const Color(0xFFF7FAFB);
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
+        : const Color(0xFFF7FAFB);
     final showIsbn = screenWidth >= 980;
     final showAuthor = screenWidth >= 840;
     final showRack = screenWidth >= 900;
@@ -279,8 +278,7 @@ class _BooksContentState extends State<BooksContent>
       if (showCopies) 90,
       120,
     ];
-    final minTableWidth =
-      columnWidths.fold(0.0, (sum, width) => sum + width);
+    final minTableWidth = columnWidths.fold(0.0, (sum, width) => sum + width);
     const headingRowHeight = 54.0;
 
     return Scaffold(
@@ -348,14 +346,14 @@ class _BooksContentState extends State<BooksContent>
                       : Theme(
                           data: Theme.of(context).copyWith(
                             dividerColor: isDark
-                                ? colorScheme.outlineVariant
-                                    .withValues(alpha: 0.35)
+                                ? colorScheme.outlineVariant.withValues(
+                                    alpha: 0.35,
+                                  )
                                 : const Color(0xFFF0F0F0),
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
-                            checkboxTheme: Theme.of(context)
-                                .checkboxTheme
+                            checkboxTheme: Theme.of(context).checkboxTheme
                                 .copyWith(
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(4),
@@ -364,16 +362,14 @@ class _BooksContentState extends State<BooksContent>
                                     color: tableBorderColor,
                                     width: 1,
                                   ),
-                                  fillColor:
-                                      WidgetStateProperty.resolveWith(
-                                    (states) {
-                                      if (states
-                                          .contains(WidgetState.selected)) {
-                                        return accentTeal;
-                                      }
-                                      return Colors.transparent;
-                                    },
-                                  ),
+                                  fillColor: WidgetStateProperty.resolveWith((
+                                    states,
+                                  ) {
+                                    if (states.contains(WidgetState.selected)) {
+                                      return accentTeal;
+                                    }
+                                    return Colors.transparent;
+                                  }),
                                   checkColor: WidgetStateProperty.all(
                                     Colors.white,
                                   ),
@@ -425,16 +421,16 @@ class _BooksContentState extends State<BooksContent>
                                             onChanged: (value) {
                                               setState(() {
                                                 if (value == true) {
-                                                  for (final b in
-                                                      filteredBooks) {
-                                                    _selectedBookIds
-                                                        .add(b.id);
+                                                  for (final b
+                                                      in filteredBooks) {
+                                                    _selectedBookIds.add(b.id);
                                                   }
                                                 } else {
-                                                  for (final b in
-                                                      filteredBooks) {
-                                                    _selectedBookIds
-                                                        .remove(b.id);
+                                                  for (final b
+                                                      in filteredBooks) {
+                                                    _selectedBookIds.remove(
+                                                      b.id,
+                                                    );
                                                   }
                                                 }
                                               });
@@ -476,402 +472,425 @@ class _BooksContentState extends State<BooksContent>
                                       label: _buildHeaderLabel('Actions'),
                                     ),
                                   ],
-                                  rows: filteredBooks
-                                      .asMap()
-                                      .entries
-                                      .map(
-                                        (entry) {
-                                          final idx = entry.key;
-                                          final book = entry.value;
-                                          final baseRowColor = idx.isEven
-                                              ? colorScheme.surface
-                                              : zebraColor;
-                                          final normalizedTitle =
-                                              normalizeHindiForDisplay(
-                                            book.title,
+                                  rows: filteredBooks.asMap().entries.map((
+                                    entry,
+                                  ) {
+                                    final idx = entry.key;
+                                    final book = entry.value;
+                                    final baseRowColor = idx.isEven
+                                        ? colorScheme.surface
+                                        : zebraColor;
+                                    final normalizedTitle =
+                                        normalizeHindiForDisplay(book.title);
+                                    final normalizedAuthor =
+                                        normalizeHindiForDisplay(book.author);
+                                    final normalizedDescription =
+                                        normalizeHindiForDisplay(
+                                          book.description ?? '',
+                                        );
+                                    final isbnValue = book.isbn.isEmpty
+                                        ? '-'
+                                        : book.isbn;
+                                    final hasAuthor = normalizedAuthor
+                                        .trim()
+                                        .isNotEmpty;
+                                    final hasIsbn = isbnValue != '-';
+                                    String? secondaryText;
+                                    bool secondaryIsMono = false;
+                                    if (!showAuthor && !showIsbn) {
+                                      final parts = <String>[];
+                                      if (hasAuthor) {
+                                        parts.add(normalizedAuthor);
+                                      }
+                                      if (hasIsbn) parts.add(isbnValue);
+                                      if (parts.isNotEmpty) {
+                                        secondaryText = parts.join(' • ');
+                                      }
+                                    } else if (!showAuthor && hasAuthor) {
+                                      secondaryText = normalizedAuthor;
+                                    } else if (!showIsbn && hasIsbn) {
+                                      secondaryText = isbnValue;
+                                      secondaryIsMono = true;
+                                    } else if (normalizedDescription
+                                        .isNotEmpty) {
+                                      secondaryText = normalizedDescription;
+                                    }
+                                    return DataRow(
+                                      color: WidgetStateProperty.resolveWith((
+                                        states,
+                                      ) {
+                                        if (states.contains(
+                                          WidgetState.hovered,
+                                        )) {
+                                          return rowHoverColor;
+                                        }
+                                        if (states.contains(
+                                          WidgetState.selected,
+                                        )) {
+                                          return rowHoverColor.withValues(
+                                            alpha: 0.6,
                                           );
-                                          final normalizedAuthor =
-                                              normalizeHindiForDisplay(
-                                            book.author,
-                                          );
-                                          final normalizedDescription =
-                                              normalizeHindiForDisplay(
-                                            book.description ?? '',
-                                          );
-                                          final isbnValue =
-                                              book.isbn.isEmpty ? '-' : book.isbn;
-                                          final hasAuthor =
-                                              normalizedAuthor.trim().isNotEmpty;
-                                          final hasIsbn = isbnValue != '-';
-                                          String? secondaryText;
-                                          bool secondaryIsMono = false;
-                                          if (!showAuthor && !showIsbn) {
-                                            final parts = <String>[];
-                                            if (hasAuthor) parts.add(normalizedAuthor);
-                                            if (hasIsbn) parts.add(isbnValue);
-                                            if (parts.isNotEmpty) {
-                                              secondaryText = parts.join(' • ');
-                                            }
-                                          } else if (!showAuthor && hasAuthor) {
-                                            secondaryText = normalizedAuthor;
-                                          } else if (!showIsbn && hasIsbn) {
-                                            secondaryText = isbnValue;
-                                            secondaryIsMono = true;
-                                          } else if (normalizedDescription.isNotEmpty) {
-                                            secondaryText = normalizedDescription;
+                                        }
+                                        return baseRowColor;
+                                      }),
+                                      selected: _selectedBookIds.contains(
+                                        book.id,
+                                      ),
+                                      onSelectChanged: (selected) {
+                                        if (selected == null) return;
+                                        setState(() {
+                                          if (selected) {
+                                            _selectedBookIds.add(book.id);
+                                          } else {
+                                            _selectedBookIds.remove(book.id);
                                           }
-                                          return DataRow(
-                                            color:
-                                                WidgetStateProperty.resolveWith(
-                                              (states) {
-                                                if (states.contains(
-                                                  WidgetState.hovered,
-                                                )) {
-                                                  return rowHoverColor;
-                                                }
-                                                if (states.contains(
-                                                  WidgetState.selected,
-                                                )) {
-                                                  return rowHoverColor
-                                                      .withValues(alpha: 0.6);
-                                                }
-                                                return baseRowColor;
-                                              },
-                                            ),
-                                            selected: _selectedBookIds
-                                                .contains(book.id),
-                                            onSelectChanged: (selected) {
-                                              if (selected == null) return;
-                                              setState(() {
-                                                if (selected) {
-                                                  _selectedBookIds
-                                                      .add(book.id);
-                                                } else {
-                                                  _selectedBookIds
-                                                      .remove(book.id);
-                                                }
-                                              });
-                                            },
-                                            cells: [
-                                              DataCell(
-                                                _wrapRowCell(
-                                                  idx,
-                                                  Center(
-                                                    child: Transform.scale(
-                                                      scale: 0.9,
-                                                      child: Checkbox(
-                                                        value:
-                                                            _selectedBookIds
-                                                                .contains(
+                                        });
+                                      },
+                                      cells: [
+                                        DataCell(
+                                          _wrapRowCell(
+                                            idx,
+                                            Center(
+                                              child: Transform.scale(
+                                                scale: 0.9,
+                                                child: Checkbox(
+                                                  value: _selectedBookIds
+                                                      .contains(book.id),
+                                                  onChanged: (checked) {
+                                                    setState(() {
+                                                      if (checked == true) {
+                                                        _selectedBookIds.add(
                                                           book.id,
-                                                        ),
-                                                        onChanged: (checked) {
-                                                          setState(() {
-                                                            if (checked ==
-                                                                true) {
-                                                              _selectedBookIds
-                                                                  .add(book
-                                                                      .id);
-                                                            } else {
-                                                              _selectedBookIds
-                                                                  .remove(book
-                                                                      .id);
-                                                            }
-                                                          });
-                                                        },
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  showAccent: true,
+                                                        );
+                                                      } else {
+                                                        _selectedBookIds.remove(
+                                                          book.id,
+                                                        );
+                                                      }
+                                                    });
+                                                  },
                                                 ),
                                               ),
-                                              DataCell(
-                                                _wrapRowCell(
-                                                  idx,
-                                                  _buildCoverCell(book),
+                                            ),
+                                            showAccent: true,
+                                          ),
+                                        ),
+                                        DataCell(
+                                          _wrapRowCell(
+                                            idx,
+                                            _buildCoverCell(book),
+                                          ),
+                                        ),
+                                        if (showIsbn)
+                                          DataCell(
+                                            _wrapRowCell(
+                                              idx,
+                                              Text(
+                                                isbnValue,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: isbnTextColor,
                                                 ),
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                              if (showIsbn)
-                                                DataCell(
-                                                  _wrapRowCell(
-                                                    idx,
-                                                    Text(
-                                                      isbnValue,
-                                                      style: GoogleFonts
-                                                          .inter(
-                                                        fontSize: 12,
-                                                        color: isbnTextColor,
-                                                      ),
-                                                      overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        DataCell(
+                                          _wrapRowCell(
+                                            idx,
+                                            Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  normalizedTitle,
+                                                  style: _textStyleForHindi(
+                                                    normalizedTitle,
+                                                    GoogleFonts.dmSans(
+                                                      fontSize: 15,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: titleTextColor,
                                                     ),
                                                   ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
-                                              DataCell(
-                                                _wrapRowCell(
-                                                  idx,
-                                                  Column(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        normalizedTitle,
-                                                        style: _textStyleForHindi(
-                                                          normalizedTitle,
-                                                          GoogleFonts.dmSans(
-                                                            fontSize: 15,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: titleTextColor,
-                                                          ),
-                                                        ),
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                      if (secondaryText != null)
-                                                        Text(
-                                                          secondaryText,
-                                                          style: secondaryIsMono
-                                                              ? GoogleFonts
-                                                                  .inter(
-                                                                  fontSize: 11,
-                                                                  color:
-                                                                      mutedText,
-                                                                )
-                                                              : _textStyleForHindi(
-                                                                  secondaryText,
-                                                                  GoogleFonts
-                                                                      .inter(
-                                                                    fontSize:
-                                                                        11,
-                                                                    color:
-                                                                        mutedText,
-                                                                  ),
-                                                                ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          maxLines: 1,
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                              if (showAuthor)
-                                                DataCell(
-                                                  _wrapRowCell(
-                                                    idx,
-                                                    Text(
-                                                      normalizedAuthor,
-                                                      style: _textStyleForHindi(
-                                                        normalizedAuthor,
-                                                        GoogleFonts.dmSans(
-                                                          fontSize: 13,
-                                                          color:
-                                                              authorTextColor,
-                                                        ),
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ),
-                                              if (showRack)
-                                                DataCell(
-                                                  _wrapRowCell(
-                                                    idx,
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: isDark
-                                                            ? const Color(0xFF4338CA).withValues(alpha: 0.15)
-                                                            : const Color(0xFFEEF2FF),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(999),
-                                                        border: Border.all(
-                                                          color: isDark
-                                                              ? const Color(0xFF4338CA).withValues(alpha: 0.4)
-                                                              : const Color(0xFFC7D2FE),
-                                                        ),
-                                                      ),
-                                                      child: Text(
-                                                        (book.rackNumber ?? '-'),
-                                                        style: GoogleFonts
-                                                            .inter(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: isDark
-                                                              ? const Color(0xFF818CF8)
-                                                              : const Color(0xFF4338CA),
-                                                        ),
-                                                        overflow:
-                                                            TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              if (showCategory)
-                                                DataCell(
-                                                  _wrapRowCell(
-                                                    idx,
-                                                    Text(
-                                                      normalizeHindiForDisplay(
-                                                        book.category ?? '-',
-                                                      ),
-                                                      style: _textStyleForHindi(
-                                                        normalizeHindiForDisplay(
-                                                          book.category ?? '-',
-                                                        ),
-                                                        GoogleFonts.dmSans(
-                                                          fontSize: 13,
-                                                          color:
-                                                              categoryTextColor,
-                                                        ),
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ),
-                                              if (showCopies)
-                                                DataCell(
-                                                  _wrapRowCell(
-                                                    idx,
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 6,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: isDark
-                                                            ? const Color(0xFF059669).withValues(alpha: 0.15)
-                                                            : const Color(0xFFD1FAE5),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(6),
-                                                      ),
-                                                      child: Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            '${book.availableCopies}/${book.totalCopies}',
-                                                            style: GoogleFonts
-                                                                .inter(
-                                                              fontSize: 13,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                              color: isDark
-                                                                  ? const Color(0xFF34D399)
-                                                                  : const Color(0xFF065F46),
+                                                if (secondaryText != null)
+                                                  Text(
+                                                    secondaryText,
+                                                    style: secondaryIsMono
+                                                        ? GoogleFonts.inter(
+                                                            fontSize: 11,
+                                                            color: mutedText,
+                                                          )
+                                                        : _textStyleForHindi(
+                                                            secondaryText,
+                                                            GoogleFonts.inter(
+                                                              fontSize: 11,
+                                                              color: mutedText,
                                                             ),
                                                           ),
-                                                          const SizedBox(
-                                                            height: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 1,
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        if (showAuthor)
+                                          DataCell(
+                                            _wrapRowCell(
+                                              idx,
+                                              Text(
+                                                normalizedAuthor,
+                                                style: _textStyleForHindi(
+                                                  normalizedAuthor,
+                                                  GoogleFonts.dmSans(
+                                                    fontSize: 13,
+                                                    color: authorTextColor,
+                                                  ),
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                        if (showRack)
+                                          DataCell(
+                                            _wrapRowCell(
+                                              idx,
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isDark
+                                                      ? const Color(
+                                                          0xFF4338CA,
+                                                        ).withValues(
+                                                          alpha: 0.15,
+                                                        )
+                                                      : const Color(0xFFEEF2FF),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                  border: Border.all(
+                                                    color: isDark
+                                                        ? const Color(
+                                                            0xFF4338CA,
+                                                          ).withValues(
+                                                            alpha: 0.4,
+                                                          )
+                                                        : const Color(
+                                                            0xFFC7D2FE,
                                                           ),
-                                                          Text(
-                                                            'avail.',
-                                                            style: GoogleFonts
-                                                                .inter(
-                                                              fontSize: 10,
-                                                              color: isDark
-                                                                  ? const Color(0xFF34D399).withValues(alpha: 0.7)
-                                                                  : const Color(0xFF3F8F72),
-                                                            ),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  (book.rackNumber ?? '-'),
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: isDark
+                                                        ? const Color(
+                                                            0xFF818CF8,
+                                                          )
+                                                        : const Color(
+                                                            0xFF4338CA,
                                                           ),
-                                                        ],
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        if (showCategory)
+                                          DataCell(
+                                            _wrapRowCell(
+                                              idx,
+                                              Text(
+                                                normalizeHindiForDisplay(
+                                                  book.category ?? '-',
+                                                ),
+                                                style: _textStyleForHindi(
+                                                  normalizeHindiForDisplay(
+                                                    book.category ?? '-',
+                                                  ),
+                                                  GoogleFonts.dmSans(
+                                                    fontSize: 13,
+                                                    color: categoryTextColor,
+                                                  ),
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                        if (showCopies)
+                                          DataCell(
+                                            _wrapRowCell(
+                                              idx,
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isDark
+                                                      ? const Color(
+                                                          0xFF059669,
+                                                        ).withValues(
+                                                          alpha: 0.15,
+                                                        )
+                                                      : const Color(0xFFD1FAE5),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      '${book.availableCopies}/${book.totalCopies}',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: isDark
+                                                            ? const Color(
+                                                                0xFF34D399,
+                                                              )
+                                                            : const Color(
+                                                                0xFF065F46,
+                                                              ),
                                                       ),
                                                     ),
-                                                  ),
-                                                ),
-                                              DataCell(
-                                                _wrapRowCell(
-                                                  idx,
-                                                  _buildStatusBadge(book),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'avail.',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 10,
+                                                        color: isDark
+                                                            ? const Color(
+                                                                0xFF34D399,
+                                                              ).withValues(
+                                                                alpha: 0.7,
+                                                              )
+                                                            : const Color(
+                                                                0xFF3F8F72,
+                                                              ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              DataCell(
-                                                _wrapRowCell(
-                                                  idx,
-                                                  SizedBox(
-                                                    width: 100,
-                                                    child: Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .end,
-                                                      children: [
-                                                        _buildActionButton(
-                                                          icon:
-                                                              Icons.edit_rounded,
-                                                          tooltip: 'Edit book',
-                                                          onTap: () =>
-                                                              _showBookDialog(
-                                                            book: book,
+                                            ),
+                                          ),
+                                        DataCell(
+                                          _wrapRowCell(
+                                            idx,
+                                            _buildStatusBadge(book),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          _wrapRowCell(
+                                            idx,
+                                            SizedBox(
+                                              width: 100,
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.end,
+                                                children: [
+                                                  _buildActionButton(
+                                                    icon: Icons.edit_rounded,
+                                                    tooltip: 'Edit book',
+                                                    onTap: () =>
+                                                        _showBookDialog(
+                                                          book: book,
+                                                        ),
+                                                    backgroundColor: isDark
+                                                        ? const Color(
+                                                            0xFFD97706,
+                                                          ).withValues(
+                                                            alpha: 0.15,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFFF7ED,
                                                           ),
-                                                          backgroundColor:
-                                                              isDark
-                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.15)
-                                                                  : const Color(0xFFFFF7ED),
-                                                          hoverColor:
-                                                              isDark
-                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.25)
-                                                                  : const Color(0xFFFEF3C7),
-                                                          borderColor:
-                                                              isDark
-                                                                  ? const Color(0xFFD97706).withValues(alpha: 0.4)
-                                                                  : const Color(0xFFFDE68A),
-                                                          iconColor:
-                                                              const Color(0xFFD97706),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 6,
-                                                        ),
-                                                        _buildActionButton(
-                                                          icon:
-                                                              Icons.delete_rounded,
-                                                          tooltip:
-                                                              'Delete book',
-                                                          onTap: () =>
-                                                              _deleteBook(
-                                                            book.id,
+                                                    hoverColor: isDark
+                                                        ? const Color(
+                                                            0xFFD97706,
+                                                          ).withValues(
+                                                            alpha: 0.25,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFEF3C7,
                                                           ),
-                                                          backgroundColor:
-                                                              isDark
-                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.15)
-                                                                  : const Color(0xFFFFF1F2),
-                                                          hoverColor:
-                                                              isDark
-                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.25)
-                                                                  : const Color(0xFFFFE4E6),
-                                                          borderColor:
-                                                              isDark
-                                                                  ? const Color(0xFFE11D48).withValues(alpha: 0.4)
-                                                                  : const Color(0xFFFECDD3),
-                                                          iconColor:
-                                                              const Color(0xFFE11D48),
-                                                        ),
-                                                      ],
+                                                    borderColor: isDark
+                                                        ? const Color(
+                                                            0xFFD97706,
+                                                          ).withValues(
+                                                            alpha: 0.4,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFDE68A,
+                                                          ),
+                                                    iconColor: const Color(
+                                                      0xFFD97706,
                                                     ),
                                                   ),
-                                                ),
+                                                  const SizedBox(width: 6),
+                                                  _buildActionButton(
+                                                    icon: Icons.delete_rounded,
+                                                    tooltip: 'Delete book',
+                                                    onTap: () =>
+                                                        _deleteBook(book.id),
+                                                    backgroundColor: isDark
+                                                        ? const Color(
+                                                            0xFFE11D48,
+                                                          ).withValues(
+                                                            alpha: 0.15,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFFF1F2,
+                                                          ),
+                                                    hoverColor: isDark
+                                                        ? const Color(
+                                                            0xFFE11D48,
+                                                          ).withValues(
+                                                            alpha: 0.25,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFFE4E6,
+                                                          ),
+                                                    borderColor: isDark
+                                                        ? const Color(
+                                                            0xFFE11D48,
+                                                          ).withValues(
+                                                            alpha: 0.4,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFECDD3,
+                                                          ),
+                                                    iconColor: const Color(
+                                                      0xFFE11D48,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ],
-                                          );
-                                        },
-                                      )
-                                      .toList(),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
                                 ),
                                 Positioned(
                                   left: 0,
@@ -883,9 +902,9 @@ class _BooksContentState extends State<BooksContent>
                                   ),
                                 ),
                               ],
+                            ),
                           ),
                         ),
-                      ),
                 ),
               ),
             ),
@@ -903,11 +922,7 @@ class _BooksContentState extends State<BooksContent>
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
-                  border: Border(
-                    top: BorderSide(
-                      color: tableBorderColor,
-                    ),
-                  ),
+                  border: Border(top: BorderSide(color: tableBorderColor)),
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -966,15 +981,17 @@ class _BooksContentState extends State<BooksContent>
                         side: WidgetStateProperty.all(
                           const BorderSide(color: accentTeal),
                         ),
-                        backgroundColor:
-                            WidgetStateProperty.resolveWith((states) {
+                        backgroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
                           if (states.contains(WidgetState.hovered)) {
                             return accentTeal;
                           }
                           return Colors.transparent;
                         }),
-                        foregroundColor:
-                            WidgetStateProperty.resolveWith((states) {
+                        foregroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
                           if (states.contains(WidgetState.hovered)) {
                             return Colors.white;
                           }
@@ -996,8 +1013,8 @@ class _BooksContentState extends State<BooksContent>
                           icon: Icons.chevron_left,
                           onPressed: bookProvider.currentPage > 1
                               ? () => bookProvider.loadPage(
-                                    bookProvider.currentPage - 1,
-                                  )
+                                  bookProvider.currentPage - 1,
+                                )
                               : null,
                           borderColor: tableBorderColor,
                           iconColor: const Color(0xFF475569),
@@ -1009,8 +1026,8 @@ class _BooksContentState extends State<BooksContent>
                           icon: Icons.chevron_right,
                           onPressed: bookProvider.hasMore
                               ? () => bookProvider.loadPage(
-                                    bookProvider.currentPage + 1,
-                                  )
+                                  bookProvider.currentPage + 1,
+                                )
                               : null,
                           borderColor: tableBorderColor,
                           iconColor: const Color(0xFF475569),
@@ -1031,7 +1048,10 @@ class _BooksContentState extends State<BooksContent>
                           const SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [Flexible(child: pageIndicator), pagerButtons],
+                            children: [
+                              Flexible(child: pageIndicator),
+                              pagerButtons,
+                            ],
                           ),
                           if (bookProvider.hasMore) ...[
                             const SizedBox(height: 10),
@@ -1049,9 +1069,7 @@ class _BooksContentState extends State<BooksContent>
                             style: footerTextStyle,
                           ),
                         ),
-                        Expanded(
-                          child: Center(child: pageIndicator),
-                        ),
+                        Expanded(child: Center(child: pageIndicator)),
                         Expanded(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
@@ -1081,7 +1099,9 @@ class _BooksContentState extends State<BooksContent>
       height: 20,
       width: 1,
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+      color: Theme.of(
+        context,
+      ).colorScheme.outlineVariant.withValues(alpha: 0.3),
     );
   }
 
@@ -1092,7 +1112,8 @@ class _BooksContentState extends State<BooksContent>
     required VoidCallback onPressed,
     Color? color,
   }) {
-    final iconColor = color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
+    final iconColor =
+        color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
     return Tooltip(
       message: tooltip,
       child: Material(
@@ -1174,13 +1195,19 @@ class _BooksContentState extends State<BooksContent>
         ),
         filled: true,
         fillColor: searchFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         isDense: true,
         hintStyle: GoogleFonts.dmSans(fontSize: 13, color: mutedText),
       ),
       onChanged: (value) {
         _searchDebounce?.cancel();
-        _searchDebounce = Timer(const Duration(milliseconds: 350), _filterBooks);
+        _searchDebounce = Timer(
+          const Duration(milliseconds: 350),
+          _filterBooks,
+        );
         setState(() {});
       },
     );
@@ -1248,8 +1275,12 @@ class _BooksContentState extends State<BooksContent>
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
-                if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
+                if (states.contains(WidgetState.pressed)) {
+                  return const Color(0xFF137A5A);
+                }
+                if (states.contains(WidgetState.hovered)) {
+                  return const Color(0xFF168B66);
+                }
                 return accentTeal;
               }),
               foregroundColor: WidgetStateProperty.all(Colors.white),
@@ -1320,7 +1351,6 @@ class _BooksContentState extends State<BooksContent>
     return Row(
       children: [
         Expanded(
-          flex: 3,
           child: _buildSearchField(
             controller: _searchController,
             tableBorderColor: tableBorderColor,
@@ -1330,72 +1360,73 @@ class _BooksContentState extends State<BooksContent>
           ),
         ),
         const SizedBox(width: 10),
-        Flexible(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildCategoryFilterPopup(bookProvider),
-                if (selectedCount > 0) ...[
-                  _buildToolbarDivider(context),
-                  _buildToolbarIconButton(
-                    icon: Icons.delete_forever,
-                    tooltip: 'Delete ($selectedCount)',
-                    onPressed: _deleteSelectedBooks,
-                    color: colorScheme.error,
-                  ),
-                  _buildToolbarIconButton(
-                    icon: Icons.clear,
-                    tooltip: 'Clear selection',
-                    onPressed: () => setState(_selectedBookIds.clear),
-                  ),
-                ],
-                _buildToolbarDivider(context),
-                _buildToolbarIconButton(
-                  icon: Icons.category,
-                  tooltip: 'Manage Categories',
-                  onPressed: _showCategoryManagement,
-                  color: colorScheme.primary,
-                ),
-                _buildToolbarIconButton(
-                  icon: Icons.upload_file,
-                  tooltip: 'Import CSV/Excel',
-                  onPressed: _importBooks,
-                ),
-                _buildToolbarIconButton(
-                  icon: Icons.download,
-                  tooltip: 'Export CSV',
-                  onPressed: _exportBooksCsv,
-                ),
-                _buildToolbarIconButton(
-                  icon: Icons.refresh,
-                  tooltip: 'Refresh',
-                  onPressed: _loadBooks,
-                ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: () => _showBookDialog(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Book'),
-                  style: ButtonStyle(
-                    padding: WidgetStateProperty.all(
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    ),
-                    shape: WidgetStateProperty.all(
-                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
-                      if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
-                      return accentTeal;
-                    }),
-                    foregroundColor: WidgetStateProperty.all(Colors.white),
-                  ),
-                ),
-              ],
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildCategoryFilterPopup(bookProvider),
+            if (selectedCount > 0) ...[
+              _buildToolbarDivider(context),
+              _buildToolbarIconButton(
+                icon: Icons.delete_forever,
+                tooltip: 'Delete ($selectedCount)',
+                onPressed: _deleteSelectedBooks,
+                color: colorScheme.error,
+              ),
+              _buildToolbarIconButton(
+                icon: Icons.clear,
+                tooltip: 'Clear selection',
+                onPressed: () => setState(_selectedBookIds.clear),
+              ),
+            ],
+            _buildToolbarDivider(context),
+            _buildToolbarIconButton(
+              icon: Icons.category,
+              tooltip: 'Manage Categories',
+              onPressed: _showCategoryManagement,
+              color: colorScheme.primary,
             ),
-          ),
+            _buildToolbarIconButton(
+              icon: Icons.upload_file,
+              tooltip: 'Import CSV/Excel',
+              onPressed: _importBooks,
+            ),
+            _buildToolbarIconButton(
+              icon: Icons.download,
+              tooltip: 'Export CSV',
+              onPressed: _exportBooksCsv,
+            ),
+            _buildToolbarIconButton(
+              icon: Icons.refresh,
+              tooltip: 'Refresh',
+              onPressed: _loadBooks,
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => _showBookDialog(),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Book'),
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all(
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                ),
+                shape: WidgetStateProperty.all(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.pressed)) {
+                    return const Color(0xFF137A5A);
+                  }
+                  if (states.contains(WidgetState.hovered)) {
+                    return const Color(0xFF168B66);
+                  }
+                  return accentTeal;
+                }),
+                foregroundColor: WidgetStateProperty.all(Colors.white),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1411,16 +1442,15 @@ class _BooksContentState extends State<BooksContent>
       child: PopupMenuButton<String>(
         onSelected: (value) {
           setState(
-            () => _selectedCategory =
-                value == 'All Categories' ? null : value,
+            () => _selectedCategory = value == 'All Categories' ? null : value,
           );
           _filterBooks();
         },
         itemBuilder: (context) {
           final categories = getUniqueCategories(bookProvider.books);
           return categories.map((category) {
-            final isSelected = (_selectedCategory == null &&
-                    category == 'All Categories') ||
+            final isSelected =
+                (_selectedCategory == null && category == 'All Categories') ||
                 (_selectedCategory == category);
             return PopupMenuItem<String>(
               value: category,
@@ -1439,8 +1469,9 @@ class _BooksContentState extends State<BooksContent>
                       category,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
                             : null,
@@ -1457,8 +1488,11 @@ class _BooksContentState extends State<BooksContent>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.filter_list,
-                  color: Theme.of(context).colorScheme.primary, size: 20),
+              Icon(
+                Icons.filter_list,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
               const SizedBox(width: 6),
               Text(
                 _selectedCategory ?? 'All Categories',
@@ -1469,9 +1503,11 @@ class _BooksContentState extends State<BooksContent>
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.arrow_drop_down,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: 20),
+              Icon(
+                Icons.arrow_drop_down,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
             ],
           ),
         ),
@@ -1495,10 +1531,7 @@ class _BooksContentState extends State<BooksContent>
       bookProvider.loadBooks(category: _selectedCategory);
     } else {
       // For non-Hindi search, use backend search with pagination
-      bookProvider.loadBooks(
-        search: searchText,
-        category: _selectedCategory,
-      );
+      bookProvider.loadBooks(search: searchText, category: _selectedCategory);
     }
   }
 
@@ -1623,9 +1656,9 @@ class _BooksContentState extends State<BooksContent>
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).maybePop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Import', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(getOperationErrorMessage('Import', e))),
+      );
     }
   }
 
@@ -1675,7 +1708,9 @@ class _BooksContentState extends State<BooksContent>
     } catch (e) {
       if (!mounted) return;
       if (navigator.canPop()) navigator.pop();
-      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
+      messenger.showSnackBar(
+        SnackBar(content: Text(getOperationErrorMessage('Export', e))),
+      );
     }
   }
 
@@ -1687,7 +1722,8 @@ class _BooksContentState extends State<BooksContent>
         context: context,
         icon: Icons.delete_outline_rounded,
         title: 'Delete Book',
-        message: 'Are you sure you want to delete this book? This action cannot be undone.',
+        message:
+            'Are you sure you want to delete this book? This action cannot be undone.',
         confirmLabel: 'Delete',
         confirmIcon: Icons.delete_outline_rounded,
         destructive: true,
@@ -1732,7 +1768,8 @@ class _BooksContentState extends State<BooksContent>
       context: context,
       icon: Icons.delete_sweep_rounded,
       title: 'Delete selected books',
-      message: 'Delete ${ids.length} selected book(s)? This action cannot be undone.',
+      message:
+          'Delete ${ids.length} selected book(s)? This action cannot be undone.',
       confirmLabel: 'Delete',
       confirmIcon: Icons.delete_outline_rounded,
       destructive: true,
@@ -1866,11 +1903,19 @@ class _BooksContentState extends State<BooksContent>
     final isAvailable = book.availableCopies > 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final background = isAvailable
-        ? (isDark ? const Color(0xFF059669).withValues(alpha: 0.15) : const Color(0xFFECFDF5))
-        : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFFFEF2F2));
+        ? (isDark
+              ? const Color(0xFF059669).withValues(alpha: 0.15)
+              : const Color(0xFFECFDF5))
+        : (isDark
+              ? const Color(0xFFEF4444).withValues(alpha: 0.15)
+              : const Color(0xFFFEF2F2));
     final border = isAvailable
-        ? (isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : const Color(0xFF6EE7B7))
-        : (isDark ? const Color(0xFFEF4444).withValues(alpha: 0.4) : const Color(0xFFFECACA));
+        ? (isDark
+              ? const Color(0xFF059669).withValues(alpha: 0.4)
+              : const Color(0xFF6EE7B7))
+        : (isDark
+              ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+              : const Color(0xFFFECACA));
     final textColor = isAvailable
         ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
         : (isDark ? const Color(0xFFFC8181) : const Color(0xFFEF4444));
@@ -2048,16 +2093,11 @@ class _ActionIconButtonState extends State<_ActionIconButton> {
                 height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color:
-                      _hovered ? widget.hoverColor : widget.backgroundColor,
+                  color: _hovered ? widget.hoverColor : widget.backgroundColor,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: widget.borderColor),
                 ),
-                child: Icon(
-                  widget.icon,
-                  size: 18,
-                  color: widget.iconColor,
-                ),
+                child: Icon(widget.icon, size: 18, color: widget.iconColor),
               ),
             ),
           ),
@@ -2118,9 +2158,9 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
         widget.onChanged();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error adding category: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error adding category: $e')));
         }
       }
     }
@@ -2133,7 +2173,11 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
     );
     if (result != null) {
       try {
-        await ApiService.updateCategory(cat.id, result['name']!, result['description']);
+        await ApiService.updateCategory(
+          cat.id,
+          result['name']!,
+          result['description'],
+        );
         _loadCategories();
         widget.onChanged();
       } catch (e) {
@@ -2229,9 +2273,11 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.category,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 24),
+                    Icon(
+                      Icons.category,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 24,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -2244,14 +2290,18 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.add_circle,
-                          color: Theme.of(context).colorScheme.onPrimary),
+                      icon: Icon(
+                        Icons.add_circle,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                       tooltip: 'Add Category',
                       onPressed: _addCategory,
                     ),
                     IconButton(
-                      icon: Icon(Icons.close,
-                          color: Theme.of(context).colorScheme.onPrimary),
+                      icon: Icon(
+                        Icons.close,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -2267,101 +2317,92 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                         ),
                       )
                     : _error != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Text('Error: $_error'),
-                            ),
-                          )
-                        : _categories.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(40),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.category_outlined,
-                                        size: 48,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.3),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      const Text('No categories yet'),
-                                      const SizedBox(height: 12),
-                                      ElevatedButton.icon(
-                                        onPressed: _addCategory,
-                                        icon: const Icon(Icons.add),
-                                        label: const Text('Add Category'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                itemCount: _categories.length,
-                                separatorBuilder: (_, i) =>
-                                    const Divider(height: 1),
-                                itemBuilder: (context, index) {
-                                  final cat = _categories[index];
-                                  return ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: Theme.of(context)
-                                          .colorScheme
-                                          .primaryContainer,
-                                      child: Text(
-                                        cat.name.isNotEmpty
-                                            ? cat.name[0].toUpperCase()
-                                            : '?',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimaryContainer,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    title: Text(
-                                      cat.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            size: 18,
-                                          ),
-                                          tooltip: 'Edit',
-                                          onPressed: () =>
-                                              _editCategory(cat),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.delete,
-                                            size: 18,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .error,
-                                          ),
-                                          tooltip: 'Delete',
-                                          onPressed: () =>
-                                              _deleteCategory(cat),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text('Error: $_error'),
+                        ),
+                      )
+                    : _categories.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.category_outlined,
+                                size: 48,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.3),
                               ),
+                              const SizedBox(height: 12),
+                              const Text('No categories yet'),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: _addCategory,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Category'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        itemCount: _categories.length,
+                        separatorBuilder: (_, i) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final cat = _categories[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              child: Text(
+                                cat.name.isNotEmpty
+                                    ? cat.name[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              cat.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  tooltip: 'Edit',
+                                  onPressed: () => _editCategory(cat),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    size: 18,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  tooltip: 'Delete',
+                                  onPressed: () => _deleteCategory(cat),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -2385,10 +2426,12 @@ class _CategoryEditDialog extends StatefulWidget {
 }
 
 class _CategoryEditDialogState extends State<_CategoryEditDialog> {
-  late final TextEditingController _nameController =
-      TextEditingController(text: widget.initialName);
-  late final TextEditingController _descController =
-      TextEditingController(text: widget.initialDescription ?? '');
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.initialName,
+  );
+  late final TextEditingController _descController = TextEditingController(
+    text: widget.initialDescription ?? '',
+  );
 
   @override
   void dispose() {
@@ -2401,7 +2444,9 @@ class _CategoryEditDialogState extends State<_CategoryEditDialog> {
   Widget build(BuildContext context) {
     final isNew = widget.initialName.isEmpty;
     return PremiumDialogShell(
-      icon: isNew ? Icons.create_new_folder_rounded : Icons.drive_file_rename_outline_rounded,
+      icon: isNew
+          ? Icons.create_new_folder_rounded
+          : Icons.drive_file_rename_outline_rounded,
       title: isNew ? 'Add Category' : 'Edit Category',
       subtitle: isNew
           ? 'Create a new category for your books'
@@ -2421,10 +2466,9 @@ class _CategoryEditDialogState extends State<_CategoryEditDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.4),
+              fillColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
             ),
           ),
           const SizedBox(height: 16),
@@ -2437,10 +2481,9 @@ class _CategoryEditDialogState extends State<_CategoryEditDialog> {
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.4),
+              fillColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
             ),
             maxLines: 2,
           ),

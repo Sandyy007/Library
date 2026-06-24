@@ -339,7 +339,8 @@ class _IssuesContentState extends State<IssuesContent> {
     required VoidCallback onPressed,
     Color? color,
   }) {
-    final iconColor = color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
+    final iconColor =
+        color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
     return Tooltip(
       message: tooltip,
       child: Material(
@@ -374,29 +375,29 @@ class _IssuesContentState extends State<IssuesContent> {
 
     const accentTeal = Color(0xFF1D9E75);
     final tableBorderColor = isDark
-      ? colorScheme.outlineVariant.withValues(alpha: 0.55)
-      : const Color(0xFFE5E7EB);
+        ? colorScheme.outlineVariant.withValues(alpha: 0.55)
+        : const Color(0xFFE5E7EB);
     final tableShadowColor = isDark
-      ? Colors.black.withValues(alpha: 0.32)
-      : Colors.black.withValues(alpha: 0.06);
+        ? Colors.black.withValues(alpha: 0.32)
+        : Colors.black.withValues(alpha: 0.06);
     final headerBackground = isDark
-      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.65)
-      : Colors.white.withValues(alpha: 0.9);
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.65)
+        : Colors.white.withValues(alpha: 0.9);
     final mutedText = isDark
-      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
-      : const Color(0xFF6B7280);
+        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.8)
+        : const Color(0xFF6B7280);
     final searchFill = isDark
-      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
-      : const Color(0xFFF7FAFB);
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
+        : const Color(0xFFF7FAFB);
     final rowHoverColor = isDark
-      ? colorScheme.primary.withValues(alpha: 0.12)
-      : const Color(0xFFF0FAF7);
+        ? colorScheme.primary.withValues(alpha: 0.12)
+        : const Color(0xFFF0FAF7);
     final zebraColor = isDark
-      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.18)
-      : const Color(0xFFFAFAFA);
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.18)
+        : const Color(0xFFFAFAFA);
     final headerAccent = isDark
-      ? colorScheme.primary.withValues(alpha: 0.45)
-      : const Color(0xFFBFE9E3);
+        ? colorScheme.primary.withValues(alpha: 0.45)
+        : const Color(0xFFBFE9E3);
 
     final filteredIssues = getFilteredIssues(
       issueProvider.issues,
@@ -421,6 +422,14 @@ class _IssuesContentState extends State<IssuesContent> {
       210, // actions column
     ];
     final minTableWidth = columnWidths.fold(0.0, (sum, w) => sum + w);
+
+    // When the pagination bar is shown it sits directly beneath the table, so
+    // the table only rounds its top corners and the two pieces read as one card.
+    final showPagination =
+        !issueProvider.isLoading && issueProvider.issues.isNotEmpty;
+    final tableRadius = showPagination
+        ? const BorderRadius.vertical(top: Radius.circular(16))
+        : BorderRadius.circular(16);
 
     return Scaffold(
       body: Padding(
@@ -461,8 +470,14 @@ class _IssuesContentState extends State<IssuesContent> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: tableBorderColor),
+                  borderRadius: tableRadius,
+                  border: showPagination
+                      ? Border(
+                          top: BorderSide(color: tableBorderColor),
+                          left: BorderSide(color: tableBorderColor),
+                          right: BorderSide(color: tableBorderColor),
+                        )
+                      : Border.all(color: tableBorderColor),
                   boxShadow: [
                     BoxShadow(
                       color: tableShadowColor,
@@ -472,7 +487,7 @@ class _IssuesContentState extends State<IssuesContent> {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: tableRadius,
                   child: issueProvider.isLoading
                       ? const ShimmerTable(rows: 8, columns: 5)
                       : issueProvider.error != null
@@ -485,7 +500,9 @@ class _IssuesContentState extends State<IssuesContent> {
                                 Icon(
                                   Icons.error_outline,
                                   size: 72,
-                                  color: colorScheme.error.withValues(alpha: 0.6),
+                                  color: colorScheme.error.withValues(
+                                    alpha: 0.6,
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -496,9 +513,12 @@ class _IssuesContentState extends State<IssuesContent> {
                                 Text(
                                   issueProvider.error!,
                                   textAlign: TextAlign.center,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                      ),
                                 ),
                                 const SizedBox(height: 20),
                                 Wrap(
@@ -511,7 +531,8 @@ class _IssuesContentState extends State<IssuesContent> {
                                       child: const Text('Retry'),
                                     ),
                                     OutlinedButton(
-                                      onPressed: () => context.read<AuthProvider>().logout(),
+                                      onPressed: () =>
+                                          context.read<AuthProvider>().logout(),
                                       child: const Text('Login Again'),
                                     ),
                                   ],
@@ -531,24 +552,33 @@ class _IssuesContentState extends State<IssuesContent> {
                       : Theme(
                           data: Theme.of(context).copyWith(
                             dividerColor: isDark
-                                ? colorScheme.outlineVariant.withValues(alpha: 0.35)
+                                ? colorScheme.outlineVariant.withValues(
+                                    alpha: 0.35,
+                                  )
                                 : const Color(0xFFF0F0F0),
                             visualDensity: VisualDensity.compact,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: MouseRegion(
-                            onExit: (_) { if (_hoveredRowIndex != null) setState(() => _hoveredRowIndex = null); },
+                            onExit: (_) {
+                              if (_hoveredRowIndex != null) {
+                                setState(() => _hoveredRowIndex = null);
+                              }
+                            },
                             child: Stack(
                               children: [
                                 DataTable2(
-                                  columnSpacing: 12,
-                                  horizontalMargin: 12,
-                                  dataRowHeight: 70,
+                                  columnSpacing: 18,
+                                  horizontalMargin: 24,
+                                  dataRowHeight: 68,
                                   headingRowHeight: headingRowHeight,
                                   showCheckboxColumn: false,
                                   minWidth: minTableWidth,
                                   fixedTopRows: 1,
-                                  headingRowColor: WidgetStateProperty.all(headerBackground),
+                                  headingRowColor: WidgetStateProperty.all(
+                                    headerBackground,
+                                  ),
                                   dividerThickness: 0.5,
                                   columns: [
                                     DataColumn2(
@@ -556,73 +586,110 @@ class _IssuesContentState extends State<IssuesContent> {
                                     ),
                                     if (showMember)
                                       DataColumn2(
-                                        label: _buildIssuesHeaderLabel('Member'),
+                                        label: _buildIssuesHeaderLabel(
+                                          'Member',
+                                        ),
                                       ),
                                     if (showIssueDate)
                                       DataColumn2(
-                                        label: _buildIssuesHeaderLabel('Issue Date'),
+                                        label: _buildIssuesHeaderLabel(
+                                          'Issue Date',
+                                        ),
                                       ),
                                     if (showDueDate)
                                       DataColumn2(
-                                        label: _buildIssuesHeaderLabel('Due Date'),
+                                        label: _buildIssuesHeaderLabel(
+                                          'Due Date',
+                                        ),
                                       ),
                                     if (showReturnDate)
                                       DataColumn2(
-                                        label: _buildIssuesHeaderLabel('Return'),
+                                        label: _buildIssuesHeaderLabel(
+                                          'Return',
+                                        ),
                                       ),
                                     if (showStatus)
                                       DataColumn2(
-                                        label: _buildIssuesHeaderLabel('Status'),
+                                        label: _buildIssuesHeaderLabel(
+                                          'Status',
+                                        ),
                                       ),
                                     DataColumn2(
                                       fixedWidth: 210,
                                       label: Align(
                                         alignment: Alignment.centerRight,
-                                        child: _buildIssuesHeaderLabel('Actions'),
+                                        child: _buildIssuesHeaderLabel(
+                                          'Actions',
+                                        ),
                                       ),
                                     ),
                                   ],
-                                  rows: filteredIssues.toList().asMap().entries.map((entry) {
+                                  rows: filteredIssues.toList().asMap().entries.map((
+                                    entry,
+                                  ) {
                                     final idx = entry.key;
                                     final issue = entry.value;
-                                    final statusColor = issue.status == 'returned'
+                                    final statusColor =
+                                        issue.status == 'returned'
                                         ? const Color(0xFF10B981)
                                         : (issue.status == 'overdue'
                                               ? const Color(0xFFEF4444)
                                               : const Color(0xFFF59E0B));
-                                    final baseRowColor = idx.isEven ? colorScheme.surface : zebraColor;
+                                    final baseRowColor = idx.isEven
+                                        ? colorScheme.surface
+                                        : zebraColor;
 
                                     String? secondaryText;
                                     String? metaText;
                                     if (!showMember) {
-                                      secondaryText = normalizeHindiForDisplay(issue.memberName);
+                                      secondaryText = normalizeHindiForDisplay(
+                                        issue.memberName,
+                                      );
                                     }
                                     if (!showIssueDate) {
-                                      metaText = 'Issued: ${DateFormatter.formatDateIndian(issue.issueDate)}';
+                                      metaText =
+                                          'Issued: ${DateFormatter.formatDateIndian(issue.issueDate)}';
                                     } else if (!showDueDate) {
-                                      metaText = 'Due: ${DateFormatter.formatDateIndian(issue.dueDate)}';
+                                      metaText =
+                                          'Due: ${DateFormatter.formatDateIndian(issue.dueDate)}';
                                     }
 
                                     return DataRow(
-                                      color: WidgetStateProperty.resolveWith((states) {
-                                        if (states.contains(WidgetState.hovered)) return rowHoverColor;
+                                      color: WidgetStateProperty.resolveWith((
+                                        states,
+                                      ) {
+                                        if (states.contains(
+                                          WidgetState.hovered,
+                                        )) {
+                                          return rowHoverColor;
+                                        }
                                         return baseRowColor;
                                       }),
                                       cells: [
                                         DataCell(
                                           Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                          Text(
-                                                normalizeHindiForDisplay(issue.bookTitle),
+                                              Text(
+                                                normalizeHindiForDisplay(
+                                                  issue.bookTitle,
+                                                ),
                                                 style: _textStyleForHindi(
-                                                  normalizeHindiForDisplay(issue.bookTitle),
+                                                  normalizeHindiForDisplay(
+                                                    issue.bookTitle,
+                                                  ),
                                                   TextStyle(
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 14,
-                                                    color: isDark ? colorScheme.onSurface : const Color(0xFF1A1A2E),
+                                                    color: isDark
+                                                        ? colorScheme.onSurface
+                                                        : const Color(
+                                                            0xFF1A1A2E,
+                                                          ),
                                                   ),
                                                 ),
                                                 maxLines: 1,
@@ -630,7 +697,10 @@ class _IssuesContentState extends State<IssuesContent> {
                                               ),
                                               if (secondaryText != null)
                                                 Padding(
-                                                  padding: const EdgeInsets.only(top: 2),
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 2,
+                                                      ),
                                                   child: Text(
                                                     secondaryText,
                                                     style: _textStyleForHindi(
@@ -641,36 +711,61 @@ class _IssuesContentState extends State<IssuesContent> {
                                                       ),
                                                     ),
                                                     maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                               if (metaText != null)
                                                 Padding(
-                                                  padding: const EdgeInsets.only(top: 1),
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 1,
+                                                      ),
                                                   child: Text(
                                                     metaText,
                                                     style: _textStyleForHindi(
                                                       metaText,
-                                                      TextStyle(fontSize: 10, color: mutedText.withValues(alpha: 0.7)),
+                                                      TextStyle(
+                                                        fontSize: 10,
+                                                        color: mutedText
+                                                            .withValues(
+                                                              alpha: 0.7,
+                                                            ),
+                                                      ),
                                                     ),
                                                     maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
+                                                ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                    ),
+                                        ),
                                         if (showMember)
                                           DataCell(
                                             ConstrainedBox(
-                                              constraints: const BoxConstraints(maxWidth: 180),
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 180,
+                                              ),
                                               child: Text(
-                                                normalizeHindiForDisplay(issue.memberName),
+                                                normalizeHindiForDisplay(
+                                                  issue.memberName,
+                                                ),
                                                 style: _textStyleForHindi(
-                                                  normalizeHindiForDisplay(issue.memberName),
+                                                  normalizeHindiForDisplay(
+                                                    issue.memberName,
+                                                  ),
                                                   TextStyle(
                                                     fontSize: 13,
-                                                    color: isDark ? colorScheme.onSurfaceVariant.withValues(alpha: 0.85) : const Color(0xFF666666),
+                                                    color: isDark
+                                                        ? colorScheme
+                                                              .onSurfaceVariant
+                                                              .withValues(
+                                                                alpha: 0.85,
+                                                              )
+                                                        : const Color(
+                                                            0xFF666666,
+                                                          ),
                                                   ),
                                                 ),
                                                 maxLines: 2,
@@ -679,51 +774,92 @@ class _IssuesContentState extends State<IssuesContent> {
                                             ),
                                           ),
                                         if (showIssueDate)
-                                          DataCell(Text(
-                                            DateFormatter.formatDateIndian(issue.issueDate),
-                                            style: TextStyle(fontSize: 12, color: mutedText),
-                                            overflow: TextOverflow.ellipsis,
-                                          )),
+                                          DataCell(
+                                            Text(
+                                              DateFormatter.formatDateIndian(
+                                                issue.issueDate,
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: mutedText,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
                                         if (showDueDate)
-                                          DataCell(Text(
-                                            DateFormatter.formatDateIndian(issue.dueDate),
-                                            style: TextStyle(fontSize: 12, color: mutedText),
-                                            overflow: TextOverflow.ellipsis,
-                                          )),
+                                          DataCell(
+                                            Text(
+                                              DateFormatter.formatDateIndian(
+                                                issue.dueDate,
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: mutedText,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
                                         if (showReturnDate)
-                                          DataCell(Text(
-                                            issue.returnDate != null
-                                                ? DateFormatter.formatDateIndian(issue.returnDate)
-                                                : '-',
-                                            style: TextStyle(fontSize: 12, color: mutedText),
-                                            overflow: TextOverflow.ellipsis,
-                                          )),
+                                          DataCell(
+                                            Text(
+                                              issue.returnDate != null
+                                                  ? DateFormatter.formatDateIndian(
+                                                      issue.returnDate,
+                                                    )
+                                                  : '-',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: mutedText,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
                                         if (showStatus)
                                           DataCell(
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: statusColor.withValues(alpha: 0.1),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+                                                color: statusColor.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: statusColor.withValues(
+                                                    alpha: 0.25,
+                                                  ),
+                                                ),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Container(
-                                                    width: 6, height: 6,
-                                                    decoration: BoxDecoration(shape: BoxShape.circle, color: statusColor),
+                                                    width: 6,
+                                                    height: 6,
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: statusColor,
+                                                    ),
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Flexible(
                                                     child: Text(
-                                                      issue.status[0].toUpperCase() + issue.status.substring(1),
+                                                      issue.status[0]
+                                                              .toUpperCase() +
+                                                          issue.status
+                                                              .substring(1),
                                                       style: TextStyle(
                                                         fontSize: 10,
-                                                        fontWeight: FontWeight.w600,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                         color: statusColor,
                                                       ),
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],
@@ -735,33 +871,55 @@ class _IssuesContentState extends State<IssuesContent> {
                                             alignment: Alignment.centerRight,
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
-                                              mainAxisAlignment: MainAxisAlignment.end,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
                                               children: [
                                                 _buildActionButton(
-                                                  icon: Icons.description_outlined,
+                                                  icon: Icons
+                                                      .description_outlined,
                                                   color: accentTeal,
                                                   tooltip: 'Generate Slip',
-                                                  onTap: () => _generateBorrowSlip(context, issue),
+                                                  onTap: () =>
+                                                      _generateBorrowSlip(
+                                                        context,
+                                                        issue,
+                                                      ),
                                                 ),
-                                                const SizedBox(width: 4),
+                                                const SizedBox(width: 6),
                                                 _buildActionButton(
                                                   icon: Icons.edit_outlined,
-                                                  color: const Color(0xFFD97706),
+                                                  color: const Color(
+                                                    0xFFD97706,
+                                                  ),
                                                   tooltip: 'Edit Issue',
-                                                  onTap: () => _showEditIssueDialog(context, issue),
+                                                  onTap: () =>
+                                                      _showEditIssueDialog(
+                                                        context,
+                                                        issue,
+                                                      ),
                                                 ),
-                                                const SizedBox(width: 4),
+                                                const SizedBox(width: 6),
                                                 _buildActionButton(
                                                   icon: Icons.delete_outlined,
-                                                  color: const Color(0xFFE11D48),
+                                                  color: const Color(
+                                                    0xFFE11D48,
+                                                  ),
                                                   tooltip: 'Delete Issue',
-                                                  onTap: () => _showDeleteIssueDialog(context, issue),
+                                                  onTap: () =>
+                                                      _showDeleteIssueDialog(
+                                                        context,
+                                                        issue,
+                                                      ),
                                                 ),
-                                                const SizedBox(width: 4),
-                                                if (issue.status == 'issued' || issue.status == 'overdue')
-                                                  _buildReturnButtonFor(issue.id, colorScheme)
+                                                const SizedBox(width: 6),
+                                                if (issue.status == 'issued' ||
+                                                    issue.status == 'overdue')
+                                                  _buildReturnButtonFor(
+                                                    issue.id,
+                                                    colorScheme,
+                                                  )
                                                 else
-                                                  const SizedBox(width: 0),
+                                                  const SizedBox.shrink(),
                                               ],
                                             ),
                                           ),
@@ -771,40 +929,65 @@ class _IssuesContentState extends State<IssuesContent> {
                                   }).toList(),
                                 ),
                                 Positioned(
-                                  left: 0, right: 0,
+                                  left: 0,
+                                  right: 0,
                                   top: headingRowHeight - 1,
-                                  child: Container(height: 1, color: headerAccent),
+                                  child: Container(
+                                    height: 1,
+                                    color: headerAccent,
+                                  ),
                                 ),
                               ],
-                              ),
                             ),
                           ),
-                  ),
+                        ),
                 ),
               ),
+            ),
 
             // Pagination controls
-            if (!issueProvider.isLoading && issueProvider.issues.isNotEmpty)
+            if (showPagination)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
-                  border: Border(top: BorderSide(color: tableBorderColor)),
+                  border: Border(
+                    top: BorderSide(color: tableBorderColor),
+                    left: BorderSide(color: tableBorderColor),
+                    right: BorderSide(color: tableBorderColor),
+                    bottom: BorderSide(color: tableBorderColor),
+                  ),
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isNarrow = constraints.maxWidth < 760;
-                    final footerTextStyle = TextStyle(fontSize: 13, color: mutedText);
+                    final footerTextStyle = TextStyle(
+                      fontSize: 13,
+                      color: mutedText,
+                    );
                     final pagePill = Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: accentTeal, borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentTeal,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Text(
                         '${issueProvider.currentPage}',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     );
                     final pageIndicator = Row(
@@ -814,24 +997,50 @@ class _IssuesContentState extends State<IssuesContent> {
                         const SizedBox(width: 6),
                         pagePill,
                         const SizedBox(width: 6),
-                        Text('of ${issueProvider.totalPages}', style: footerTextStyle),
+                        Text(
+                          'of ${issueProvider.totalPages}',
+                          style: footerTextStyle,
+                        ),
                       ],
                     );
                     final loadMoreButton = OutlinedButton(
-                      onPressed: issueProvider.hasMore ? () => issueProvider.loadMoreIssues() : null,
+                      onPressed: issueProvider.hasMore
+                          ? () => issueProvider.loadMoreIssues()
+                          : null,
                       style: ButtonStyle(
-                        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
-                        shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                        side: WidgetStateProperty.all(const BorderSide(color: accentTeal)),
-                        backgroundColor: WidgetStateProperty.resolveWith((states) {
-                          if (states.contains(WidgetState.hovered)) return accentTeal;
+                        padding: WidgetStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                        ),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        side: WidgetStateProperty.all(
+                          const BorderSide(color: accentTeal),
+                        ),
+                        backgroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return accentTeal;
+                          }
                           return Colors.transparent;
                         }),
-                        foregroundColor: WidgetStateProperty.resolveWith((states) {
-                          if (states.contains(WidgetState.hovered)) return Colors.white;
+                        foregroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return Colors.white;
+                          }
                           return accentTeal;
                         }),
-                        textStyle: WidgetStateProperty.all(TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        textStyle: WidgetStateProperty.all(
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
                       ),
                       child: const Text('+ Load More'),
                     );
@@ -841,7 +1050,10 @@ class _IssuesContentState extends State<IssuesContent> {
                         _buildPagerIconButton(
                           icon: Icons.chevron_left,
                           onPressed: issueProvider.currentPage > 1
-                              ? () => issueProvider.loadPage(issueProvider.currentPage - 1) : null,
+                              ? () => issueProvider.loadPage(
+                                  issueProvider.currentPage - 1,
+                                )
+                              : null,
                           borderColor: tableBorderColor,
                           iconColor: const Color(0xFF475569),
                           hoverFill: rowHoverColor,
@@ -851,7 +1063,10 @@ class _IssuesContentState extends State<IssuesContent> {
                         _buildPagerIconButton(
                           icon: Icons.chevron_right,
                           onPressed: issueProvider.hasMore
-                              ? () => issueProvider.loadPage(issueProvider.currentPage + 1) : null,
+                              ? () => issueProvider.loadPage(
+                                  issueProvider.currentPage + 1,
+                                )
+                              : null,
                           borderColor: tableBorderColor,
                           iconColor: const Color(0xFF475569),
                           hoverFill: rowHoverColor,
@@ -864,24 +1079,44 @@ class _IssuesContentState extends State<IssuesContent> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Showing ${filteredIssues.length} of ${issueProvider.totalIssues} issues', style: footerTextStyle),
+                          Text(
+                            'Showing ${filteredIssues.length} of ${issueProvider.totalIssues} issues',
+                            style: footerTextStyle,
+                          ),
                           const SizedBox(height: 10),
-                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Flexible(child: pageIndicator), pagerButtons]),
-                          if (issueProvider.hasMore) ...[const SizedBox(height: 10), loadMoreButton],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(child: pageIndicator),
+                              pagerButtons,
+                            ],
+                          ),
+                          if (issueProvider.hasMore) ...[
+                            const SizedBox(height: 10),
+                            loadMoreButton,
+                          ],
                         ],
                       );
                     }
 
                     return Row(
                       children: [
-                        Expanded(child: Text('Showing ${filteredIssues.length} of ${issueProvider.totalIssues} issues', style: footerTextStyle)),
+                        Expanded(
+                          child: Text(
+                            'Showing ${filteredIssues.length} of ${issueProvider.totalIssues} issues',
+                            style: footerTextStyle,
+                          ),
+                        ),
                         Expanded(child: Center(child: pageIndicator)),
                         Expanded(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               pagerButtons,
-                              if (issueProvider.hasMore) ...[const SizedBox(width: 12), loadMoreButton],
+                              if (issueProvider.hasMore) ...[
+                                const SizedBox(width: 12),
+                                loadMoreButton,
+                              ],
                             ],
                           ),
                         ),
@@ -930,10 +1165,14 @@ class _IssuesContentState extends State<IssuesContent> {
         padding: WidgetStateProperty.all(EdgeInsets.zero),
         fixedSize: WidgetStateProperty.all(const Size(32, 32)),
         minimumSize: WidgetStateProperty.all(const Size(32, 32)),
-        shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-        side: WidgetStateProperty.resolveWith((states) => BorderSide(
-          color: enabled ? borderColor : borderColor.withValues(alpha: 0.45),
-        )),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        side: WidgetStateProperty.resolveWith(
+          (states) => BorderSide(
+            color: enabled ? borderColor : borderColor.withValues(alpha: 0.45),
+          ),
+        ),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (!enabled) return Colors.transparent;
           if (states.contains(WidgetState.hovered)) return hoverFill;
@@ -985,7 +1224,10 @@ class _IssuesContentState extends State<IssuesContent> {
         ),
         filled: true,
         fillColor: searchFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         isDense: true,
         hintStyle: TextStyle(fontSize: 13, color: mutedText),
       ),
@@ -1038,8 +1280,12 @@ class _IssuesContentState extends State<IssuesContent> {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.pressed)) return const Color(0xFF137A5A);
-                if (states.contains(WidgetState.hovered)) return const Color(0xFF168B66);
+                if (states.contains(WidgetState.pressed)) {
+                  return const Color(0xFF137A5A);
+                }
+                if (states.contains(WidgetState.hovered)) {
+                  return const Color(0xFF168B66);
+                }
                 return accentTeal;
               }),
               foregroundColor: WidgetStateProperty.all(Colors.white),
@@ -1079,11 +1325,7 @@ class _IssuesContentState extends State<IssuesContent> {
     if (isCompact || isMedium) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          searchField,
-          const SizedBox(height: 10),
-          actions,
-        ],
+        children: [searchField, const SizedBox(height: 10), actions],
       );
     }
 
@@ -1125,7 +1367,9 @@ class _IssuesContentState extends State<IssuesContent> {
       // Fallback to passed books if API fails
       allBooks = books;
     }
-    final availableBooks = allBooks.where((b) => b.status == 'available').toList();
+    final availableBooks = allBooks
+        .where((b) => b.status == 'available')
+        .toList();
 
     Future<void> pickBook({String initialQuery = ''}) async {
       final picked = await _showSearchPicker<Book>(
@@ -1144,14 +1388,20 @@ class _IssuesContentState extends State<IssuesContent> {
           final rawAuthor = b.author.toLowerCase();
           final rawIsbn = b.isbn.toLowerCase();
           final rawCategory = (b.category ?? '').toLowerCase();
-          
+
           // Normalize for Hindi text matching
-          final normalizedTitle = normalizeHindiForDisplay(b.title).toLowerCase();
-          final normalizedAuthor = normalizeHindiForDisplay(b.author).toLowerCase();
-          final normalizedCategory = normalizeHindiForDisplay(b.category ?? '').toLowerCase();
+          final normalizedTitle = normalizeHindiForDisplay(
+            b.title,
+          ).toLowerCase();
+          final normalizedAuthor = normalizeHindiForDisplay(
+            b.author,
+          ).toLowerCase();
+          final normalizedCategory = normalizeHindiForDisplay(
+            b.category ?? '',
+          ).toLowerCase();
           final normalizedQuery = normalizeHindiForDisplay(q).toLowerCase();
           final krutiDevQuery = unicodeToKrutiDevApprox(q).toLowerCase();
-          
+
           // Match raw, normalized, and krutidev variants
           return rawTitle.contains(q) ||
               rawAuthor.contains(q) ||
@@ -1377,8 +1627,11 @@ class _IssuesContentState extends State<IssuesContent> {
                                   final int memberId = selectedMemberId!;
                                   Navigator.of(dialogContext).pop();
                                   try {
-                                    await issueProvider
-                                        .issueBook(bookId, memberId, dueDate);
+                                    await issueProvider.issueBook(
+                                      bookId,
+                                      memberId,
+                                      dueDate,
+                                    );
                                     if (mounted) {
                                       messenger?.showSnackBar(
                                         const SnackBar(
@@ -1394,7 +1647,10 @@ class _IssuesContentState extends State<IssuesContent> {
                                       messenger?.showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            getOperationErrorMessage('Issue book', e),
+                                            getOperationErrorMessage(
+                                              'Issue book',
+                                              e,
+                                            ),
                                           ),
                                         ),
                                       );
@@ -1487,7 +1743,9 @@ class _IssuesContentState extends State<IssuesContent> {
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Export', e))));
+      messenger.showSnackBar(
+        SnackBar(content: Text(getOperationErrorMessage('Export', e))),
+      );
     }
   }
 
@@ -1520,18 +1778,22 @@ class _IssuesContentState extends State<IssuesContent> {
     final doc = pw.Document();
 
     // Normalize Hindi text in data
-    final normalizedIssues = issues.map((i) => [
-      i.id.toString(),
-      HindiPdfHelper.normalizeForPdf(i.bookTitle),
-      HindiPdfHelper.normalizeForPdf(i.bookAuthor),
-      HindiPdfHelper.normalizeForPdf(i.memberName),
-      DateFormatter.formatDateIndian(i.issueDate),
-      DateFormatter.formatDateIndian(i.dueDate),
-      i.returnDate == null
-          ? '-'
-          : DateFormatter.formatDateIndian(i.returnDate),
-      i.status,
-    ]).toList();
+    final normalizedIssues = issues
+        .map(
+          (i) => [
+            i.id.toString(),
+            HindiPdfHelper.normalizeForPdf(i.bookTitle),
+            HindiPdfHelper.normalizeForPdf(i.bookAuthor),
+            HindiPdfHelper.normalizeForPdf(i.memberName),
+            DateFormatter.formatDateIndian(i.issueDate),
+            DateFormatter.formatDateIndian(i.dueDate),
+            i.returnDate == null
+                ? '-'
+                : DateFormatter.formatDateIndian(i.returnDate),
+            i.status,
+          ],
+        )
+        .toList();
 
     final hindiCache = await HindiPdfHelper.preRenderHindiTexts(
       normalizedIssues.expand((row) => row),
@@ -1565,7 +1827,10 @@ class _IssuesContentState extends State<IssuesContent> {
             // Document Title
             pw.Center(
               child: pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.blue800,
                   borderRadius: pw.BorderRadius.circular(4),
@@ -1613,7 +1878,9 @@ class _IssuesContentState extends State<IssuesContent> {
                 );
               },
               headerStyle: headerStyle,
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey200,
+              ),
               cellAlignment: pw.Alignment.centerLeft,
               headerHeight: 22,
               cellHeight: 20,
@@ -1762,7 +2029,9 @@ class _IssuesContentState extends State<IssuesContent> {
       } catch (e) {
         if (mounted) {
           messenger.showSnackBar(
-            SnackBar(content: Text(getOperationErrorMessage('Delete issue', e))),
+            SnackBar(
+              content: Text(getOperationErrorMessage('Delete issue', e)),
+            ),
           );
         }
       }
@@ -1779,7 +2048,11 @@ class _IssuesContentState extends State<IssuesContent> {
     return null;
   }
 
-  pw.Widget _buildOrgHeader(Uint8List? logoBytes, pw.Font boldFont, pw.Font baseFont) {
+  pw.Widget _buildOrgHeader(
+    Uint8List? logoBytes,
+    pw.Font boldFont,
+    pw.Font baseFont,
+  ) {
     if (logoBytes != null) {
       return pw.Container(
         padding: const pw.EdgeInsets.all(16),
@@ -1972,10 +2245,9 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.4),
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
               ),
               readOnly: true,
               onTap: () async {
@@ -1996,8 +2268,9 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
                 if (date != null) {
                   setState(() {
                     dueDateIso = date.toIso8601String().split('T')[0];
-                    widget.dueController.text =
-                        DateFormatter.formatDateIndian(dueDateIso ?? '');
+                    widget.dueController.text = DateFormatter.formatDateIndian(
+                      dueDateIso ?? '',
+                    );
                   });
                 }
               },
@@ -2013,10 +2286,9 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withValues(alpha: 0.4),
+                  fillColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
                 ),
                 readOnly: true,
                 validator: (value) {
@@ -2030,16 +2302,18 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
                   DateTime initialDate;
                   try {
                     final r = returnDateIso;
-                    initialDate =
-                        r != null ? DateTime.parse(r) : DateTime.now();
+                    initialDate = r != null
+                        ? DateTime.parse(r)
+                        : DateTime.now();
                   } catch (e) {
                     initialDate = DateTime.now();
                   }
                   final date = await showDatePicker(
                     context: context,
                     initialDate: initialDate,
-                    firstDate:
-                        DateTime.now().subtract(const Duration(days: 365)),
+                    firstDate: DateTime.now().subtract(
+                      const Duration(days: 365),
+                    ),
                     lastDate: DateTime.now(),
                   );
                   if (date != null) {
@@ -2062,10 +2336,9 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.4),
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
               ),
               items: const [
                 DropdownMenuItem(value: 'issued', child: Text('Issued')),
