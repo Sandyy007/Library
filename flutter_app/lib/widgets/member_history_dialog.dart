@@ -10,6 +10,8 @@ import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../utils/hindi_pdf_helper.dart';
+import '../utils/theme.dart';
+import 'common_widgets.dart';
 
 class MemberHistoryDialog extends StatefulWidget {
   final int memberId;
@@ -149,7 +151,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   'Total Borrowed',
                                   _history.length.toString(),
                                   Icons.book,
-                                  const Color(0xFF3B82F6),
+                                  context.semantic.info,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -162,7 +164,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                       .length
                                       .toString(),
                                   Icons.bookmark,
-                                  const Color(0xFFF59E0B),
+                                  context.semantic.warning,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -175,7 +177,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                       .length
                                       .toString(),
                                   Icons.check_circle,
-                                  const Color(0xFF10B981),
+                                  context.semantic.success,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -188,7 +190,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                       .length
                                       .toString(),
                                   Icons.warning,
-                                  const Color(0xFFEF4444),
+                                  context.semantic.danger,
                                 ),
                               ),
                             ],
@@ -201,7 +203,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                               'Total Borrowed',
                               _history.length.toString(),
                               Icons.book,
-                              const Color(0xFF3B82F6),
+                              context.semantic.info,
                             )),
                             const SizedBox(width: 8),
                             Flexible(child: _buildStatItem(
@@ -211,7 +213,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .length
                                   .toString(),
                               Icons.bookmark,
-                              const Color(0xFFF59E0B),
+                              context.semantic.warning,
                             )),
                             const SizedBox(width: 8),
                             Flexible(child: _buildStatItem(
@@ -221,7 +223,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .length
                                   .toString(),
                               Icons.check_circle,
-                              const Color(0xFF10B981),
+                              context.semantic.success,
                             )),
                             const SizedBox(width: 8),
                             Flexible(child: _buildStatItem(
@@ -231,7 +233,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                                   .length
                                   .toString(),
                               Icons.warning,
-                              const Color(0xFFEF4444),
+                              context.semantic.danger,
                             )),
                           ],
                         ),
@@ -548,7 +550,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('PDF exported to: $path'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: context.semantic.success,
           ),
         );
       }
@@ -557,7 +559,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error exporting PDF: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: context.semantic.danger,
           ),
         );
       }
@@ -610,7 +612,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: const Color(0xFFEF4444)),
+              Icon(Icons.error_outline, size: 48, color: context.semantic.danger),
               const SizedBox(height: 16),
               Text('Error: $_error'),
               const SizedBox(height: 16),
@@ -682,11 +684,11 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
             ),
             clipBehavior: Clip.antiAlias,
             child: issue.coverImage != null && issue.coverImage!.isNotEmpty
-                ? Image.network(
-                    ApiService.resolvePublicUrl(issue.coverImage!),
+                ? AppCachedImage(
+                    url: ApiService.resolvePublicUrl(issue.coverImage!),
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _buildBookPlaceholder(),
+                    memCacheWidth: 160,
+                    fallback: _buildBookPlaceholder(),
                   )
                 : _buildBookPlaceholder(),
           ),
@@ -745,20 +747,20 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       _buildDateChip(
                         'Issued: ${_formatDate(issue.issueDate)}',
                         Icons.calendar_today,
-                        const Color(0xFF3B82F6),
+                        context.semantic.info,
                       ),
                       const SizedBox(width: 8),
                       _buildDateChip(
                         'Due: ${_formatDate(issue.dueDate)}',
                         Icons.event,
-                        const Color(0xFFF59E0B),
+                        context.semantic.warning,
                       ),
                       if (issue.returnDate != null) ...[
                         const SizedBox(width: 8),
                         _buildDateChip(
                           'Returned: ${_formatDate(issue.returnDate!)}',
                           Icons.check,
-                          const Color(0xFF10B981),
+                          context.semantic.success,
                         ),
                       ],
                     ],
@@ -823,11 +825,11 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'issued':
-        return const Color(0xFF3B82F6);
+        return context.semantic.info;
       case 'returned':
-        return const Color(0xFF10B981);
+        return context.semantic.success;
       case 'overdue':
-        return const Color(0xFFEF4444);
+        return context.semantic.danger;
       default:
         return Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
     }

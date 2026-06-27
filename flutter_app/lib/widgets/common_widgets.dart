@@ -1,6 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import '../utils/color_extensions.dart';
+import '../utils/theme.dart';
+
+/// Network image with on-disk + in-memory caching (via cached_network_image)
+/// and a graceful fade-in. Use this everywhere instead of `Image.network` so
+/// book covers and member photos served from the backend `uploads/` folder
+/// aren't re-downloaded and re-decoded on every rebuild/scroll.
+///
+/// [errorWidget] is shown both on load failure and as the placeholder while
+/// loading, so callers get a single consistent fallback (their existing
+/// placeholder) without a spinner flashing inside tiny avatars/thumbnails.
+class AppCachedImage extends StatelessWidget {
+  const AppCachedImage({
+    super.key,
+    required this.url,
+    required this.fallback,
+    this.fit = BoxFit.cover,
+    this.width,
+    this.height,
+    this.memCacheWidth,
+    this.memCacheHeight,
+  });
+
+  final String url;
+
+  /// Shown while loading and on error (callers pass their own placeholder).
+  final Widget fallback;
+  final BoxFit fit;
+  final double? width;
+  final double? height;
+
+  /// Cap the decoded bitmap size in memory. Set to the rendered pixel size
+  /// (logical * devicePixelRatio) for thumbnails to cut memory + decode cost.
+  final int? memCacheWidth;
+  final int? memCacheHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: fit,
+      width: width,
+      height: height,
+      memCacheWidth: memCacheWidth,
+      memCacheHeight: memCacheHeight,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (context, _) => fallback,
+      errorWidget: (context, _, _) => fallback,
+    );
+  }
+}
+
 
 /// Reusable status badge with dot indicator, border, and themed colors.
 class StatusBadge extends StatelessWidget {
@@ -1078,10 +1130,11 @@ void showAppSnack(
   Duration duration = const Duration(seconds: 3),
 }) {
   final cs = Theme.of(context).colorScheme;
+  final sem = context.semantic;
   final (Color accent, IconData icon) = switch (type) {
-    AppSnackType.success => (const Color(0xFF10B981), Icons.check_circle_rounded),
+    AppSnackType.success => (sem.success, Icons.check_circle_rounded),
     AppSnackType.error => (cs.error, Icons.error_outline_rounded),
-    AppSnackType.warning => (const Color(0xFFF59E0B), Icons.warning_amber_rounded),
+    AppSnackType.warning => (sem.warning, Icons.warning_amber_rounded),
     AppSnackType.info => (cs.primary, Icons.info_outline_rounded),
   };
 

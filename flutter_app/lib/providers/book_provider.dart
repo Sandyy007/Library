@@ -176,6 +176,33 @@ class BookProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  /// Removes a book from the local list only (no API call), returning the
+  /// removed book and its index so it can be put back via [restoreBookLocally].
+  /// Used by the undo-on-delete flow so the row disappears immediately while
+  /// the actual server delete is deferred until the undo window closes.
+  ({Book book, int index})? removeBookLocally(int id) {
+    final index = _books.indexWhere((b) => b.id == id);
+    if (index == -1) return null;
+    final book = _books.removeAt(index);
+    if (_totalBooks > 0) _totalBooks--;
+    notifyListeners();
+    return (book: book, index: index);
+  }
+
+  /// Re-inserts a locally-removed book at [index] (undo).
+  void restoreBookLocally(Book book, int index) {
+    final i = index.clamp(0, _books.length);
+    _books.insert(i, book);
+    _totalBooks++;
+    notifyListeners();
+  }
+
+  /// Performs the server-side delete only (assumes the book was already
+  /// removed locally via [removeBookLocally]).
+  Future<void> commitDeleteBook(int id) async {
+    await ApiService.deleteBook(id);
+  }
   
   /// Delete multiple books using bulk delete API
   Future<void> deleteBooks(Set<int> ids) async {

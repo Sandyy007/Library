@@ -17,9 +17,10 @@ import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
+import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
-import 'premium_dialog.dart';
-import '../screens/dashboard_screen.dart';
+import '../widgets/premium_dialog.dart';
+import 'dashboard_screen.dart';
 
 enum MemberStatusFilter { all, active, inactive }
 
@@ -1583,13 +1584,14 @@ class _MembersContentState extends State<MembersContent>
       ),
       child: ClipOval(
         child: member.profilePhoto != null && member.profilePhoto!.isNotEmpty
-            ? Image.network(
-                ApiService.resolvePublicUrl(member.profilePhoto!),
+            ? AppCachedImage(
+                url: ApiService.resolvePublicUrl(member.profilePhoto!),
                 fit: BoxFit.cover,
                 width: 44,
                 height: 44,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPhotoPlaceholder(),
+                memCacheWidth: 132,
+                memCacheHeight: 132,
+                fallback: _buildPhotoPlaceholder(),
               )
             : _buildPhotoPlaceholder(),
       ),
@@ -1608,23 +1610,13 @@ class _MembersContentState extends State<MembersContent>
 
   Widget _buildStatusBadge(bool isActive) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final background = isActive
-        ? (isDark
-              ? const Color(0xFF059669).withValues(alpha: 0.15)
-              : const Color(0xFFECFDF5))
-        : (isDark
-              ? const Color(0xFFEF4444).withValues(alpha: 0.15)
-              : const Color(0xFFFEF2F2));
-    final border = isActive
-        ? (isDark
-              ? const Color(0xFF059669).withValues(alpha: 0.4)
-              : const Color(0xFF6EE7B7))
-        : (isDark
-              ? const Color(0xFFEF4444).withValues(alpha: 0.4)
-              : const Color(0xFFFECACA));
-    final textColor = isActive
-        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
-        : (isDark ? const Color(0xFFFC8181) : const Color(0xFFEF4444));
+    final semantic = context.semantic;
+    final accent = isActive ? semantic.success : semantic.danger;
+    final background = isDark
+        ? accent.withValues(alpha: 0.15)
+        : (isActive ? semantic.successContainer : semantic.dangerContainer);
+    final border = accent.withValues(alpha: isDark ? 0.4 : 0.5);
+    final textColor = accent;
     final label = isActive ? 'Active' : 'Inactive';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1941,36 +1933,39 @@ class _MembersContentState extends State<MembersContent>
     final memberProvider = context.read<MemberProvider>();
     final issueProvider = context.read<IssueProvider>();
     () async {
-      final confirmed = await showPremiumConfirm(
-        context: context,
-        icon: Icons.person_remove_rounded,
-        title: 'Delete Member',
-        message:
-            'Are you sure you want to delete this member? This action cannot be undone.',
-        confirmLabel: 'Delete',
-        confirmIcon: Icons.delete_outline_rounded,
-        destructive: true,
+      // Optimistically remove the row and offer Undo; defer the real delete
+      // until the undo window closes (mirrors the books flow).
+      final removed = memberProvider.removeMemberLocally(id);
+      if (removed == null || !mounted) return;
+      setState(() => _selectedMemberIds.remove(id));
+
+      var undone = false;
+      showAppSnack(
+        context,
+        message: 'Member deleted',
+        type: AppSnackType.success,
+        actionLabel: 'Undo',
+        duration: const Duration(seconds: 4),
+        onAction: () {
+          undone = true;
+          memberProvider.restoreMemberLocally(removed.member, removed.index);
+        },
       );
-      if (confirmed != true || !mounted) return;
+
+      await Future.delayed(const Duration(seconds: 4, milliseconds: 250));
+      if (undone || !mounted) return;
+
       try {
-        await memberProvider.deleteMember(id);
-        await memberProvider.loadMembers();
+        await memberProvider.commitDeleteMember(removed.member.id);
         await issueProvider.loadStats();
-        if (mounted) {
-          showAppSnack(
-            context,
-            message: 'Member deleted successfully',
-            type: AppSnackType.success,
-          );
-        }
       } catch (e) {
-        if (mounted) {
-          showAppSnack(
-            context,
-            message: getOperationErrorMessage('Delete member', e),
-            type: AppSnackType.error,
-          );
-        }
+        if (!mounted) return;
+        memberProvider.restoreMemberLocally(removed.member, removed.index);
+        showAppSnack(
+          context,
+          message: getOperationErrorMessage('Delete member', e),
+          type: AppSnackType.error,
+        );
       }
     }();
   }

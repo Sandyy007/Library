@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/member.dart';
 import '../services/api_service.dart';
@@ -458,10 +459,13 @@ class _MemberDialogState extends State<MemberDialog> {
   Widget _buildPhotoPreview() {
     if (_selectedPhotoBytes != null) return Image.memory(_selectedPhotoBytes!, fit: BoxFit.cover);
     if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
-      return Image.network(ApiService.resolvePublicUrl(_profilePhotoUrl!), fit: BoxFit.cover, loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Center(child: CircularProgressIndicator(value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null, strokeWidth: 2));
-      }, errorBuilder: (context, error, stackTrace) => _buildPhotoPlaceholder());
+      return CachedNetworkImage(
+        imageUrl: ApiService.resolvePublicUrl(_profilePhotoUrl!),
+        fit: BoxFit.cover,
+        placeholder: (context, _) =>
+            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        errorWidget: (context, _, _) => _buildPhotoPlaceholder(),
+      );
     }
     return _buildPhotoPlaceholder();
   }

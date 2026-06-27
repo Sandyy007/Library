@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/book.dart';
 import '../providers/book_provider.dart';
@@ -562,10 +563,15 @@ class _BookDialogState extends State<BookDialog> {
     final height = compact ? 150.0 : 220.0;
     if (_selectedImageBytes != null) return Image.memory(_selectedImageBytes!, fit: BoxFit.cover, width: width, height: height);
     if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
-      return Image.network(ApiService.resolvePublicUrl(_coverImageUrl!), fit: BoxFit.cover, width: width, height: height, loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Center(child: CircularProgressIndicator(value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null, strokeWidth: 2));
-      }, errorBuilder: (context, error, stackTrace) => _buildPlaceholder());
+      return CachedNetworkImage(
+        imageUrl: ApiService.resolvePublicUrl(_coverImageUrl!),
+        fit: BoxFit.cover,
+        width: width,
+        height: height,
+        placeholder: (context, _) =>
+            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        errorWidget: (context, _, _) => _buildPlaceholder(),
+      );
     }
     return _buildPlaceholder();
   }

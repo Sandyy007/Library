@@ -37,11 +37,16 @@ class MyApp extends StatelessWidget {
       case TargetPlatform.android:
       case TargetPlatform.iOS:
         return true;
+      // Desktop is the primary target for this app. Hover tooltips are
+      // essential there because most toolbar actions are icon-only — without
+      // them those buttons have no visible label. (Tooltips were previously
+      // disabled here to work around an old Flutter desktop tooltip glitch
+      // that no longer reproduces on current stable.)
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
       case TargetPlatform.macOS:
       case TargetPlatform.windows:
-        return false;
+        return true;
     }
   }
 

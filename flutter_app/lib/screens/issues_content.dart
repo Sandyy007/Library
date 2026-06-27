@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'dart:async';
 import 'dart:io';
@@ -20,10 +21,11 @@ import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
+import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
-import '../screens/dashboard_screen.dart';
-import 'premium_dialog.dart';
-import 'borrow_slip_preview.dart';
+import 'dashboard_screen.dart';
+import '../widgets/premium_dialog.dart';
+import '../widgets/borrow_slip_preview.dart';
 
 enum _IssueDialogActiveField { book, member }
 
@@ -569,9 +571,9 @@ class _IssuesContentState extends State<IssuesContent> {
                             child: Stack(
                               children: [
                                 DataTable2(
-                                  columnSpacing: 18,
-                                  horizontalMargin: 24,
-                                  dataRowHeight: 68,
+                                  columnSpacing: 12,
+                                  horizontalMargin: 12,
+                                  dataRowHeight: 72,
                                   headingRowHeight: headingRowHeight,
                                   showCheckboxColumn: false,
                                   minWidth: minTableWidth,
@@ -629,12 +631,13 @@ class _IssuesContentState extends State<IssuesContent> {
                                   ) {
                                     final idx = entry.key;
                                     final issue = entry.value;
+                                    final semantic = context.semantic;
                                     final statusColor =
                                         issue.status == 'returned'
-                                        ? const Color(0xFF10B981)
+                                        ? semantic.success
                                         : (issue.status == 'overdue'
-                                              ? const Color(0xFFEF4444)
-                                              : const Color(0xFFF59E0B));
+                                              ? semantic.danger
+                                              : semantic.warning);
                                     final baseRowColor = idx.isEven
                                         ? colorScheme.surface
                                         : zebraColor;
@@ -1140,7 +1143,7 @@ class _IssuesContentState extends State<IssuesContent> {
         : const Color(0xFF6B7280);
     return Text(
       label.toUpperCase(),
-      style: TextStyle(
+      style: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
@@ -2003,37 +2006,40 @@ class _IssuesContentState extends State<IssuesContent> {
   }
 
   void _showDeleteIssueDialog(BuildContext context, dynamic issue) {
-    final messenger = ScaffoldMessenger.of(context);
+    final issueProvider = context.read<IssueProvider>();
     () async {
-      final confirmed = await showPremiumConfirm(
-        context: context,
-        icon: Icons.delete_outline_rounded,
-        title: 'Delete Issue',
-        message:
-            'Delete the issue record for "${normalizeHindiForDisplay(issue.bookTitle)}" '
-            '(issued to ${normalizeHindiForDisplay(issue.memberName)})? '
-            'This action cannot be undone.',
-        confirmLabel: 'Delete',
-        confirmIcon: Icons.delete_outline_rounded,
-        destructive: true,
+      // Optimistically remove the row and offer Undo; defer the real delete
+      // until the undo window closes (mirrors the books flow).
+      final removed = issueProvider.removeIssueLocally(issue.id);
+      if (removed == null || !mounted) return;
+
+      var undone = false;
+      showAppSnack(
+        context,
+        message: 'Issue deleted',
+        type: AppSnackType.success,
+        actionLabel: 'Undo',
+        duration: const Duration(seconds: 4),
+        onAction: () {
+          undone = true;
+          issueProvider.restoreIssueLocally(removed.issue, removed.index);
+        },
       );
-      if (confirmed != true || !mounted) return;
+
+      await Future.delayed(const Duration(seconds: 4, milliseconds: 250));
+      if (undone || !mounted) return;
+
       try {
-        await ApiService.deleteIssue(issue.id);
-        if (mounted) {
-          messenger.showSnackBar(
-            const SnackBar(content: Text('Issue deleted successfully')),
-          );
-          _loadAllData();
-        }
+        await issueProvider.commitDeleteIssue(removed.issue.id);
+        await issueProvider.loadStats();
       } catch (e) {
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(getOperationErrorMessage('Delete issue', e)),
-            ),
-          );
-        }
+        if (!context.mounted) return;
+        issueProvider.restoreIssueLocally(removed.issue, removed.index);
+        showAppSnack(
+          context,
+          message: getOperationErrorMessage('Delete issue', e),
+          type: AppSnackType.error,
+        );
       }
     }();
   }

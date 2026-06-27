@@ -11,8 +11,10 @@ import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
-import 'common_widgets.dart';
-import 'premium_dialog.dart';
+import '../utils/theme.dart';
+import '../widgets/common_widgets.dart';
+import '../widgets/press_scale.dart';
+import '../widgets/premium_dialog.dart';
 
 enum DashboardDensityMode { compact, detailed }
 
@@ -636,7 +638,13 @@ class _DashboardContentState extends State<DashboardContent>
                       );
                       final alertsCard = SizedBox(
                         height: cardHeight,
-                        child: _buildAlertsCard(context),
+                        // Match the hover-lift the activity/chart cards get via
+                        // _buildFloatingCard so the Actionable Alerts card feels
+                        // consistent on hover.
+                        child: HoverElevate(
+                          borderRadius: 20,
+                          child: _buildAlertsCard(context),
+                        ),
                       );
                       final activityCard = SizedBox(
                         height: cardHeight,
@@ -1771,7 +1779,9 @@ class _DashboardContentState extends State<DashboardContent>
     required Widget child,
     double offsetSeed = 0,
   }) {
-    return child;
+    // Lift the card on hover for a tactile, premium feel on desktop.
+    // Inert on touch platforms (no pointer hover).
+    return HoverElevate(borderRadius: 24, child: child);
   }
 
   Widget _buildPaginationButton({
@@ -2783,7 +2793,7 @@ class _DashboardContentState extends State<DashboardContent>
       final issueDateText = DateFormatter.formatDateIndian(issueDate);
       final isOverdue = daysOverdue.isNotEmpty && int.tryParse(daysOverdue) != null && int.parse(daysOverdue) > 0;
 
-      final overdueColor = const Color(0xFFEF4444);
+      final overdueColor = context.semantic.danger;
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
@@ -3453,9 +3463,9 @@ class _DashboardContentState extends State<DashboardContent>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Flexible(child: _buildStatChip('Issued', issuedToday, const Color(0xFF3B82F6))),
+              Flexible(child: _buildStatChip('Issued', issuedToday, context.semantic.info)),
               const SizedBox(width: 8),
-              Flexible(child: _buildStatChip('Returned', returnedToday, const Color(0xFF10B981))),
+              Flexible(child: _buildStatChip('Returned', returnedToday, context.semantic.success)),
             ],
           ),
         ),
@@ -3965,6 +3975,7 @@ class _DashboardContentState extends State<DashboardContent>
     required String successMessage,
   }) async {
     final messenger = ScaffoldMessenger.of(context);
+    final dangerColor = context.semantic.danger;
     try {
       await action();
       if (!mounted) return;
@@ -3974,7 +3985,7 @@ class _DashboardContentState extends State<DashboardContent>
       messenger.showSnackBar(
         SnackBar(
           content: Text(getOperationErrorMessage('Action', e)),
-          backgroundColor: const Color(0xFFEF4444),
+          backgroundColor: dangerColor,
         ),
       );
     }
@@ -4026,6 +4037,15 @@ class _DashboardContentState extends State<DashboardContent>
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Screen-reader summary: fl_chart paints to a canvas and
+                  // exposes no semantics, so we surface the values textually.
+                  Semantics(
+                    label:
+                        'Library statistics chart. Total books ${data[0]}, '
+                        'issued ${data[1]}, available ${data[2]}, '
+                        'overdue ${data[3]}, active members ${data[4]}.',
+                    child: const SizedBox.shrink(),
+                  ),
                   Text(
                     'Library Statistics',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -4333,6 +4353,14 @@ class _DashboardContentState extends State<DashboardContent>
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Screen-reader summary for the canvas-painted pie chart.
+                  Semantics(
+                    label:
+                        'Book status distribution chart. '
+                        'Issued $issuedBooks books (${formatPercentage(issuedPercentage)}), '
+                        'available $availableBooks books (${formatPercentage(availablePercentage)}).',
+                    child: const SizedBox.shrink(),
+                  ),
                   Text(
                     'Book Status Distribution',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(

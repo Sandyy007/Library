@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../utils/responsive.dart';
+import '../utils/theme.dart';
 import '../providers/report_provider.dart';
 import '../providers/issue_provider.dart';
 import '../models/report_models.dart';
@@ -17,7 +18,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
-import 'common_widgets.dart';
+import '../widgets/common_widgets.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -1332,7 +1333,7 @@ class _ReportsContentState extends State<ReportsContent>
                         const SizedBox(height: 8),
                         Text(
                           '${overdueList.length} books need attention',
-                          style: TextStyle(color: const Color(0xFFEF4444)),
+                          style: TextStyle(color: context.semantic.danger),
                         ),
                       ],
                     ),
@@ -1340,11 +1341,11 @@ class _ReportsContentState extends State<ReportsContent>
                   Chip(
                     avatar: Icon(
                       Icons.warning,
-                      color: const Color(0xFFEF4444),
+                      color: context.semantic.danger,
                       size: 18,
                     ),
                     label: Text('${overdueList.length} Overdue'),
-                    backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                    backgroundColor: context.semantic.danger.withValues(alpha: 0.1),
                   ),
                 ],
               ),
@@ -1390,10 +1391,10 @@ class _ReportsContentState extends State<ReportsContent>
       leading: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+          color: context.semantic.danger.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.warning, color: Color(0xFFEF4444)),
+        child: Icon(Icons.warning, color: context.semantic.danger),
       ),
       title: Builder(
         builder: (context) => Text(
@@ -1419,7 +1420,7 @@ class _ReportsContentState extends State<ReportsContent>
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFEF4444),
+          color: context.semantic.danger,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -1581,7 +1582,7 @@ class _ReportsContentState extends State<ReportsContent>
             content: Text(
               'Report exported as ${type.toUpperCase()} successfully',
             ),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: context.semantic.success,
           ),
         );
       }
@@ -1590,7 +1591,7 @@ class _ReportsContentState extends State<ReportsContent>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(getOperationErrorMessage('Export report', e)),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: context.semantic.danger,
           ),
         );
       }

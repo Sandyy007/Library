@@ -6,6 +6,7 @@ import '../models/member.dart';
 import '../models/issue.dart';
 import '../utils/hindi_text.dart';
 import '../utils/responsive.dart';
+import '../utils/theme.dart';
 import 'common_widgets.dart';
 
 class SearchResultsDialog extends StatelessWidget {
@@ -121,8 +122,8 @@ class SearchResultsDialog extends StatelessWidget {
             trailing: Chip(
               label: Text(book.status),
               backgroundColor: book.status == 'available'
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFFF59E0B),
+                  ? context.semantic.success
+                  : context.semantic.warning,
             ),
           ),
         );
@@ -228,10 +229,10 @@ class SearchResultsDialog extends StatelessWidget {
                         style: const TextStyle(fontSize: 10),
                       ),
                       backgroundColor: issue.status == 'returned'
-                          ? const Color(0xFF10B981)
+                          ? context.semantic.success
                           : issue.status == 'overdue'
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFFF59E0B),
+                          ? context.semantic.danger
+                          : context.semantic.warning,
                     ),
                   ),
                   const SizedBox(height: 2),

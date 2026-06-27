@@ -118,3 +118,77 @@ class GlassPanel extends StatelessWidget {
     );
   }
 }
+
+/// Lifts its [child] on pointer hover (desktop/web) with a smooth translate
+/// and an optional deepened shadow. Gives cards a tactile, "premium" feel
+/// when the cursor moves over them. On touch platforms (no hover) it's an
+/// inert pass-through, so it's safe to use everywhere.
+class HoverElevate extends StatefulWidget {
+  final Widget child;
+
+  /// How far (logical px) to lift the child upward on hover.
+  final double liftY;
+
+  /// Optional scale-up on hover (1.0 = none).
+  final double hoverScale;
+
+  /// Corner radius used for the hover shadow.
+  final double borderRadius;
+
+  final Duration duration;
+
+  const HoverElevate({
+    super.key,
+    required this.child,
+    this.liftY = 4,
+    this.hoverScale = 1.0,
+    this.borderRadius = 16,
+    this.duration = const Duration(milliseconds: 160),
+  });
+
+  @override
+  State<HoverElevate> createState() => _HoverElevateState();
+}
+
+class _HoverElevateState extends State<HoverElevate> {
+  bool _hover = false;
+
+  void _set(bool v) {
+    if (_hover == v) return;
+    setState(() => _hover = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shadowColor = Theme.of(context).colorScheme.shadow;
+    return MouseRegion(
+      onEnter: (_) => _set(true),
+      onExit: (_) => _set(false),
+      child: AnimatedScale(
+        scale: _hover ? widget.hoverScale : 1.0,
+        duration: widget.duration,
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
+          duration: widget.duration,
+          curve: Curves.easeOutCubic,
+          transform: Matrix4.translationValues(0, _hover ? -widget.liftY : 0, 0),
+          transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            boxShadow: _hover
+                ? [
+                    BoxShadow(
+                      color: shadowColor.withValues(alpha: 0.18),
+                      blurRadius: 22,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 10),
+                    ),
+                  ]
+                : const [],
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}

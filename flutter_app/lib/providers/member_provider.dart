@@ -124,4 +124,29 @@ class MemberProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  /// Removes a member from the local list only (no API call), returning the
+  /// member and its index so it can be restored via [restoreMemberLocally].
+  /// Backs the undo-on-delete flow.
+  ({Member member, int index})? removeMemberLocally(int id) {
+    final index = _members.indexWhere((m) => m.id == id);
+    if (index == -1) return null;
+    final member = _members.removeAt(index);
+    if (_totalMembers > 0) _totalMembers--;
+    notifyListeners();
+    return (member: member, index: index);
+  }
+
+  /// Re-inserts a locally-removed member at [index] (undo).
+  void restoreMemberLocally(Member member, int index) {
+    final i = index.clamp(0, _members.length);
+    _members.insert(i, member);
+    _totalMembers++;
+    notifyListeners();
+  }
+
+  /// Performs the server-side delete only (assumes already removed locally).
+  Future<void> commitDeleteMember(int id) async {
+    await ApiService.deleteMember(id);
+  }
 }

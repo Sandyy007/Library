@@ -15,9 +15,10 @@ import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
+import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
-import '../screens/dashboard_screen.dart';
-import 'premium_dialog.dart';
+import 'dashboard_screen.dart';
+import '../widgets/premium_dialog.dart';
 
 class BooksContent extends StatefulWidget {
   const BooksContent({super.key});
@@ -1718,35 +1719,37 @@ class _BooksContentState extends State<BooksContent>
     final bookProvider = context.read<BookProvider>();
     final issueProvider = context.read<IssueProvider>();
     () async {
-      final confirmed = await showPremiumConfirm(
-        context: context,
-        icon: Icons.delete_outline_rounded,
-        title: 'Delete Book',
-        message:
-            'Are you sure you want to delete this book? This action cannot be undone.',
-        confirmLabel: 'Delete',
-        confirmIcon: Icons.delete_outline_rounded,
-        destructive: true,
+      // Optimistically remove the row, then offer Undo. The real server-side
+      // delete is deferred until the undo window closes, so "Undo" simply
+      // cancels it — no data round-trip and the row keeps its identity.
+      final removed = bookProvider.removeBookLocally(id);
+      if (removed == null || !mounted) return;
+      setState(() => _selectedBookIds.remove(id));
+
+      var undone = false;
+      showAppSnack(
+        context,
+        message: 'Book deleted',
+        type: AppSnackType.success,
+        actionLabel: 'Undo',
+        duration: const Duration(seconds: 4),
+        onAction: () {
+          undone = true;
+          bookProvider.restoreBookLocally(removed.book, removed.index);
+        },
       );
-      if (confirmed != true || !mounted) return;
+
+      // Wait out the undo window before committing the delete.
+      await Future.delayed(const Duration(seconds: 4, milliseconds: 250));
+      if (undone || !mounted) return;
+
       try {
-        await bookProvider.deleteBook(id);
-
-        if (!mounted) return;
-        setState(() => _selectedBookIds.remove(id));
-
-        // Reload books to reflect deletion in UI
-        await bookProvider.loadBooks();
+        await bookProvider.commitDeleteBook(removed.book.id);
         await issueProvider.loadStats();
-        if (!mounted) return;
-
-        showAppSnack(
-          context,
-          message: 'Book deleted successfully',
-          type: AppSnackType.success,
-        );
       } catch (e) {
         if (!mounted) return;
+        // Restore the row if the server delete failed.
+        bookProvider.restoreBookLocally(removed.book, removed.index);
         showAppSnack(
           context,
           message: getOperationErrorMessage('Delete book', e),
@@ -1902,23 +1905,13 @@ class _BooksContentState extends State<BooksContent>
   Widget _buildStatusBadge(Book book) {
     final isAvailable = book.availableCopies > 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final background = isAvailable
-        ? (isDark
-              ? const Color(0xFF059669).withValues(alpha: 0.15)
-              : const Color(0xFFECFDF5))
-        : (isDark
-              ? const Color(0xFFEF4444).withValues(alpha: 0.15)
-              : const Color(0xFFFEF2F2));
-    final border = isAvailable
-        ? (isDark
-              ? const Color(0xFF059669).withValues(alpha: 0.4)
-              : const Color(0xFF6EE7B7))
-        : (isDark
-              ? const Color(0xFFEF4444).withValues(alpha: 0.4)
-              : const Color(0xFFFECACA));
-    final textColor = isAvailable
-        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
-        : (isDark ? const Color(0xFFFC8181) : const Color(0xFFEF4444));
+    final semantic = context.semantic;
+    final accent = isAvailable ? semantic.success : semantic.danger;
+    final background = isDark
+        ? accent.withValues(alpha: 0.15)
+        : (isAvailable ? semantic.successContainer : semantic.dangerContainer);
+    final border = accent.withValues(alpha: isDark ? 0.4 : 0.5);
+    final textColor = accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1987,11 +1980,11 @@ class _BooksContentState extends State<BooksContent>
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: book.coverImage != null && book.coverImage!.isNotEmpty
-            ? Image.network(
-                ApiService.resolvePublicUrl(book.coverImage!),
+            ? AppCachedImage(
+                url: ApiService.resolvePublicUrl(book.coverImage!),
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildCoverPlaceholder(book),
+                memCacheWidth: 160,
+                fallback: _buildCoverPlaceholder(book),
               )
             : _buildCoverPlaceholder(book),
       ),

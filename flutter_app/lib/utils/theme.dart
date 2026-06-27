@@ -46,6 +46,101 @@ class AppPalette {
   static const Color errorDark = Color(0xFFFC8181);
 }
 
+/// Semantic status colors used across the app (success / warning / danger /
+/// info) plus their low-alpha container tints. These were previously
+/// hardcoded as raw `Color(0xFF...)` literals scattered through the widget
+/// files, which meant they couldn't adapt to light/dark and had no single
+/// source of truth. Access via `Theme.of(context).extension<AppSemanticColors>()!`
+/// or the `context.semantic` getter below.
+@immutable
+class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
+  const AppSemanticColors({
+    required this.success,
+    required this.successContainer,
+    required this.warning,
+    required this.warningContainer,
+    required this.danger,
+    required this.dangerContainer,
+    required this.info,
+    required this.infoContainer,
+  });
+
+  final Color success;
+  final Color successContainer;
+  final Color warning;
+  final Color warningContainer;
+  final Color danger;
+  final Color dangerContainer;
+  final Color info;
+  final Color infoContainer;
+
+  static const AppSemanticColors light = AppSemanticColors(
+    success: Color(0xFF0F9D58),
+    successContainer: Color(0xFFE3F6EC),
+    warning: Color(0xFFB7791F),
+    warningContainer: Color(0xFFFBF0D9),
+    danger: Color(0xFFD92D20),
+    dangerContainer: Color(0xFFFCE8E6),
+    info: Color(0xFF2563EB),
+    infoContainer: Color(0xFFE4ECFD),
+  );
+
+  static const AppSemanticColors dark = AppSemanticColors(
+    success: Color(0xFF34D399),
+    successContainer: Color(0xFF12372C),
+    warning: Color(0xFFFBBF24),
+    warningContainer: Color(0xFF3A300F),
+    danger: Color(0xFFFC8181),
+    dangerContainer: Color(0xFF3A1D1D),
+    info: Color(0xFF7C9BFF),
+    infoContainer: Color(0xFF1B2540),
+  );
+
+  @override
+  AppSemanticColors copyWith({
+    Color? success,
+    Color? successContainer,
+    Color? warning,
+    Color? warningContainer,
+    Color? danger,
+    Color? dangerContainer,
+    Color? info,
+    Color? infoContainer,
+  }) {
+    return AppSemanticColors(
+      success: success ?? this.success,
+      successContainer: successContainer ?? this.successContainer,
+      warning: warning ?? this.warning,
+      warningContainer: warningContainer ?? this.warningContainer,
+      danger: danger ?? this.danger,
+      dangerContainer: dangerContainer ?? this.dangerContainer,
+      info: info ?? this.info,
+      infoContainer: infoContainer ?? this.infoContainer,
+    );
+  }
+
+  @override
+  AppSemanticColors lerp(ThemeExtension<AppSemanticColors>? other, double t) {
+    if (other is! AppSemanticColors) return this;
+    return AppSemanticColors(
+      success: Color.lerp(success, other.success, t)!,
+      successContainer: Color.lerp(successContainer, other.successContainer, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
+      dangerContainer: Color.lerp(dangerContainer, other.dangerContainer, t)!,
+      info: Color.lerp(info, other.info, t)!,
+      infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
+    );
+  }
+}
+
+/// Ergonomic access to [AppSemanticColors] from any BuildContext.
+extension AppSemanticColorsX on BuildContext {
+  AppSemanticColors get semantic =>
+      Theme.of(this).extension<AppSemanticColors>() ?? AppSemanticColors.light;
+}
+
 class AppTypography {
   static TextTheme buildTextTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
@@ -346,6 +441,9 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadii.sm),
         ),
       ),
+      extensions: <ThemeExtension<dynamic>>[
+        isDark ? AppSemanticColors.dark : AppSemanticColors.light,
+      ],
     );
   }
 }

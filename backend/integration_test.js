@@ -1,6 +1,18 @@
 const http = require('http');
+const path = require('path');
+// Load backend/.env so ADMIN_PASSWORD (and any overrides) are available when
+// this script is run directly via `node integration_test.js`.
+try {
+  require('dotenv').config({ path: path.join(__dirname, '.env') });
+} catch (_) {
+  // dotenv is a dependency; ignore if unavailable.
+}
 
 const BASE = 'http://localhost:3000';
+
+// Shared with __tests__/test_utils.js: defaults to the schema-seeded password
+// ('Library#123'); override via ADMIN_PASSWORD for a differently-seeded DB.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Library#123';
 
 function request(method, path, { token, body } = {}) {
   return new Promise((resolve, reject) => {
@@ -40,7 +52,7 @@ t('GET /api/health 200 (or 404) without auth', async () => {
 
 t('POST /api/auth/login as admin', async () => {
   const r = await request('POST', '/api/auth/login', {
-    body: { username: 'admin', password: 'admin123' },
+    body: { username: 'admin', password: ADMIN_PASSWORD },
   });
   if (r.status !== 200) throw new Error(`login failed: ${r.status} ${JSON.stringify(r.body)}`);
   if (!r.body.token) throw new Error('no token in response');

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
+import '../utils/theme.dart';
+import 'common_widgets.dart';
 
 class BorrowedBooksDialog extends StatefulWidget {
   final int memberId;
@@ -113,8 +115,8 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
     final limitReached = widget.borrowCount >= _maxAllowed;
     final limitWarning = widget.borrowCount >= _maxAllowed - 1;
     final limitColor = limitReached
-        ? const Color(0xFFEF4444)
-        : (limitWarning ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+        ? context.semantic.danger
+        : (limitWarning ? context.semantic.warning : context.semantic.success);
 
     return Dialog(
       insetPadding: EdgeInsets.symmetric(
@@ -362,7 +364,7 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
     final isOverdue = status == 'overdue' ||
         (dueDate.isNotEmpty &&
             DateTime.tryParse(dueDate)?.isBefore(DateTime.now()) == true);
-    final overdueColor = const Color(0xFFEF4444);
+    final overdueColor = context.semantic.danger;
     final issuedColor = colorScheme.primary;
 
     return Padding(
@@ -384,10 +386,11 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
             ),
             clipBehavior: Clip.antiAlias,
             child: coverImage != null && coverImage.toString().isNotEmpty
-                ? Image.network(
-                    ApiService.resolvePublicUrl(coverImage.toString()),
+                ? AppCachedImage(
+                    url: ApiService.resolvePublicUrl(coverImage.toString()),
                     fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Center(
+                    memCacheWidth: 160,
+                    fallback: Center(
                       child: Icon(Icons.book, size: 20, color: colorScheme.outline),
                     ),
                   )
@@ -447,12 +450,12 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                     _infoChip(
                       'Issued: ${DateFormatter.formatDateIndian(issueDate)}',
                       Icons.calendar_today,
-                      const Color(0xFF10B981),
+                      context.semantic.success,
                     ),
                     _infoChip(
                       'Due: ${DateFormatter.formatDateIndian(dueDate)}',
                       Icons.event,
-                      isOverdue ? overdueColor : const Color(0xFFF59E0B),
+                      isOverdue ? overdueColor : context.semantic.warning,
                     ),
                   ],
                 ),

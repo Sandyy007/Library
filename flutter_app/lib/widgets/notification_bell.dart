@@ -4,6 +4,7 @@ import '../providers/notification_provider.dart';
 import '../models/notification.dart';
 import '../utils/date_formatter.dart';
 import '../utils/hindi_text.dart';
+import '../utils/theme.dart';
 
 class NotificationBell extends StatelessWidget {
   const NotificationBell({super.key});
@@ -26,7 +27,9 @@ class NotificationBell extends StatelessWidget {
                     : Icons.notifications_none_rounded,
                 color: cs.primary,
               ),
-              tooltip: 'Notifications',
+              tooltip: unreadCount > 0
+                  ? 'Notifications, $unreadCount unread'
+                  : 'Notifications',
             ),
             if (unreadCount > 0)
               Positioned(
@@ -297,13 +300,14 @@ class NotificationTile extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: _getNotificationColor(
+                    context,
                     notification.type,
                   ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   _getNotificationIcon(notification.type),
-                  color: _getNotificationColor(notification.type),
+                  color: _getNotificationColor(context, notification.type),
                   size: 20,
                 ),
               ),
@@ -447,22 +451,23 @@ class NotificationTile extends StatelessWidget {
     }
   }
 
-  Color _getNotificationColor(String type) {
+  Color _getNotificationColor(BuildContext context, String type) {
+    final sem = context.semantic;
     switch (type) {
       case 'overdue':
-        return Colors.red;
+        return sem.danger;
       case 'due_soon':
-        return Colors.orange;
+        return sem.warning;
       case 'new_book':
-        return Colors.green;
+        return sem.success;
       case 'return':
-        return Colors.blue;
+        return sem.info;
       case 'issue':
-        return Colors.purple;
+        return Colors.purple; // categorical, not a status state
       case 'system':
         return Colors.grey;
       default:
-        return Colors.blue;
+        return sem.info;
     }
   }
 

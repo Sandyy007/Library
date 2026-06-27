@@ -35,6 +35,53 @@ dotenv.config({ path: envPath });
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 
+// ── Structured logger ──────────────────────────────────────────────────────
+// Emits leveled, timestamped records. In production it logs single-line JSON
+// (easy for log shippers / cloud log viewers to parse); in dev it stays
+// human-readable. All stray console.* calls in this file are routed through
+// it below so output is consistent regardless of where it originates.
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+const LOG_LEVELS: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };
+const MIN_LOG_LEVEL = LOG_LEVELS[(process.env.LOG_LEVEL as LogLevel)] ?? (isProduction ? LOG_LEVELS.info : LOG_LEVELS.debug);
+const isTestEnv = process.env.NODE_ENV === 'test';
+
+const emit = (level: LogLevel, args: unknown[]): void => {
+  if (isTestEnv && level !== 'error') return; // keep the test runner output clean
+  if (LOG_LEVELS[level] < MIN_LOG_LEVEL) return;
+
+  const sink = level === 'error' ? process.stderr : process.stdout;
+  const message = args
+    .map((a) => {
+      if (a instanceof Error) return a.stack || a.message;
+      if (typeof a === 'object' && a !== null) {
+        try { return JSON.stringify(a); } catch { return String(a); }
+      }
+      return String(a);
+    })
+    .join(' ');
+
+  if (isProduction) {
+    sink.write(JSON.stringify({ ts: new Date().toISOString(), level, message }) + '\n');
+  } else {
+    sink.write(`[${new Date().toISOString()}] ${level.toUpperCase().padEnd(5)} ${message}\n`);
+  }
+};
+
+const logger = {
+  debug: (...args: unknown[]) => emit('debug', args),
+  info: (...args: unknown[]) => emit('info', args),
+  warn: (...args: unknown[]) => emit('warn', args),
+  error: (...args: unknown[]) => emit('error', args),
+};
+
+// Route any console.* usage (existing call sites and third-party libs that
+// log via console) through the structured logger for one consistent format.
+// morgan writes to its own stream (process.stdout) and is unaffected.
+console.log = (...args: unknown[]) => logger.info(...args);
+console.info = (...args: unknown[]) => logger.info(...args);
+console.warn = (...args: unknown[]) => logger.warn(...args);
+console.error = (...args: unknown[]) => logger.error(...args);
+
 if (isProduction && !JWT_SECRET) {
   console.error('Missing required env var JWT_SECRET. Refusing to start in production.');
   process.exit(1);

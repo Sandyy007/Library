@@ -462,7 +462,7 @@ class ApiService {
   static Future<bool> testConnection() async {
     try {
       _log('DEBUG: Testing connection to $baseUrl');
-      final response = await http
+      final response = await _client
           .get(Uri.parse(serverOrigin), headers: await getHeaders())
           .timeout(timeout);
       _log('DEBUG: Connection test response: ${response.statusCode}');
@@ -476,7 +476,7 @@ class ApiService {
   /// Lightweight connectivity probe (short timeout, no auth).
   static Future<bool> healthCheck() async {
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse(serverOrigin))
           .timeout(const Duration(seconds: 5));
       return response.statusCode >= 200 && response.statusCode < 500;
@@ -769,7 +769,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Adding book: ${book.title}');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/books'),
             headers: headers,
@@ -807,7 +807,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Updating book $id: ${book.title}');
     try {
-      final response = await http
+      final response = await _client
           .put(
             Uri.parse('$baseUrl/books/$id'),
             headers: headers,
@@ -840,7 +840,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Deleting book $id');
     try {
-      final response = await http
+      final response = await _client
           .delete(Uri.parse('$baseUrl/books/$id'), headers: headers)
           .timeout(timeout);
 
@@ -870,7 +870,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Bulk deleting ${ids.length} books');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/books/bulk-delete'),
             headers: headers,
@@ -903,7 +903,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Bulk deleting ${ids.length} members');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/members/bulk-delete'),
             headers: headers,
@@ -938,7 +938,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Bulk deleting ${ids.length} issues');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/issues/bulk-delete'),
             headers: headers,
@@ -1284,7 +1284,7 @@ class ApiService {
   static Future<Member> getMember(int id) async {
     try {
       final headers = await getHeaders();
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/members/$id'), headers: headers)
           .timeout(timeout);
 
@@ -1307,7 +1307,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Adding member: ${member.name}');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/members'),
             headers: headers,
@@ -1345,7 +1345,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Updating member $id: ${member.name}');
     try {
-      final response = await http
+      final response = await _client
           .put(
             Uri.parse('$baseUrl/members/$id'),
             headers: headers,
@@ -1379,7 +1379,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Deleting member $id');
     try {
-      final response = await http
+      final response = await _client
           .delete(Uri.parse('$baseUrl/members/$id'), headers: headers)
           .timeout(timeout);
 
@@ -1439,7 +1439,7 @@ class ApiService {
   static Future<List<MemberCategory>> getMemberCategories() async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/member-categories'), headers: headers)
           .timeout(timeout);
 
@@ -1628,7 +1628,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Issuing book $bookId to member $memberId until $dueDate');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/issues'),
             headers: headers,
@@ -1666,7 +1666,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Returning book for issue $issueId');
     try {
-      final response = await http
+      final response = await _client
           .put(Uri.parse('$baseUrl/issues/$issueId/return'), headers: headers)
           .timeout(timeout);
 
@@ -1707,7 +1707,7 @@ class ApiService {
 
     _log('DEBUG: Updating issue $issueId with: $body');
     try {
-      final response = await http
+      final response = await _client
           .put(
             Uri.parse('$baseUrl/issues/$issueId'),
             headers: headers,
@@ -1741,7 +1741,7 @@ class ApiService {
     final headers = await getHeaders();
     _log('DEBUG: Deleting issue $issueId');
     try {
-      final response = await http
+      final response = await _client
           .delete(Uri.parse('$baseUrl/issues/$issueId'), headers: headers)
           .timeout(timeout);
 
@@ -1812,7 +1812,7 @@ class ApiService {
   static Future<List<DashboardWidget>> getDashboardSettings(int userId) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$baseUrl/dashboard/settings/$userId'),
             headers: headers,
@@ -1845,7 +1845,7 @@ class ApiService {
   ) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .put(
             Uri.parse('$baseUrl/dashboard/settings/$userId'),
             headers: headers,
@@ -1966,7 +1966,7 @@ class ApiService {
   static Future<void> clearDashboardActivity() async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/dashboard/activity/clear'),
             headers: headers,
@@ -1990,7 +1990,7 @@ class ApiService {
   static Future<void> remindIssue(int issueId) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .post(Uri.parse('$baseUrl/issues/$issueId/remind'), headers: headers)
           .timeout(timeout);
       if (response.statusCode != 200) {
@@ -2011,7 +2011,7 @@ class ApiService {
   static Future<void> deactivateMember(int memberId) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .put(
             Uri.parse('$baseUrl/members/$memberId/deactivate'),
             headers: headers,
@@ -2037,7 +2037,7 @@ class ApiService {
   static Future<void> activateMember(int memberId) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .put(
             Uri.parse('$baseUrl/members/$memberId/activate'),
             headers: headers,
@@ -2240,7 +2240,7 @@ class ApiService {
     final headers = await getHeaders();
 
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/reports/category-stats'), headers: headers)
           .timeout(timeout);
 
@@ -2297,7 +2297,7 @@ class ApiService {
     final headers = await getHeaders();
 
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/notifications/count'), headers: headers)
           .timeout(timeout);
 
@@ -2461,7 +2461,7 @@ class ApiService {
     final headers = await getHeaders();
 
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/backup'), headers: headers)
           .timeout(const Duration(seconds: 60));
 
@@ -2490,7 +2490,7 @@ class ApiService {
     final headers = await getHeaders();
 
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/restore'),
             headers: headers,
@@ -2526,7 +2526,7 @@ class ApiService {
     final headers = await getHeaders();
 
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$baseUrl/export/$type?format=$format'),
             headers: headers,
@@ -2562,7 +2562,7 @@ class ApiService {
   }) async {
     final requestHeaders = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/export/sheet'),
             headers: requestHeaders,
@@ -2601,7 +2601,7 @@ class ApiService {
     final url = '$baseUrl/borrow-slips';
     _log('DEBUG: POST URL: $url');
     try {
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse(url),
             headers: headers,
@@ -2641,7 +2641,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> getBorrowSlipByIssue(int issueId) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/borrow-slips/issue/$issueId'), headers: headers)
           .timeout(timeout);
 
@@ -2672,7 +2672,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> getBorrowSlip(int id) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/borrow-slips/$id'), headers: headers)
           .timeout(timeout);
 
@@ -2703,7 +2703,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getBorrowSlips({int page = 1, int limit = 50}) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$baseUrl/borrow-slips?page=$page&limit=$limit'),
             headers: headers,
@@ -2728,7 +2728,7 @@ class ApiService {
   static Future<void> deleteBorrowSlip(int id) async {
     final headers = await getHeaders();
     try {
-      final response = await http
+      final response = await _client
           .delete(Uri.parse('$baseUrl/borrow-slips/$id'), headers: headers)
           .timeout(timeout);
 

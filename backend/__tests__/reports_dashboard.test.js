@@ -49,7 +49,9 @@ describe('Reports & Dashboard API', () => {
       .get('/api/reports/issued')
       .set('Authorization', `Bearer ${auth.token}`);
     expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    // Endpoint returns a paginated envelope { data, pagination }.
+    expect(res.body).toHaveProperty('pagination');
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 
   test('GET /api/reports/overdue returns report', async () => {
@@ -58,7 +60,8 @@ describe('Reports & Dashboard API', () => {
       .get('/api/reports/overdue')
       .set('Authorization', `Bearer ${auth.token}`);
     expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveProperty('pagination');
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 
   test('GET /api/reports/popular-books returns data', async () => {

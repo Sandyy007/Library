@@ -193,6 +193,31 @@ class IssueProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  /// Removes an issue from the local list only (no API call), returning the
+  /// issue and its index so it can be restored via [restoreIssueLocally].
+  /// Backs the undo-on-delete flow.
+  ({Issue issue, int index})? removeIssueLocally(int id) {
+    final index = _issues.indexWhere((i) => i.id == id);
+    if (index == -1) return null;
+    final issue = _issues.removeAt(index);
+    if (_totalIssues > 0) _totalIssues--;
+    notifyListeners();
+    return (issue: issue, index: index);
+  }
+
+  /// Re-inserts a locally-removed issue at [index] (undo).
+  void restoreIssueLocally(Issue issue, int index) {
+    final i = index.clamp(0, _issues.length);
+    _issues.insert(i, issue);
+    _totalIssues++;
+    notifyListeners();
+  }
+
+  /// Performs the server-side delete only (assumes already removed locally).
+  Future<void> commitDeleteIssue(int id) async {
+    await ApiService.deleteIssue(id);
+  }
   
   /// Refresh data (reload current page)
   Future<void> refresh() async {

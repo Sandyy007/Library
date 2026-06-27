@@ -5,6 +5,7 @@ import '../providers/search_provider.dart';
 import '../models/book.dart';
 import '../services/api_service.dart';
 import '../utils/hindi_text.dart';
+import 'common_widgets.dart';
 import 'premium_dialog.dart';
 
 class AdvancedSearchDialog extends StatefulWidget {
@@ -366,11 +367,11 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         ),
         clipBehavior: Clip.antiAlias,
         child: book.coverImage != null && book.coverImage!.isNotEmpty
-            ? Image.network(
-                ApiService.resolvePublicUrl(book.coverImage!),
+            ? AppCachedImage(
+                url: ApiService.resolvePublicUrl(book.coverImage!),
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildBookPlaceholder(),
+                memCacheWidth: 160,
+                fallback: _buildBookPlaceholder(),
               )
             : _buildBookPlaceholder(),
       ),
