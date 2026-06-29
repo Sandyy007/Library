@@ -1,233 +1,113 @@
-# UPSTTRI Library Management System - Installation & Operator Guide
+# Installation Guide — Library Management System
 
-> This application is designed for **local single-PC use** at Uttar Pradesh State
-> Tax Training & Research Institute. Everything (desktop app, backend API, and
-> MySQL database) runs on **one Windows computer**. There is no cloud server,
-> remote access, or network exposure to configure.
-
-## Table of Contents
-
-1. [What Gets Installed](#what-gets-installed)
-2. [Prerequisites](#prerequisites)
-3. [Quick Install (Recommended)](#quick-install-recommended)
-4. [First Launch & Login](#first-launch--login)
-5. [Acceptance Checklist (UAT)](#acceptance-checklist-uat)
-6. [Backups](#backups)
-7. [Troubleshooting](#troubleshooting)
-8. [For Developers (Build From Source)](#for-developers-build-from-source)
+This guide covers building the installer and installing the app on a single
+Windows machine.
 
 ---
 
-## What Gets Installed
+## 1. Prerequisites
 
-The single installer (`LibraryManagementSystem_Setup_v1.1.2.exe`) bundles three
-parts onto the local PC:
+Install these on the target machine **before** running the setup:
 
-| Component | Role | Location after install |
-|-----------|------|------------------------|
-| Flutter desktop app | The window the operator uses | `C:\Program Files\Library Management System\` |
-| Node.js backend (`server.js`) | Local API the app talks to on `http://localhost:3000` | `...\Library Management System\backend\` |
-| MySQL database | Stores all books, members, issues, users | Your local MySQL server (`library_management` schema) |
+1. **Node.js 18 or later** — https://nodejs.org
+   - Verify: open Command Prompt and run `node --version`
+2. **MySQL 8 or later** — https://dev.mysql.com/downloads/mysql/
+   - During MySQL setup, remember the **root password** you set.
+   - Verify: `mysql --version`
 
-The desktop app automatically starts the bundled backend when it launches, so the
-operator only ever opens **one icon**.
-
----
-
-## Prerequisites
-
-Install these **once** on the PC before running the setup. The installer detects
-them and will warn you if either is missing.
-
-1. **Node.js 18 or later** — https://nodejs.org (choose the LTS build).
-2. **MySQL 8.0 or later** — https://dev.mysql.com/downloads/mysql/
-   - During MySQL setup, remember the **root password** you choose. The default
-     this app expects is `admin`, but any password works as long as you enter it
-     on the installer's database page.
-
-> Minimum machine: Windows 10/11 64-bit, 4 GB RAM, 2 GB free disk.
+> The installer checks for both and will warn you if either is missing, but it
+> will still let you continue (you can install them afterwards).
 
 ---
 
-## Quick Install (Recommended)
+## 2. Building the setup executable (for developers)
 
-1. Double-click `LibraryManagementSystem_Setup_v1.1.2.exe` and accept the admin
-   prompt.
-2. On the **Database Configuration** page, confirm or change:
-   - MySQL Host: `localhost`
-   - MySQL User: `root`
-   - MySQL Password: *(the password you set when installing MySQL — default `admin`)*
-   - Database Name: `library_management`
-3. Leave **"Reinitialize database"** unchecked for a normal install. Check it
-   **only** on a fresh machine or when you intentionally want to wipe all data.
+You need the build toolchain installed:
+
+- **Flutter SDK** (with Windows desktop support enabled)
+- **Node.js 18+**
+- **Inno Setup 6** — https://jrsoftware.org/isdl.php
+
+Then, from the project root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Build.ps1 -Installer
+```
+
+This performs, in order:
+
+1. `flutter build windows --release` — builds the desktop app.
+2. `npm install && npm run build:release` — compiles the TypeScript backend to
+   `dist/server.js` and copies it to `backend/server.js` (the launcher path).
+3. `npm prune --production` — slims `node_modules` to runtime-only packages.
+4. Runs Inno Setup against `installer.iss`.
+
+Output: `installer_output/LibraryManagementSystem_Setup_v<version>.exe`
+
+The setup bundles **everything the app needs to run**:
+- The Flutter Windows release (the `.exe` and its DLLs/assets)
+- The backend (`server.js` + production `node_modules`)
+- The database schema (`database/schema_v2.sql`)
+- Documentation
+
+---
+
+## 3. Installing on the target machine
+
+1. Run `LibraryManagementSystem_Setup_v<version>.exe` (as Administrator).
+2. On the **Database Configuration** page, enter your MySQL details:
+   - **Host:** `localhost`
+   - **User:** `root`
+   - **Password:** the MySQL root password you chose during MySQL setup
+   - **Database Name:** `library_management`
+3. (Optional) Tick **Reinitialize database** only if you want to wipe and
+   recreate the database — **this deletes existing data.**
 4. Finish the wizard. The installer will:
-   - Copy the app + backend + `node_modules`.
-   - Generate `backend\.env` with a fresh random `JWT_SECRET`.
-   - Create the `library_management` database and import the schema.
-5. Launch the app from the desktop/Start Menu shortcut.
-
-That's it — no manual `.env` editing, no separate server to start.
-
----
-
-## First Launch & Login
-
-Default administrator account (created by the schema/seed):
-
-- **Username:** `admin`
-- **Password:** `Library#123`
-
-You will be **forced to set a new password on first login**. Choose a strong
-password and record it somewhere safe — there is no email-based reset on a local
-install.
+   - Copy all app + backend files to `C:\Program Files\Library Management System`.
+   - Generate `backend\.env` with your DB settings and a fresh random
+     `JWT_SECRET`, plus a localhost `CORS_ORIGINS` so the backend starts cleanly.
+   - Create the `library_management` database and import the schema (if MySQL is
+     present).
 
 ---
 
-## Acceptance Checklist (UAT)
+## 4. First run
 
-Run through this once after install to confirm the system is healthy:
-
-- [ ] App opens and shows the login screen (no "connection refused" banner).
-- [ ] Login with `admin` / `Library#123` works and prompts for a new password.
-- [ ] Dashboard loads with counters and charts.
-- [ ] Add a test **Book** → it appears in the Books list.
-- [ ] Add a test **Member** → it appears in the Members list.
-- [ ] Issue the test book to the test member → it shows under Issues.
-- [ ] Return the issued book → status updates correctly.
-- [ ] Download a **Borrow Slip PDF** → the organization name is present and readable.
-- [ ] Export a report as **PDF**, **Excel**, and **CSV** → dates are formatted correctly (DD-MM-YYYY).
-- [ ] Toggle **Dark Mode** → UI remains readable, no broken colors.
-- [ ] Switch a record to a **Hindi** name → text renders cleanly in lists and slips.
-- [ ] Close and reopen the app → data persists (confirms DB is wired correctly).
-
-If every box passes, the system is ready to hand to the client.
+- Launch from the **Start Menu** or **Desktop** shortcut.
+- The app starts the bundled backend automatically (on `http://localhost:3000`).
+- Log in with the seeded admin account: **admin / Library#123**
+  - You'll be required to change the password on first login.
 
 ---
 
-## Backups
+## 5. Troubleshooting
 
-All data lives in the local MySQL `library_management` database plus uploaded
-images in `...\Library Management System\backend\uploads\`.
+**"Backend failed to start" / app shows connection errors**
+- Confirm Node.js is installed: `node --version`.
+- Confirm MySQL is running (Services → MySQL → Running).
+- Open `C:\Program Files\Library Management System\backend\.env` and verify
+  `DB_PASSWORD` matches your MySQL root password. Correct it and relaunch.
+- Ensure `CORS_ORIGINS` is present in `.env` (the installer adds it). If the
+  backend log shows `[FATAL] CORS_ORIGINS must be set`, add:
+  `CORS_ORIGINS=http://localhost:3000,http://localhost:8080`
 
-**Recommended weekly backup (run in Command Prompt):**
+**"Access denied for user 'root'@'localhost'"**
+- The DB password in `.env` is wrong. Update it and relaunch.
 
+**Port 3000 already in use**
+- Another process is using port 3000. Stop it, or change `PORT` in `.env`
+  (the app expects 3000 by default).
+
+**Reset the database manually**
 ```bat
-mysqldump -u root -p library_management > library_backup_%date:~-4%-%date:~3,2%-%date:~0,2%.sql
-```
-
-Also copy the `backend\uploads\` folder. To restore:
-
-```bat
-mysql -u root -p library_management < library_backup_YYYY-MM-DD.sql
+mysql -u root -p < "C:\Program Files\Library Management System\database\schema_v2.sql"
 ```
 
 ---
 
-## Troubleshooting
+## 6. Uninstalling
 
-#### App shows "Connection refused" / backend not reachable
-
-- Confirm MySQL service is running (Windows Services → `MySQL80`).
-- Confirm Node.js is installed: open Command Prompt and run `node --version`.
-- Manually start the backend to see errors: run
-  `...\Library Management System\backend\StartBackend.bat` and read the console.
-
-#### "Access denied for user 'root'"
-
-- The MySQL password in `backend\.env` doesn't match your MySQL install. Open
-  `backend\.env`, fix `DB_PASSWORD=`, and relaunch the app.
-
-#### Port 3000 already in use
-
-- Another copy of the backend is running. Close all app windows, or in Command
-  Prompt run:
-  `FOR /F "tokens=5" %a IN ('netstat -ano ^| findstr :3000') DO taskkill /F /PID %a`
-
-#### Database is empty after install
-
-- Re-run the installer and tick **"Reinitialize database"** (this wipes and
-  recreates the schema). Only do this on a machine with no real data yet.
-
----
-
-## For Developers (Build From Source)
-
-These steps are only for rebuilding the installable artifacts; operators do not
-need them.
-
-### Project Layout
-
-```
-library_management_system/
-├── backend/            # Node.js / TypeScript API (server.ts -> dist/server.js -> server.js)
-├── flutter_app/        # Flutter Windows desktop app
-├── database/           # schema.sql, schema_v2.sql
-├── installer.iss       # Inno Setup script (bundles everything)
-├── BuildRelease.bat    # One-shot release build
-└── Build.ps1           # PowerShell release build
-```
-
-### Backend
-
-```bat
-cd backend
-npm install
-npm run build:release   :: tsc -> dist/server.js, then bundle to backend/server.js
-npm test                :: requires local MySQL (DB_PASSWORD=admin)
-```
-
-- `npm run dev` runs `tsx watch server.ts` for live development.
-- `build:release` is what the installer depends on — it produces the
-  `backend\server.js` that `installer.iss` ships.
-
-### Flutter App
-
-```bat
-cd flutter_app
-flutter pub get
-flutter analyze
-flutter test
-flutter build windows --release
-```
-
-Release output: `flutter_app\build\windows\x64\runner\Release\`.
-
-### Packaging the Installer
-
-1. Build the backend release: `BuildRelease.bat` (or `Build.ps1`).
-2. Build the Flutter release: `flutter build windows --release`.
-3. Compile the installer with Inno Setup 6:
-
-   ```bat
-   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
-   ```
-
-   Output: `installer_output\LibraryManagementSystem_Setup_v1.1.2.exe`.
-
-> The installer auto-generates `backend\.env` (including a random `JWT_SECRET`)
-> on the target machine, so no secrets are committed to source control.
-
----
-
-## Configuration Reference
-
-`backend\.env` keys (generated by the installer, edit only if troubleshooting):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_HOST` | localhost | MySQL host |
-| `DB_USER` | root | MySQL user |
-| `DB_PASSWORD` | admin | MySQL password (set during install) |
-| `DB_NAME` | library_management | Database name |
-| `PORT` | 3000 | Local API port |
-| `JWT_SECRET` | (random) | Auto-generated per install |
-| `JWT_EXPIRES_IN` | 8h | Login session length |
-
----
-
-## License
-
-Proprietary software for Uttar Pradesh State Tax Training & Research Institute.
-
-**Version:** 1.1.2
-**Last Updated:** June 2026
+Use **Add/Remove Programs** → *Library Management System*. The uninstaller stops
+the backend (port 3000) and removes program files. Your MySQL database and
+uploaded files are **not** deleted automatically — drop the database manually if
+you want a full cleanup.

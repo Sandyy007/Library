@@ -28,8 +28,43 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  AppLifecycleListener? _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    // On desktop we spawn the Node backend ourselves, so we must stop it when
+    // the app is asked to exit (e.g. the window close button). Without this the
+    // detached backend keeps running, orphaned, holding port 3000 — which also
+    // prevents config/.env or app updates from taking effect on the next launch.
+    if (!kIsWeb &&
+        (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      _lifecycleListener = AppLifecycleListener(
+        onExitRequested: () async {
+          try {
+            await BackendService.stopBackend();
+          } catch (_) {
+            // Best-effort: never block app exit on cleanup failure.
+          }
+          return AppExitResponse.exit;
+        },
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener?.dispose();
+    super.dispose();
+  }
 
   bool get _enableTooltips {
     if (kIsWeb) return false;

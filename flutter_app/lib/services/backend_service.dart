@@ -81,9 +81,16 @@ class BackendService {
 
       debugPrint('Starting backend from: $backendPath');
 
+      // Prefer a portable Node bundled with the app (backend/node/node.exe) so
+      // the installed app doesn't require a system-wide Node.js. Falls back to
+      // 'node' on PATH when no bundled runtime is shipped.
+      final bundledNode = p.join(backendPath, 'node', 'node.exe');
+      final nodeExecutable = File(bundledNode).existsSync() ? bundledNode : 'node';
+      debugPrint('Using Node executable: $nodeExecutable');
+
       // Start the Node.js server
       _backendProcess = await Process.start(
-        'node',
+        nodeExecutable,
         ['server.js'],
         workingDirectory: backendPath,
         mode: ProcessStartMode.detachedWithStdio,

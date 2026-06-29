@@ -49,7 +49,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
 Name: "reinitdb"; Description: "Reinitialize database (WARNING: Deletes existing data!)"; GroupDescription: "Database Options:"; Flags: unchecked
 
 [Files]
@@ -66,6 +65,11 @@ Source: "backend\.env.example"; DestDir: "{app}\backend"; Flags: ignoreversion
 ; Backend node_modules (required for running)
 Source: "backend\node_modules\*"; DestDir: "{app}\backend\node_modules"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; Optional portable Node.js runtime. If you drop a portable Node distribution
+; into backend\node\ (containing node.exe) before building, it gets bundled and
+; the app will use it instead of requiring a system-wide Node install.
+Source: "backend\node\*"; DestDir: "{app}\backend\node"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+
 ; Backend uploads directory (preserve user data on upgrade)
 Source: "backend\uploads\*"; DestDir: "{app}\backend\uploads"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist onlyifdoesntexist
 
@@ -74,8 +78,11 @@ Source: "database\schema_v2.sql"; DestDir: "{app}\database"; Flags: ignoreversio
 Source: "database\schema.sql"; DestDir: "{app}\database"; Flags: ignoreversion
 
 ; Documentation
-Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "INSTALLATION_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "INSTALLATION_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "docs\User_Manual.pdf"; DestDir: "{app}\docs"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "docs\SDLC_Document.pdf"; DestDir: "{app}\docs"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "docs\user_manual.html"; DestDir: "{app}\docs"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Dirs]
 Name: "{app}\backend\uploads"; Permissions: users-modify
@@ -85,7 +92,6 @@ Name: "{app}\logs"; Permissions: users-modify
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Run]
 ; Launch application after install
@@ -93,7 +99,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallRun]
 ; Stop any running backend processes on port 3000
-Filename: "{cmd}"; Parameters: "/c FOR /F ""tokens=5"" %a IN ('netstat -ano ^| findstr :3000') DO taskkill /F /PID %a 2>nul"; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/c FOR /F ""tokens=5"" %a IN ('netstat -ano ^| findstr :3000') DO taskkill /F /PID %a 2>nul"; Flags: runhidden; RunOnceId: "StopBackendPort3000"
 
 [UninstallDelete]
 ; Clean up generated files (but not user uploads)
@@ -207,7 +213,7 @@ begin
   // Generate a secure random JWT secret
   JWTSecret := GenerateRandomString(64);
   
-  EnvContent := '# Library Management System Backend Configuration' + Chr(13) + Chr(10) + '# Generated during installation on ' + GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Database Configuration' + Chr(13) + Chr(10) + 'DB_HOST=' + MySQLPage.Values[0] + Chr(13) + Chr(10) + 'DB_USER=' + MySQLPage.Values[1] + Chr(13) + Chr(10) + 'DB_PASSWORD=' + MySQLPage.Values[2] + Chr(13) + Chr(10) + 'DB_NAME=' + MySQLPage.Values[3] + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Server Configuration' + Chr(13) + Chr(10) + 'PORT=3000' + Chr(13) + Chr(10) + 'NODE_ENV=production' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Security Configuration' + Chr(13) + Chr(10) + 'JWT_SECRET=' + JWTSecret + Chr(13) + Chr(10) + 'JWT_EXPIRES_IN=8h' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Rate Limiting (disabled for desktop use)' + Chr(13) + Chr(10) + 'RATE_LIMIT_ENABLED=false' + Chr(13) + Chr(10) + 'RATE_LIMIT_WINDOW_MS=900000' + Chr(13) + Chr(10) + 'RATE_LIMIT_MAX=500' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Request body size' + Chr(13) + Chr(10) + 'JSON_BODY_LIMIT=10mb' + Chr(13) + Chr(10);
+  EnvContent := '# Library Management System Backend Configuration' + Chr(13) + Chr(10) + '# Generated during installation on ' + GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Database Configuration' + Chr(13) + Chr(10) + 'DB_HOST=' + MySQLPage.Values[0] + Chr(13) + Chr(10) + 'DB_USER=' + MySQLPage.Values[1] + Chr(13) + Chr(10) + 'DB_PASSWORD=' + MySQLPage.Values[2] + Chr(13) + Chr(10) + 'DB_NAME=' + MySQLPage.Values[3] + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Server Configuration' + Chr(13) + Chr(10) + 'PORT=3000' + Chr(13) + Chr(10) + 'NODE_ENV=production' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# CORS allowlist. REQUIRED in production or the server refuses to start.' + Chr(13) + Chr(10) + '# This is a single-machine desktop deployment, so only localhost is needed;' + Chr(13) + Chr(10) + '# the native app sends no Origin header and is allowed regardless.' + Chr(13) + Chr(10) + 'CORS_ORIGINS=http://localhost:3000,http://localhost:8080' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Security Configuration' + Chr(13) + Chr(10) + 'JWT_SECRET=' + JWTSecret + Chr(13) + Chr(10) + 'JWT_EXPIRES_IN=8h' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Rate Limiting (per-IP requests/min for /api; generous for desktop use)' + Chr(13) + Chr(10) + 'API_RATE_LIMIT_PER_MIN=1000' + Chr(13) + Chr(10) + Chr(13) + Chr(10) + '# Request body size' + Chr(13) + Chr(10) + 'JSON_BODY_LIMIT=10mb' + Chr(13) + Chr(10);
   
   SaveStringToFile(EnvFile, EnvContent, False);
 end;
@@ -225,7 +231,7 @@ begin
     SchemaFile := ExpandConstant('{app}\database\schema_v2.sql');
     
     // If reinitialize database is checked, drop the existing database first
-    if IsTaskSelected('reinitdb') then
+    if WizardIsTaskSelected('reinitdb') then
     begin
       DropDBCmd := '/c mysql -h ' + MySQLPage.Values[0] + 
                    ' -u ' + MySQLPage.Values[1] + 

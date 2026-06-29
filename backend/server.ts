@@ -87,6 +87,19 @@ if (isProduction && !JWT_SECRET) {
   process.exit(1);
 }
 
+// ── Local date/time helpers ─────────────────────────────────────────────────
+// MySQL DATE/DATETIME columns carry no timezone. On this (single-machine)
+// deployment we record the server's LOCAL calendar date/time so values never
+// shift a day when the UTC offset crosses midnight — e.g. issuing a book at
+// 00:30 IST must record TODAY, not yesterday's UTC date. Use these instead of
+// `new Date().toISOString().split('T')[0]` for any value stored to a DATE or
+// DATETIME column. (Genuine instant timestamps in logs may keep UTC ISO.)
+const _pad2 = (n: number): string => String(n).padStart(2, '0');
+const localDate = (d: Date = new Date()): string =>
+  `${d.getFullYear()}-${_pad2(d.getMonth() + 1)}-${_pad2(d.getDate())}`;
+const localDateTime = (d: Date = new Date()): string =>
+  `${localDate(d)} ${_pad2(d.getHours())}:${_pad2(d.getMinutes())}:${_pad2(d.getSeconds())}`;
+
 interface AuthPayload {
   id: number;
   role: string;
@@ -678,6 +691,13 @@ const db: Pool = mysql.createPool({
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'library_management',
   charset: 'utf8mb4',
+  // Return DATE columns (issue_date, due_date, return_date, membership_date,
+  // etc.) as plain 'YYYY-MM-DD' strings instead of JS Date objects. Otherwise
+  // mysql2 builds a Date at local-midnight which res.json() serializes to a
+  // UTC ISO string, shifting the calendar day back one in +TZ locales and
+  // making borrow slips / lists show the wrong date. DATETIME/TIMESTAMP
+  // columns are left as-is so timestamp behaviour is unchanged.
+  dateStrings: ['DATE'],
   waitForConnections: true,
   connectionLimit: parseInt(process.env.DB_POOL_SIZE, 10) || 20,
   maxIdle: parseInt(process.env.DB_POOL_MAX_IDLE, 10) || 10,
@@ -1887,8 +1907,8 @@ app.post('/api/borrow-slips', (req, res) => {
 const slipNumber = `SLIP-${Date.now()}-${issue_id}-${Math.random()
   .toString(36)
   .slice(2, 8)}`;
-    // Use MySQL datetime format
-    const generatedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    // Use MySQL datetime format (local wall-clock; DATETIME has no timezone).
+    const generatedAt = localDateTime();
 
     // Check if slip already exists for this issue
     db.query('SELECT id FROM borrow_slips WHERE issue_id = ?', [issue_id], (err2, existingSlips) => {
@@ -1947,7 +1967,7 @@ const slipNumber = `SLIP-${Date.now()}-${issue_id}-${Math.random()
             id: result.insertId,
             issue_id,
             slip_number: slipNumber,
-            generated_at: new Date().toISOString(),
+            generated_at: localDateTime(),
             ...issue
           };
           res.json(slip);
@@ -2181,7 +2201,7 @@ app.post('/api/members', (req, res) => {
 
   // Handle empty strings for date fields and nullable fields
   // Provide default values for required fields
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const values = [
     name,
     email || null,
@@ -2617,7 +2637,7 @@ app.post('/api/issues', async (req, res) => {
   }
 
   const now = new Date();
-  const issue_date = now.toISOString().split('T')[0];
+  const issue_date = localDate(now);
 
   try {
     const txResult = await withTransaction(async (connection) => {
@@ -2785,7 +2805,7 @@ app.post('/api/issues/bulk-delete', async (req, res) => {
 
 app.put('/api/issues/:id/return', async (req, res) => {
   const now = new Date();
-  const return_date = now.toISOString().split('T')[0];
+  const return_date = localDate(now);
 
   try {
     const txResult = await withTransaction(async (connection) => {
@@ -2981,7 +3001,7 @@ app.put('/api/issues/:id', async (req, res) => {
           wantsReturnedAt = true;
           if (return_date === undefined) {
             updateFields.push('return_date = ?');
-            updateValues.push(new Date().toISOString().split('T')[0]);
+            updateValues.push(localDate());
           }
         }
       }
@@ -3623,12 +3643,10 @@ app.post('/api/dashboard/activity/clear', async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Access denied' });
 
-    // Use UTC to avoid timezone mismatch between client/server/MySQL session.
-    // MySQL DATETIME has no timezone; using UTC ensures consistent "clear" behavior
-    // regardless of server or client timezone settings.
-    const now = new Date();
-    const pad2 = (n) => String(n).padStart(2, '0');
-    const cutoff = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())} ${pad2(now.getUTCHours())}:${pad2(now.getUTCMinutes())}:${pad2(now.getUTCSeconds())}`;
+    // occurred_at is stored via NOW()/CURRENT_TIMESTAMP (server-local wall-clock),
+    // so the cutoff must also be local. A UTC cutoff would leave the most recent
+    // TZ-offset hours of activity un-hidden on timezones ahead of UTC.
+    const cutoff = localDateTime();
     const settings = JSON.stringify({ hidden_before: cutoff });
 
     await dbQuery(
