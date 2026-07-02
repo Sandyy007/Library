@@ -25,6 +25,7 @@ import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
 import 'dashboard_screen.dart';
 import '../widgets/premium_dialog.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/borrow_slip_preview.dart';
 
 enum _IssueDialogActiveField { book, member }
@@ -619,7 +620,7 @@ class _IssuesContentState extends State<IssuesContent> {
                                     DataColumn2(
                                       fixedWidth: 210,
                                       label: Align(
-                                        alignment: Alignment.centerRight,
+                                        alignment: Alignment.center,
                                         child: _buildIssuesHeaderLabel(
                                           'Actions',
                                         ),
@@ -871,11 +872,11 @@ class _IssuesContentState extends State<IssuesContent> {
                                           ),
                                         DataCell(
                                           Align(
-                                            alignment: Alignment.centerRight,
+                                            alignment: Alignment.center,
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.end,
+                                                  MainAxisAlignment.center,
                                               children: [
                                                 _buildActionButton(
                                                   icon: Icons
@@ -1359,7 +1360,9 @@ class _IssuesContentState extends State<IssuesContent> {
         .add(const Duration(days: 14))
         .toIso8601String()
         .split('T')[0];
-    final dueController = TextEditingController(text: dueDate);
+    final dueController = TextEditingController(
+      text: DateFormatter.formatDateIndian(dueDate),
+    );
 
     // Fetch ALL available books directly to ensure all Hindi books are included
     List<Book> allBooks;
@@ -1503,173 +1506,130 @@ class _IssuesContentState extends State<IssuesContent> {
 
               return KeyEventResult.ignored;
             },
-            child: Dialog(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(dialogContext).size.width < 600
-                      ? MediaQuery.of(dialogContext).size.width * 0.95
-                      : 500,
-                  maxHeight: MediaQuery.of(dialogContext).size.height * 0.8,
-                ),
-                child: Card(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Header
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Issue Book',
-                                style: Theme.of(
-                                  dialogContext,
-                                ).textTheme.titleLarge,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(),
-                            ),
-                          ],
-                        ),
+            child: PremiumDialogShell(
+              icon: Icons.assignment_add,
+              title: 'Issue Book',
+              subtitle: 'Assign a book to a member and set the due date',
+              maxWidth: 540,
+              onClose: () => Navigator.of(dialogContext).pop(),
+              body: PremiumSectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const PremiumSectionTitle(
+                      title: 'Issue Details',
+                      icon: Icons.assignment_outlined,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: selectedBookController,
+                      readOnly: true,
+                      decoration: premiumInputDecoration(
+                        dialogContext,
+                        label: 'Book',
+                        hint: 'Type to search (or click to select)',
+                        icon: Icons.menu_book_rounded,
+                        suffixIcon: const Icon(Icons.arrow_drop_down),
                       ),
-                      const Divider(height: 1),
-                      // Content
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextFormField(
-                                controller: selectedBookController,
-                                readOnly: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Book',
-                                  hintText:
-                                      'Type to search (or click to select)',
-                                  suffixIcon: Icon(Icons.arrow_drop_down),
-                                ),
-                                onTap: () async {
-                                  activeField = _IssueDialogActiveField.book;
-                                  await pickBook();
-                                  if (!mounted) return;
-                                  setState(() {});
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: selectedMemberController,
-                                readOnly: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Member',
-                                  hintText:
-                                      'Type to search (or click to select)',
-                                  suffixIcon: Icon(Icons.arrow_drop_down),
-                                ),
-                                onTap: () async {
-                                  activeField = _IssueDialogActiveField.member;
-                                  await pickMember();
-                                  if (!mounted) return;
-                                  setState(() {});
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: dueController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Due Date',
-                                ),
-                                readOnly: true,
-                                onTap: () async {
-                                  final date = await showDatePicker(
-                                    context: dialogContext,
-                                    initialDate: DateTime.now().add(
-                                      const Duration(days: 14),
-                                    ),
-                                    firstDate: DateTime.now(),
-                                    lastDate: DateTime.now().add(
-                                      const Duration(days: 365),
-                                    ),
-                                  );
-                                  if (date != null) {
-                                    setState(() {
-                                      dueDate = date.toIso8601String().split(
-                                        'T',
-                                      )[0];
-                                      dueController.text = dueDate;
-                                    });
-                                  }
-                                },
-                              ),
-                            ],
+                      onTap: () async {
+                        activeField = _IssueDialogActiveField.book;
+                        await pickBook();
+                        if (!mounted) return;
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: selectedMemberController,
+                      readOnly: true,
+                      decoration: premiumInputDecoration(
+                        dialogContext,
+                        label: 'Member',
+                        hint: 'Type to search (or click to select)',
+                        icon: Icons.person_outline_rounded,
+                        suffixIcon: const Icon(Icons.arrow_drop_down),
+                      ),
+                      onTap: () async {
+                        activeField = _IssueDialogActiveField.member;
+                        await pickMember();
+                        if (!mounted) return;
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: dueController,
+                      readOnly: true,
+                      decoration: premiumInputDecoration(
+                        dialogContext,
+                        label: 'Due Date',
+                        icon: Icons.event_rounded,
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: DateTime.now().add(
+                            const Duration(days: 14),
                           ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      // Footer
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(),
-                              child: const Text('Cancel'),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () async {
-                                if (selectedBookId != null &&
-                                    selectedMemberId != null) {
-                                  final int bookId = selectedBookId!;
-                                  final int memberId = selectedMemberId!;
-                                  Navigator.of(dialogContext).pop();
-                                  try {
-                                    await issueProvider.issueBook(
-                                      bookId,
-                                      memberId,
-                                      dueDate,
-                                    );
-                                    if (mounted) {
-                                      messenger?.showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Book issued successfully! Use the slip button to generate a borrow slip.',
-                                          ),
-                                          duration: Duration(seconds: 4),
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      messenger?.showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            getOperationErrorMessage(
-                                              'Issue book',
-                                              e,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                }
-                              },
-                              child: const Text('Issue'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            dueDate = date.toIso8601String().split('T')[0];
+                            dueController.text =
+                                DateFormatter.formatDateIndian(dueDate);
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
+              actions: [
+                PremiumDialogButton.secondary(
+                  label: 'Cancel',
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                ),
+                PremiumDialogButton.primary(
+                  label: 'Issue',
+                  icon: Icons.check_rounded,
+                  onPressed: () async {
+                    if (selectedBookId != null && selectedMemberId != null) {
+                      final int bookId = selectedBookId!;
+                      final int memberId = selectedMemberId!;
+                      Navigator.of(dialogContext).pop();
+                      try {
+                        await issueProvider.issueBook(
+                          bookId,
+                          memberId,
+                          dueDate,
+                        );
+                        if (mounted && messenger != null) {
+                          AppToast.showOnMessenger(
+                            messenger,
+                            message:
+                                'Book issued successfully. Use the slip button to generate a borrow slip.',
+                            type: ToastType.success,
+                            duration: const Duration(seconds: 4),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted && messenger != null) {
+                          AppToast.showOnMessenger(
+                            messenger,
+                            message: getOperationErrorMessage('Issue book', e),
+                            type: ToastType.error,
+                          );
+                        }
+                      }
+                    }
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -1742,22 +1702,21 @@ class _IssuesContentState extends State<IssuesContent> {
 
       if (!context.mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
+      AppToast.showOnMessenger(messenger,
+          message: 'Exported CSV to: $path', type: ToastType.success);
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(
-        SnackBar(content: Text(getOperationErrorMessage('Export', e))),
-      );
+      AppToast.showOnMessenger(messenger,
+          message: getOperationErrorMessage('Export', e),
+          type: ToastType.error);
     }
   }
 
   Future<void> _exportIssuesPdf(BuildContext context) async {
     final issues = context.read<IssueProvider>().issues;
     if (issues.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No issues to export')));
+      AppToast.warning(context, 'No issues to export');
       return;
     }
 
@@ -1897,9 +1856,7 @@ class _IssuesContentState extends State<IssuesContent> {
     await File(path).writeAsBytes(bytes, flush: true);
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Exported PDF to: $path')));
+    AppToast.success(context, 'Exported PDF to: $path');
   }
 
   Future<void> _generateBorrowSlip(BuildContext context, dynamic issue) async {
@@ -1941,9 +1898,9 @@ class _IssuesContentState extends State<IssuesContent> {
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(
-        SnackBar(content: Text(getOperationErrorMessage('Generate slip', e))),
-      );
+      AppToast.showOnMessenger(messenger,
+          message: getOperationErrorMessage('Generate slip', e),
+          type: ToastType.error);
     }
   }
 
@@ -1953,14 +1910,18 @@ class _IssuesContentState extends State<IssuesContent> {
     try {
       await issueProvider.returnBook(issueId);
       if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Book returned successfully')),
+        AppToast.showOnMessenger(
+          messenger,
+          message: 'Book returned successfully',
+          type: ToastType.success,
         );
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(getOperationErrorMessage('Return book', e))),
+        AppToast.showOnMessenger(
+          messenger,
+          message: getOperationErrorMessage('Return book', e),
+          type: ToastType.error,
         );
       }
     }
@@ -2215,16 +2176,20 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
       );
       if (mounted) {
         widget.navigator.pop();
-        widget.messenger.showSnackBar(
-          const SnackBar(content: Text('Issue updated successfully')),
+        AppToast.showOnMessenger(
+          widget.messenger,
+          message: 'Issue updated successfully',
+          type: ToastType.success,
         );
         widget.issueProvider.loadIssues();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        widget.messenger.showSnackBar(
-          SnackBar(content: Text('Failed to update issue: $e')),
+        AppToast.showOnMessenger(
+          widget.messenger,
+          message: 'Failed to update issue: $e',
+          type: ToastType.error,
         );
       }
     }
@@ -2244,16 +2209,10 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
           children: [
             TextFormField(
               controller: widget.dueController,
-              decoration: InputDecoration(
-                labelText: 'Due Date',
-                prefixIcon: const Icon(Icons.event_rounded),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              decoration: premiumInputDecoration(
+                context,
+                label: 'Due Date',
+                icon: Icons.event_rounded,
               ),
               readOnly: true,
               onTap: () async {
@@ -2285,16 +2244,10 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
             if (selectedStatus == 'returned') ...[
               TextFormField(
                 controller: widget.returnController,
-                decoration: InputDecoration(
-                  labelText: 'Return Date',
-                  prefixIcon: const Icon(Icons.assignment_turned_in_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                decoration: premiumInputDecoration(
+                  context,
+                  label: 'Return Date',
+                  icon: Icons.assignment_turned_in_rounded,
                 ),
                 readOnly: true,
                 validator: (value) {
@@ -2335,16 +2288,10 @@ class _EditIssueDialogState extends State<_EditIssueDialog> {
             ],
             DropdownButtonFormField<String>(
               initialValue: selectedStatus,
-              decoration: InputDecoration(
-                labelText: 'Status',
-                prefixIcon: const Icon(Icons.flag_rounded),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              decoration: premiumInputDecoration(
+                context,
+                label: 'Status',
+                icon: Icons.flag_rounded,
               ),
               items: const [
                 DropdownMenuItem(value: 'issued', child: Text('Issued')),

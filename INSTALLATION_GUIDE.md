@@ -74,19 +74,27 @@ The setup bundles **everything the app needs to run**:
 ## 4. First run
 
 - Launch from the **Start Menu** or **Desktop** shortcut.
-- The app starts the bundled backend automatically (on `http://localhost:3000`).
+- A **branded splash screen** appears while the app starts the bundled backend
+  automatically (on `http://localhost:3000`).
+  - If the backend can't start (e.g. MySQL not running or `.env`
+    misconfigured), the splash shows a clear error message with a **Retry**
+    button. Fix the issue (see Troubleshooting) and tap Retry — no need to
+    restart the app.
 - Log in with the seeded admin account: **admin / Library#123**
   - You'll be required to change the password on first login.
+- When you close the app, the backend it started is stopped automatically so
+  port 3000 is freed for the next launch.
 
 ---
 
 ## 5. Troubleshooting
 
-**"Backend failed to start" / app shows connection errors**
+**Splash screen shows "Couldn't start the app" / connection errors**
 - Confirm Node.js is installed: `node --version`.
 - Confirm MySQL is running (Services → MySQL → Running).
 - Open `C:\Program Files\Library Management System\backend\.env` and verify
-  `DB_PASSWORD` matches your MySQL root password. Correct it and relaunch.
+  `DB_PASSWORD` matches your MySQL root password. Correct it, then tap **Retry**
+  on the splash (or relaunch).
 - Ensure `CORS_ORIGINS` is present in `.env` (the installer adds it). If the
   backend log shows `[FATAL] CORS_ORIGINS must be set`, add:
   `CORS_ORIGINS=http://localhost:3000,http://localhost:8080`

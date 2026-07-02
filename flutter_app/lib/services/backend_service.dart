@@ -9,6 +9,38 @@ class BackendService {
   static bool _isStarting = false;
   static bool _isRunning = false;
 
+  /// PID of a backend we didn't spawn ourselves but adopted (it was already
+  /// listening on the port when we launched). Read from the backend's PID file
+  /// so we can still terminate it on exit and avoid leaving an orphan holding
+  /// the port for the next launch.
+  static int? _adoptedPid;
+
+  /// Path to the PID file the backend writes on boot (see server.ts).
+  static String _pidFilePath() => p.join(_getBackendPath(), '.backend.pid');
+
+  /// Reads the backend PID from the PID file, if present and valid.
+  static int? _readPidFile() {
+    try {
+      final f = File(_pidFilePath());
+      if (!f.existsSync()) return null;
+      final pid = int.tryParse(f.readAsStringSync().trim());
+      return (pid != null && pid > 0) ? pid : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Removes the PID file. On Windows a force-terminate doesn't let the backend
+  /// run its own cleanup, so the app deletes the stale file after stopping.
+  static void _deletePidFile() {
+    try {
+      final f = File(_pidFilePath());
+      if (f.existsSync()) f.deleteSync();
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+
   /// Check if the backend is already running on the specified port
   static Future<bool> isBackendRunning({int port = 3000}) async {
     try {
@@ -59,6 +91,13 @@ class BackendService {
     if (await isBackendRunning()) {
       debugPrint('Backend is already running on port 3000');
       _isRunning = true;
+      // Adopt the existing instance's PID (written by the backend on boot) so
+      // we can stop it on exit — otherwise a leftover process would keep
+      // holding the port after the app closes.
+      _adoptedPid = _readPidFile();
+      if (_adoptedPid != null) {
+        debugPrint('Adopted existing backend PID: $_adoptedPid');
+      }
       return true;
     }
 
@@ -153,14 +192,31 @@ class BackendService {
     }
   }
 
-  /// Stop the backend server
+  /// Stop the backend server.
+  ///
+  /// Terminates the process we spawned. If instead we adopted an already-running
+  /// backend at launch, terminates that one via its PID (read from the PID file)
+  /// so we never leave an orphaned process holding the port.
   static Future<void> stopBackend() async {
     if (_backendProcess != null) {
-      debugPrint('Stopping backend (PID: ${_backendProcess!.pid})');
+      debugPrint('Stopping backend we started (PID: ${_backendProcess!.pid})');
       _backendProcess!.kill();
       _backendProcess = null;
-      _isRunning = false;
+    } else {
+      // We didn't spawn it this session — fall back to the adopted/recorded PID.
+      final pid = _adoptedPid ?? _readPidFile();
+      if (pid != null) {
+        try {
+          debugPrint('Stopping adopted backend (PID: $pid)');
+          Process.killPid(pid);
+        } catch (e) {
+          debugPrint('Could not stop adopted backend (PID: $pid): $e');
+        }
+      }
     }
+    _deletePidFile();
+    _adoptedPid = null;
+    _isRunning = false;
   }
 
   /// Check if the backend is currently running

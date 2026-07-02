@@ -8,6 +8,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
 import 'premium_dialog.dart';
+import 'app_toast.dart';
 
 class MemberDialog extends StatefulWidget {
   final Member? member;
@@ -339,66 +340,57 @@ class _MemberDialogState extends State<MemberDialog> {
 
   Widget _buildFormSection(ColorScheme colorScheme, {bool compact = false}) {
     final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
-    final sp = compact ? 14.0 : 18.0;
-    final sectionSp = compact ? 24.0 : 32.0;
+    final sp = compact ? 12.0 : 16.0;
+    final sectionSp = compact ? 16.0 : 20.0;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionTitle('Personal Information', Icons.person_outline),
-        SizedBox(height: sp),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _nameController, label: 'Full Name', hint: 'Enter member name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Name is required' : null, style: hindiAwareTextStyle(context, text: _nameController.text, base: baseFieldStyle))),
-            if (!compact) ...[
-              const SizedBox(width: 20),
-              Expanded(flex: 2, child: _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'Enter phone number', icon: Icons.phone_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Phone is required' : null)),
-            ],
-          ],
-        ),
-        if (compact) ...[
-          SizedBox(height: sp),
-          _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'Enter phone number', icon: Icons.phone_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Phone is required' : null),
-        ],
-        SizedBox(height: sp),
-        _buildTextField(controller: _emailController, label: 'Email Address', hint: 'Enter email address', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-        SizedBox(height: sp),
-        _buildTextField(controller: _addressController, label: 'Address', hint: 'Enter address', icon: Icons.location_on_outlined, maxLines: 2, style: hindiAwareTextStyle(context, text: _addressController.text, base: baseFieldStyle)),
-        SizedBox(height: sectionSp),
-        _buildSectionTitle('Membership Details', Icons.badge_outlined),
-        SizedBox(height: sp),
-        _buildMemberTypeSelector(colorScheme),
-        SizedBox(height: sp),
-        Row(
-          children: [
-            Expanded(child: _buildDateField(_membershipDateController, 'Membership Date', Icons.calendar_today)),
-            const SizedBox(width: 20),
-            Expanded(child: _buildDateField(_expiryDateController, 'Expiry Date', Icons.event_busy)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colorScheme.primaryContainer,
-                colorScheme.primaryContainer.withValues(alpha: 0.5),
+        PremiumSectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PremiumSectionTitle(title: 'Personal Information', icon: Icons.person_outline),
+              SizedBox(height: sp),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _nameController, label: 'Full Name', hint: 'Enter member name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Name is required' : null, style: hindiAwareTextStyle(context, text: _nameController.text, base: baseFieldStyle))),
+                  if (!compact) ...[
+                    const SizedBox(width: 16),
+                    Expanded(flex: 2, child: _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'Enter phone number', icon: Icons.phone_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Phone is required' : null)),
+                  ],
+                ],
+              ),
+              if (compact) ...[
+                SizedBox(height: sp),
+                _buildTextField(controller: _phoneController, label: 'Phone Number', hint: 'Enter phone number', icon: Icons.phone_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Phone is required' : null),
               ],
-            ),
-            borderRadius: BorderRadius.circular(10),
+              SizedBox(height: sp),
+              _buildTextField(controller: _emailController, label: 'Email Address', hint: 'Enter email address', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+              SizedBox(height: sp),
+              _buildTextField(controller: _addressController, label: 'Address', hint: 'Enter address', icon: Icons.location_on_outlined, maxLines: 2, style: hindiAwareTextStyle(context, text: _addressController.text, base: baseFieldStyle)),
+            ],
           ),
-          child: Icon(icon, size: 18, color: colorScheme.primary),
         ),
-        const SizedBox(width: 14),
-        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
+        SizedBox(height: sectionSp),
+        PremiumSectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PremiumSectionTitle(title: 'Membership Details', icon: Icons.badge_outlined),
+              SizedBox(height: sp),
+              _buildMemberTypeSelector(colorScheme),
+              SizedBox(height: sp),
+              Row(
+                children: [
+                  Expanded(child: _buildDateField(_membershipDateController, 'Membership Date', Icons.calendar_today)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildDateField(_expiryDateController, 'Expiry Date', Icons.event_busy)),
+                ],
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -409,7 +401,7 @@ class _MemberDialogState extends State<MemberDialog> {
       style: style,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      decoration: InputDecoration(labelText: label, hintText: hint, prefixIcon: Icon(icon), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)),
+      decoration: premiumInputDecoration(context, label: label, hint: hint, icon: icon),
       validator: validator,
     );
   }
@@ -419,19 +411,17 @@ class _MemberDialogState extends State<MemberDialog> {
       controller: controller,
       readOnly: true,
       onTap: () => _selectDate(controller),
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)),
+      decoration: premiumInputDecoration(context, label: label, icon: icon),
     );
   }
 
   Widget _buildMemberTypeSelector(ColorScheme colorScheme) {
     return DropdownButtonFormField<String>(
       initialValue: _selectedType ?? 'guest',
-      decoration: InputDecoration(
-        labelText: 'Member Type',
-        prefixIcon: Icon(_memberTypes.first['icon'] as IconData, color: _memberTypes.first['color'] as Color),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      decoration: premiumInputDecoration(
+        context,
+        label: 'Member Type',
+        prefixIcon: Icon(_memberTypes.first['icon'] as IconData, size: 20, color: _memberTypes.first['color'] as Color),
       ),
       items: _memberTypes.map((type) {
         return DropdownMenuItem(
@@ -486,21 +476,21 @@ class _MemberDialogState extends State<MemberDialog> {
         setState(() { _selectedPhotoBytes = result.files.first.bytes; _selectedPhotoName = result.files.first.name; });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to pick photo')));
+      if (mounted) AppToast.error(context, 'Failed to pick photo');
     }
   }
 
   Future<void> _saveMember() async {
     if (_nameController.text.trim().isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name is required')));
+      if (mounted) AppToast.warning(context, 'Name is required');
       return;
     }
     if (_phoneController.text.trim().isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone is required')));
+      if (mounted) AppToast.warning(context, 'Phone is required');
       return;
     }
     if (_selectedType == null || _selectedType!.isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member type is required')));
+      if (mounted) AppToast.warning(context, 'Member type is required');
       return;
     }
 
@@ -534,11 +524,16 @@ class _MemberDialogState extends State<MemberDialog> {
       }
 
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Member ${widget.member != null ? 'updated' : 'added'} successfully')));
+        AppToast.showOnMessenger(
+          messenger,
+          message: 'Member ${widget.member != null ? 'updated' : 'added'} successfully',
+          type: ToastType.success,
+        );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Save member', e))));
+      if (mounted) AppToast.error(context, getOperationErrorMessage('Save member', e));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }

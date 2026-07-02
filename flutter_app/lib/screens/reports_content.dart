@@ -19,6 +19,7 @@ import '../utils/error_utils.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/app_toast.dart';
 
 class ReportsContent extends StatefulWidget {
   const ReportsContent({super.key});
@@ -1038,7 +1039,21 @@ class _ReportsContentState extends State<ReportsContent>
                         ),
                       const SizedBox(height: 8),
                       Expanded(
-                        child: PieChart(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Size the donut to the available space so it never
+                            // overflows/clips the card on shorter screens.
+                            final side = constraints.maxWidth <
+                                    constraints.maxHeight
+                                ? constraints.maxWidth
+                                : constraints.maxHeight;
+                            final half = side / 2;
+                            final centerSpace =
+                                (half * 0.32).clamp(20.0, 70.0);
+                            final sectionRadius =
+                                (half * 0.55).clamp(30.0, 130.0);
+                            final touchedRadius = sectionRadius * 1.12;
+                            return PieChart(
                           PieChartData(
                             sections: displayStats.asMap().entries.map((
                               entry,
@@ -1074,7 +1089,7 @@ class _ReportsContentState extends State<ReportsContent>
                                 value: stat.bookCount.toDouble(),
                                 title: title,
                                 color: color,
-                                radius: isTouched ? 115 : 100,
+                                radius: isTouched ? touchedRadius : sectionRadius,
                                 titleStyle: TextStyle(
                                   fontSize: isTouched ? 13 : 11,
                                   fontWeight: FontWeight.bold,
@@ -1093,7 +1108,7 @@ class _ReportsContentState extends State<ReportsContent>
                               );
                             }).toList(),
                             sectionsSpace: 1,
-                            centerSpaceRadius: 50,
+                            centerSpaceRadius: centerSpace,
                             pieTouchData: PieTouchData(
                               enabled: _enableChartTouch,
                               touchCallback: (event, response) {
@@ -1113,6 +1128,8 @@ class _ReportsContentState extends State<ReportsContent>
                           ),
                           swapAnimationDuration: const Duration(milliseconds: 700),
                           swapAnimationCurve: Curves.easeOutCubic,
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -1520,9 +1537,7 @@ class _ReportsContentState extends State<ReportsContent>
 
         if (!mounted) return;
         if (path == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Export cancelled')));
+          AppToast.info(context, 'Export cancelled');
           return;
         }
 
@@ -1544,9 +1559,7 @@ class _ReportsContentState extends State<ReportsContent>
 
         if (!mounted) return;
         if (path == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Export cancelled')));
+          AppToast.info(context, 'Export cancelled');
           return;
         }
 
@@ -1562,9 +1575,7 @@ class _ReportsContentState extends State<ReportsContent>
 
         if (!mounted) return;
         if (path == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Export cancelled')));
+          AppToast.info(context, 'Export cancelled');
           return;
         }
 
@@ -1577,23 +1588,14 @@ class _ReportsContentState extends State<ReportsContent>
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Report exported as ${type.toUpperCase()} successfully',
-            ),
-            backgroundColor: context.semantic.success,
-          ),
+        AppToast.success(
+          context,
+          'Report exported as ${type.toUpperCase()} successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(getOperationErrorMessage('Export report', e)),
-            backgroundColor: context.semantic.danger,
-          ),
-        );
+        AppToast.error(context, getOperationErrorMessage('Export report', e));
       }
     } finally {
       if (mounted) {

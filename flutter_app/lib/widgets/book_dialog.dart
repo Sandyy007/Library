@@ -10,6 +10,7 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
 import 'premium_dialog.dart';
+import 'app_toast.dart';
 
 class BookDialog extends StatefulWidget {
   final Book? book;
@@ -294,6 +295,23 @@ class _BookDialogState extends State<BookDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Icon(Icons.inventory_2_outlined, size: 16, color: colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Inventory',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
               _buildCounterButton(Icons.remove_circle_outline, () {
                 if (total > 1) _totalCopiesController.text = (total - 1).toString();
                 setState(() {});
@@ -347,51 +365,72 @@ class _BookDialogState extends State<BookDialog> {
   Widget _buildFormSection(ColorScheme colorScheme, {bool compact = false}) {
     final baseFieldStyle = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
     final sp = compact ? 12.0 : 16.0;
-    final sectionSp = compact ? 24.0 : 32.0;
+    final sectionSp = compact ? 16.0 : 20.0;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionTitle('Book Information', Icons.book_outlined),
-        SizedBox(height: sp),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _titleController, label: 'Title', hint: 'Enter book title', icon: Icons.book_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Title is required' : null, style: hindiAwareTextStyle(context, text: _titleController.text, base: baseFieldStyle))),
-            if (!compact) ...[
-              const SizedBox(width: 20),
-              Expanded(flex: 2, child: _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code)),
+        _sectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('Book Information', Icons.book_outlined),
+              SizedBox(height: sp),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: compact ? 2 : 3, child: _buildTextField(controller: _titleController, label: 'Title', hint: 'Enter book title', icon: Icons.book_outlined, validator: (v) => (v?.isEmpty ?? true) ? 'Title is required' : null, style: hindiAwareTextStyle(context, text: _titleController.text, base: baseFieldStyle))),
+                  if (!compact) ...[
+                    const SizedBox(width: 16),
+                    Expanded(flex: 2, child: _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code)),
+                  ],
+                ],
+              ),
+              if (compact) ...[
+                SizedBox(height: sp),
+                _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code),
+              ],
+              SizedBox(height: sp),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 2, child: _buildTextField(controller: _authorController, label: 'Author', hint: 'Enter author name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Author is required' : null, style: hindiAwareTextStyle(context, text: _authorController.text, base: baseFieldStyle))),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildTextField(controller: _rackNumberController, label: 'Rack No.', hint: 'A-12', icon: Icons.location_on_outlined)),
+                ],
+              ),
+              SizedBox(height: sp),
+              Row(
+                children: [
+                  Expanded(flex: 2, child: _buildTextField(controller: _publisherController, label: 'Publisher', hint: 'Enter publisher', icon: Icons.business, style: hindiAwareTextStyle(context, text: _publisherController.text, base: baseFieldStyle))),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildTextField(controller: _yearController, label: 'Year', hint: '2024', icon: Icons.calendar_today, keyboardType: TextInputType.number)),
+                ],
+              ),
             ],
-          ],
-        ),
-        if (compact) ...[
-          SizedBox(height: sp),
-          _buildTextField(controller: _isbnController, label: 'ISBN', hint: 'Enter ISBN', icon: Icons.qr_code),
-        ],
-        SizedBox(height: sp),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 2, child: _buildTextField(controller: _authorController, label: 'Author', hint: 'Enter author name', icon: Icons.person_outline, validator: (v) => (v?.isEmpty ?? true) ? 'Author is required' : null, style: hindiAwareTextStyle(context, text: _authorController.text, base: baseFieldStyle))),
-            const SizedBox(width: 20),
-            Expanded(child: _buildTextField(controller: _rackNumberController, label: 'Rack No.', hint: 'A-12', icon: Icons.location_on_outlined)),
-          ],
-        ),
-        SizedBox(height: sp),
-        Row(
-          children: [
-            Expanded(flex: 2, child: _buildTextField(controller: _publisherController, label: 'Publisher', hint: 'Enter publisher', icon: Icons.business, style: hindiAwareTextStyle(context, text: _publisherController.text, base: baseFieldStyle))),
-            const SizedBox(width: 20),
-            Expanded(child: _buildTextField(controller: _yearController, label: 'Year', hint: '2024', icon: Icons.calendar_today, keyboardType: TextInputType.number)),
-          ],
+          ),
         ),
         SizedBox(height: sectionSp),
-        _buildSectionTitle('Classification', Icons.category_outlined),
-        SizedBox(height: sp),
-        if (!_categoriesLoading) _buildCategorySelector(colorScheme) else const LinearProgressIndicator(),
+        _sectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('Classification', Icons.category_outlined),
+              SizedBox(height: sp),
+              if (!_categoriesLoading) _buildCategorySelector(colorScheme) else const LinearProgressIndicator(),
+            ],
+          ),
+        ),
         SizedBox(height: sectionSp),
-        _buildSectionTitle('Additional Details', Icons.description_outlined),
-        SizedBox(height: sp),
-        _buildTextField(controller: _descriptionController, label: 'Description', hint: 'Enter book description', icon: Icons.description, maxLines: 3, style: hindiAwareTextStyle(context, text: _descriptionController.text, base: baseFieldStyle)),
+        _sectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('Additional Details', Icons.description_outlined),
+              SizedBox(height: sp),
+              _buildTextField(controller: _descriptionController, label: 'Description', hint: 'Enter book description', icon: Icons.description, maxLines: 3, style: hindiAwareTextStyle(context, text: _descriptionController.text, base: baseFieldStyle)),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -419,6 +458,13 @@ class _BookDialogState extends State<BookDialog> {
     );
   }
 
+  InputDecoration _inputDecoration({
+    required String label,
+    String? hint,
+    required IconData icon,
+  }) =>
+      premiumInputDecoration(context, label: label, hint: hint, icon: icon);
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -434,17 +480,13 @@ class _BookDialogState extends State<BookDialog> {
       style: style,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      ),
+      decoration: _inputDecoration(label: label, hint: hint, icon: icon),
       validator: validator,
     );
   }
+
+  Widget _sectionCard({required Widget child}) =>
+      PremiumSectionCard(child: child);
 
   Widget _buildCategorySelector(ColorScheme colorScheme) {
     final allCategories = _getAllCategories();
@@ -457,12 +499,9 @@ class _BookDialogState extends State<BookDialog> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
-                decoration: InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: const Icon(Icons.category_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                decoration: _inputDecoration(
+                  label: 'Category',
+                  icon: Icons.category_outlined,
                 ),
                 hint: const Text('Select category'),
                 items: allCategories.map((cat) {
@@ -603,17 +642,17 @@ class _BookDialogState extends State<BookDialog> {
         final bytes = picked.bytes;
         const maxBytes = 10 * 1024 * 1024;
         if (picked.size > maxBytes) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image must be 10MB or smaller.')));
+          if (mounted) AppToast.warning(context, 'Image must be 10MB or smaller.');
           return;
         }
         if (bytes == null || bytes.isEmpty) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not read the selected image.')));
+          if (mounted) AppToast.error(context, 'Could not read the selected image.');
           return;
         }
         setState(() { _selectedImageBytes = bytes; _selectedImageName = picked.name; });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to pick image')));
+      if (mounted) AppToast.error(context, 'Failed to pick image');
     }
   }
 
@@ -659,10 +698,14 @@ class _BookDialogState extends State<BookDialog> {
       }
       if (mounted) {
         navigator.pop(true);
-        messenger.showSnackBar(SnackBar(content: Text('Book ${widget.book != null ? 'updated' : 'added'} successfully')));
+        AppToast.showOnMessenger(
+          messenger,
+          message: 'Book ${widget.book != null ? 'updated' : 'added'} successfully',
+          type: ToastType.success,
+        );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(getOperationErrorMessage('Save book', e))));
+      if (mounted) AppToast.error(context, getOperationErrorMessage('Save book', e));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -728,14 +771,11 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
       scrollable: false,
       body: TextField(
         controller: _controller,
-        decoration: InputDecoration(
-          labelText: 'Category Name',
-          hintText: 'Enter category name',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          filled: true,
-          fillColor: widget.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.4),
-          prefixIcon: const Icon(Icons.category_rounded),
+        decoration: premiumInputDecoration(
+          context,
+          label: 'Category Name',
+          hint: 'Enter category name',
+          icon: Icons.category_rounded,
         ),
         autofocus: true,
         textCapitalization: TextCapitalization.words,

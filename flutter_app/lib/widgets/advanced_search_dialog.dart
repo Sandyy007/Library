@@ -93,21 +93,16 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         children: [
           TextField(
             controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search for books...',
-              prefixIcon: const Icon(Icons.search),
+            decoration: premiumInputDecoration(
+              context,
+              label: 'Search',
+              hint: 'Search for books...',
+              icon: Icons.search,
               suffixIcon: IconButton(
-                icon: const Icon(Icons.search),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                tooltip: 'Search',
                 onPressed: _performSearch,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.4),
             ),
             onSubmitted: (_) => _performSearch(),
           ),

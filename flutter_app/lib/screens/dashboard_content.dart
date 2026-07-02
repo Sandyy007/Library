@@ -15,6 +15,7 @@ import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/press_scale.dart';
 import '../widgets/premium_dialog.dart';
+import '../widgets/sparkline.dart';
 
 enum DashboardDensityMode { compact, detailed }
 
@@ -54,6 +55,9 @@ class _DashboardContentState extends State<DashboardContent>
   DashboardViewPreset _viewPreset = DashboardViewPreset.balanced;
   int _activityPage = 1;
   late final ScrollController _alertsScrollController;
+
+  /// Per-day trend series for the stat-card sparklines (see /dashboard/trends).
+  Map<String, List<int>> _trends = const {};
 
   static const String _prefAlertFilter = 'dashboard_alert_filter';
   static const String _prefActivityFilter = 'dashboard_activity_filter';
@@ -263,6 +267,17 @@ class _DashboardContentState extends State<DashboardContent>
     return const [];
   }
 
+  Future<void> _loadTrends() async {
+    try {
+      final trends = await ApiService.getDashboardTrends(days: 14);
+      if (!mounted) return;
+      setState(() => _trends = trends);
+    } catch (e) {
+      // Sparklines are decorative; silently ignore failures.
+      debugPrint('Dashboard trends load failed: $e');
+    }
+  }
+
   Future<void> _refreshAll({
     required bool showLoading,
     required bool includeStats,
@@ -283,6 +298,12 @@ class _DashboardContentState extends State<DashboardContent>
     } else {
       // Don't clear existing data during background refresh.
       _extrasError = null;
+    }
+
+    if (includeStats) {
+      // Best-effort, non-blocking: sparkline trends should never hold up or
+      // break the main dashboard refresh.
+      unawaited(_loadTrends());
     }
 
     try {
@@ -370,6 +391,7 @@ class _DashboardContentState extends State<DashboardContent>
         'title': 'Total Books',
         'value': statsProvider.stats['total_books']?.toString() ?? '0',
         'icon': Icons.library_books_rounded,
+        'trend': _trends['new_books'],
         'gradient': LinearGradient(
           colors: [Colors.blue.shade600, Colors.blue.shade400],
           begin: Alignment.topLeft,
@@ -380,6 +402,7 @@ class _DashboardContentState extends State<DashboardContent>
         'title': 'Issued Books',
         'value': statsProvider.stats['issued_books']?.toString() ?? '0',
         'icon': Icons.assignment_turned_in_rounded,
+        'trend': _trends['issues'],
         'gradient': LinearGradient(
           colors: [Colors.orange.shade600, Colors.orange.shade400],
           begin: Alignment.topLeft,
@@ -390,6 +413,7 @@ class _DashboardContentState extends State<DashboardContent>
         'title': 'Available Books',
         'value': statsProvider.stats['available_books']?.toString() ?? '0',
         'icon': Icons.check_circle_rounded,
+        'trend': _trends['returns'],
         'gradient': LinearGradient(
           colors: [Colors.green.shade600, Colors.green.shade400],
           begin: Alignment.topLeft,
@@ -410,6 +434,7 @@ class _DashboardContentState extends State<DashboardContent>
         'title': 'Active Members',
         'value': statsProvider.stats['active_members']?.toString() ?? '0',
         'icon': Icons.people_alt_rounded,
+        'trend': _trends['new_members'],
         'gradient': LinearGradient(
           colors: [Colors.purple.shade600, Colors.purple.shade400],
           begin: Alignment.topLeft,
@@ -500,6 +525,7 @@ class _DashboardContentState extends State<DashboardContent>
                                   value: value,
                                   icon: stat['icon'] as IconData,
                                   gradient: stat['gradient'] as LinearGradient,
+                                  trend: stat['trend'] as List<int>?,
                                   width: cardWidth,
                                   height: cardHeight,
                                   isCompact: isCompact,
@@ -4442,6 +4468,7 @@ class _PremiumStatCard extends StatefulWidget {
     required this.width,
     required this.height,
     required this.isCompact,
+    this.trend,
   });
 
   final String title;
@@ -4451,6 +4478,9 @@ class _PremiumStatCard extends StatefulWidget {
   final double width;
   final double height;
   final bool isCompact;
+
+  /// Optional per-day trend series rendered as a sparkline at the card bottom.
+  final List<int>? trend;
 
   @override
   State<_PremiumStatCard> createState() => _PremiumStatCardState();
@@ -4578,26 +4608,40 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
                   ),
                 ],
               ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: widget.isCompact ? 2 : 3,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(18),
+              if (widget.trend != null && widget.trend!.length >= 2)
+                Positioned(
+                  bottom: 0,
+                  left: 6,
+                  right: 6,
+                  child: IgnorePointer(
+                    child: Sparkline(
+                      values: widget.trend!,
+                      height: widget.isCompact ? 16 : 22,
+                      color: Colors.white,
                     ),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withValues(alpha: 0.0),
-                        Colors.white.withValues(alpha: 0.3),
-                        Colors.white.withValues(alpha: 0.0),
-                      ],
+                  ),
+                )
+              else
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: widget.isCompact ? 2 : 3,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(18),
+                      ),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: 0.3),
+                          Colors.white.withValues(alpha: 0.0),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

@@ -3161,6 +3161,67 @@ app.get('/api/dashboard/stats', async (req, res) => {
   });
 });
 
+// Dashboard trend sparklines: per-day counts over the last N days for a few
+// key series. Returns zero-filled arrays (oldest -> newest) so the frontend can
+// render smooth sparklines without gaps.
+app.get('/api/dashboard/trends', async (req, res) => {
+  try {
+    let days = parseInt(String(req.query.days ?? '14'), 10);
+    if (!Number.isFinite(days)) days = 14;
+    days = Math.min(Math.max(days, 7), 90);
+
+    // Build the continuous list of dates (local) we want, oldest -> newest.
+    const dates: string[] = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dates.push(iso);
+    }
+    const since = dates[0];
+
+    // Group each series by day. COALESCE the date column to a DATE string.
+    const grouped = async (dateCol: string, table: string): Promise<Map<string, number>> => {
+      const rows = await dbQuery(
+        `SELECT DATE(${dateCol}) AS d, COUNT(*) AS c
+         FROM ${table}
+         WHERE ${dateCol} IS NOT NULL AND DATE(${dateCol}) >= ?
+         GROUP BY DATE(${dateCol})`,
+        [since],
+      );
+      const map = new Map<string, number>();
+      for (const r of rows) {
+        // r.d may be a Date or string depending on driver settings.
+        const key = r.d instanceof Date
+          ? `${r.d.getFullYear()}-${String(r.d.getMonth() + 1).padStart(2, '0')}-${String(r.d.getDate()).padStart(2, '0')}`
+          : String(r.d).slice(0, 10);
+        map.set(key, Number(r.c) || 0);
+      }
+      return map;
+    };
+
+    const fill = (map: Map<string, number>): number[] => dates.map((d) => map.get(d) ?? 0);
+
+    const [issuesMap, returnsMap, newBooksMap, newMembersMap] = await Promise.all([
+      grouped('issue_date', 'issues'),
+      grouped('return_date', 'issues'),
+      grouped('added_date', 'books'),
+      grouped('membership_date', 'members'),
+    ]);
+
+    res.json({
+      days,
+      dates,
+      issues: fill(issuesMap),
+      returns: fill(returnsMap),
+      new_books: fill(newBooksMap),
+      new_members: fill(newMembersMap),
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // Dashboard actionable alerts + operational KPIs
 app.get('/api/dashboard/alerts', async (req, res) => {
   await refreshOverdueStatuses();
@@ -4457,6 +4518,29 @@ app.use((err, req, res, next) => {
 // IMPORTANT: Export app for tests/tools and only listen when run directly.
 let activeServer = null;
 
+// PID file: the desktop app (Flutter) starts this backend and needs to be able
+// to stop it on exit. If a previous run crashed without cleanup, an orphaned
+// node process can keep holding the port. We write our PID here on boot and
+// remove it on graceful shutdown so the app can reliably identify and terminate
+// the exact backend process it depends on — even one adopted from a prior run.
+const pidFilePath = path.join(__dirname, '.backend.pid');
+
+const writePidFile = () => {
+  try {
+    fs.writeFileSync(pidFilePath, String(process.pid), 'utf8');
+  } catch (err) {
+    console.error('Could not write PID file:', err);
+  }
+};
+
+const removePidFile = () => {
+  try {
+    if (fs.existsSync(pidFilePath)) fs.unlinkSync(pidFilePath);
+  } catch (_) {
+    // Best-effort cleanup; never block shutdown on this.
+  }
+};
+
 const startServer = (port = PORT, host = 'localhost') => {
   // HTTPS support: if SSL_KEY and SSL_CERT env vars are set, create an HTTPS server
   const sslKeyPath = process.env.SSL_KEY;
@@ -4478,6 +4562,7 @@ const startServer = (port = PORT, host = 'localhost') => {
   }
 
   activeServer = server;
+  writePidFile();
 
   server.on('error', (err) => {
     if (err && err.code === 'EADDRINUSE') {
@@ -4496,7 +4581,8 @@ const startServer = (port = PORT, host = 'localhost') => {
 // Graceful shutdown handling
 const gracefulShutdown = (signal) => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
-  
+  removePidFile();
+
   // Stop accepting new connections
   if (activeServer) {
     activeServer.close((err) => {
@@ -4527,6 +4613,9 @@ const gracefulShutdown = (signal) => {
     process.exit(0);
   }
 };
+
+// Also clean up the PID file on normal process exit as a final safety net.
+process.on('exit', removePidFile);
 
 // Handle shutdown signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

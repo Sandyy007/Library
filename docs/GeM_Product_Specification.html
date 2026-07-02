@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Library Management System — GeM Product Specification</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1a1a1a;
+    line-height: 1.5;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+    font-size: 14px;
+  }
+  header {
+    text-align: center;
+    border-bottom: 3px solid #1c4587;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  header h1 { color: #1c4587; margin: 0 0 4px; font-size: 26px; }
+  header .sub { color: #555; font-size: 15px; }
+  header .doctype {
+    display: inline-block;
+    margin-top: 10px;
+    background: #1c4587;
+    color: #fff;
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  h2 {
+    color: #1c4587;
+    border-left: 4px solid #1c4587;
+    padding-left: 10px;
+    margin-top: 28px;
+    font-size: 18px;
+  }
+  h3 { color: #333; font-size: 15px; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { border: 1px solid #cdd7e5; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #eef3fa; color: #1c4587; width: 32%; }
+  .full th { width: auto; }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  .note { background: #fff8e1; border: 1px solid #ffe082; padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+  .fill { color: #b00020; font-weight: 600; }
+  footer { margin-top: 36px; border-top: 1px solid #ccc; padding-top: 12px; font-size: 12px; color: #666; text-align: center; }
+  .sign-grid { display: flex; gap: 40px; margin-top: 40px; }
+  .sign-grid div { flex: 1; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 13px; }
+  @media print { body { padding: 0; } .no-print { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Library Management System</h1>
+  <div class="sub">Desktop-based Library Automation Software (Windows)</div>
+  <div class="doctype">GeM PRODUCT / TECHNICAL SPECIFICATION</div>
+</header>
+
+<div class="note no-print">
+  Tip: Open this file in a browser and use <b>Print &rarr; Save as PDF</b> to
+  generate the PDF for upload to the GeM portal. Replace all
+  <span class="fill">red placeholder</span> fields with your actual
+  seller/company details before submitting.
+</div>
+
+<h2>1. Product Identification</h2>
+<table>
+  <tr><th>Product Name</th><td>Library Management System</td></tr>
+  <tr><th>Product Category</th><td>Application / Library Automation Software (Perpetual License)</td></tr>
+  <tr><th>Version</th><td>1.0.0</td></tr>
+  <tr><th>Product Type</th><td>Desktop application (Microsoft Windows)</td></tr>
+  <tr><th>Deployment Model</th><td>On-premise, standalone single-machine installation</td></tr>
+  <tr><th>Model / SKU</th><td class="fill">[Enter model / SKU code]</td></tr>
+  <tr><th>HSN / SAC Code</th><td class="fill">[Enter applicable HSN/SAC — e.g. 998434 / 8523]</td></tr>
+  <tr><th>Country of Origin</th><td>India</td></tr>
+  <tr><th>Make in India Compliance</th><td class="fill">[State Class-I / Class-II Local Supplier, if applicable]</td></tr>
+</table>
+
+<h2>2. Product Description</h2>
+<p>
+  Library Management System is a complete desktop solution for automating the
+  day-to-day operations of a library. It provides cataloguing of books,
+  member management, issue and return of books with due-date tracking, overdue
+  alerts, category management, reporting, and a customizable administrative
+  dashboard. The software runs entirely on a single Windows machine — the
+  application automatically starts its own backend service on startup and
+  stores all data in a local MySQL database, requiring no internet connection
+  for regular operation.
+</p>
+
+<h2>3. Key Features</h2>
+
+<h3>3.1 Book Catalogue Management</h3>
+<ul>
+  <li>Add, edit, view and delete books with full bibliographic details: ISBN, title, author, publisher, year of publication, rack/shelf number, category, and description.</li>
+  <li>Support for <b>multiple copies per title</b> with independent tracking of total copies and currently available copies.</li>
+  <li>Automatic book status maintenance — <i>available</i>, <i>issued</i>, or <i>all copies issued</i> — updated as books are lent and returned.</li>
+  <li>Attach and store a <b>cover image</b> for each book.</li>
+  <li>Advanced filtering by title, author, category, year, availability and status.</li>
+  <li><b>Bulk delete</b> of multiple books at once, with a built-in safeguard that blocks deletion of any book that has active (issued/overdue) loans.</li>
+</ul>
+
+<h3>3.2 Member Management</h3>
+<ul>
+  <li>Create and maintain member records with name, email, phone, address, profile photo, membership start date and expiry date.</li>
+  <li>Multiple member types including <b>student, faculty, staff, guest</b> and custom official designations (e.g. Deputy Director, Assistant Commissioner, State Tax Officer and others).</li>
+  <li><b>Activate / deactivate</b> members without deleting their records, preserving historical data.</li>
+  <li>View a member's <b>currently borrowed books</b> and full <b>borrowing history</b>.</li>
+  <li>Membership validity/expiry tracking.</li>
+  <li><b>Bulk delete</b> of members with protection against removing members who hold active loans.</li>
+  <li>Upload and store a <b>profile photo</b> for each member.</li>
+</ul>
+
+<h3>3.3 Issue &amp; Return of Books</h3>
+<ul>
+  <li>Issue books to members with <b>automatic due-date calculation</b> based on the member category's loan period.</li>
+  <li>Enforcement of <b>per-category borrowing limits</b> (maximum books allowed) and loan durations.</li>
+  <li>Availability checks that prevent issuing when no copies are free.</li>
+  <li>Return processing that automatically updates copy availability and book status.</li>
+  <li>Edit issue records (due date, return date, status) and delete or bulk-delete issue records where permitted.</li>
+  <li>Complete circulation register of all issue and return transactions.</li>
+</ul>
+
+<h3>3.4 Borrow Slip Generation</h3>
+<ul>
+  <li>Generate a printable <b>borrow slip</b> for any issue transaction as an acknowledgement/receipt.</li>
+  <li>Retrieve borrow slips by slip ID or by issue ID, list all slips, and delete slips.</li>
+</ul>
+
+<h3>3.5 Overdue &amp; Due-Soon Tracking</h3>
+<ul>
+  <li>Automatic recalculation of <b>overdue status</b> whenever issues, reports or the dashboard are accessed.</li>
+  <li>In-app <b>notifications</b> for overdue books and books due soon.</li>
+  <li>Ability to <b>log reminder actions</b> against an issue, recorded as a notification entry for audit.</li>
+</ul>
+
+<h3>3.6 Category Management</h3>
+<ul>
+  <li>Manage <b>book categories</b> (create, edit, delete) with descriptions; ships with 40+ predefined categories.</li>
+  <li>Manage <b>member categories</b> with distinct borrowing rules — configurable maximum books and loan period per category.</li>
+</ul>
+
+<h3>3.7 Bulk Data Import</h3>
+<ul>
+  <li>Import books and members from <b>CSV and Microsoft Excel (XLSX)</b> files.</li>
+  <li>Optimised <b>batch import</b> engine capable of handling large datasets (10,000+ records) efficiently.</li>
+  <li>Minimal required fields (title + author for books) with optional fields such as rack number and ISBN.</li>
+</ul>
+
+<h3>3.8 Dashboard &amp; Reports</h3>
+<ul>
+  <li><b>Customizable dashboard</b> with configurable, re-orderable widgets per user.</li>
+  <li>Real-time statistics — total books, members, active issues, overdue counts and other KPIs.</li>
+  <li>Actionable <b>alerts</b> and a <b>recent activity feed</b> (with option to clear/hide activity).</li>
+  <li>Reports for <b>issued books, overdue books, most popular books</b> (by period) and <b>active members</b>.</li>
+  <li>Report result limits suitable for exporting large lists.</li>
+</ul>
+
+<h3>3.9 Search</h3>
+<ul>
+  <li>Fast, <b>database-indexed search</b> across books (title, author, ISBN, category) and members (name, email).</li>
+  <li><b>Pagination</b> support throughout to keep performance smooth on very large catalogues.</li>
+</ul>
+
+<h3>3.10 Security &amp; Access Control</h3>
+<ul>
+  <li>Administrator login with <b>bcrypt-hashed passwords</b> and <b>JWT-based session tokens</b>.</li>
+  <li><b>Forced password change on first login</b> and a dedicated change-password flow.</li>
+  <li><b>Rate limiting</b> on login attempts to deter brute-force attacks.</li>
+  <li>HTTP security headers (Helmet), input validation, and CORS protection.</li>
+</ul>
+
+<h3>3.11 File &amp; Image Handling</h3>
+<ul>
+  <li>Upload and store <b>book cover images</b> and <b>member profile photos</b> (JPG / PNG).</li>
+  <li>Images stored locally on the machine and served to the application.</li>
+</ul>
+
+<h3>3.12 System Health &amp; Reliability</h3>
+<ul>
+  <li>Built-in <b>health-check endpoints</b> (basic and detailed, including database status) for diagnostics.</li>
+  <li>Automatic database migrations on startup to keep the schema and performance indexes up to date.</li>
+  <li>Response compression and request logging for stable performance.</li>
+</ul>
+
+<h2>4. Technical Specifications</h2>
+<table>
+  <tr><th>Application Frontend</th><td>Flutter (Windows desktop, native x64 build)</td></tr>
+  <tr><th>Backend Service</th><td>Node.js + Express (TypeScript), embedded and auto-started</td></tr>
+  <tr><th>Database</th><td>MySQL 8 (local instance)</td></tr>
+  <tr><th>Architecture</th><td>Client + local REST API service + relational database on the same machine (localhost)</td></tr>
+  <tr><th>Communication</th><td>REST API over HTTP on localhost</td></tr>
+  <tr><th>Data Formats Supported</th><td>CSV, XLSX (import); JPG / PNG images (uploads)</td></tr>
+  <tr><th>Security</th><td>JWT-based authentication, bcrypt password hashing, HTTP security headers (Helmet), rate limiting, input validation</td></tr>
+  <tr><th>Installation</th><td>Windows installer (.exe) generated via Inno Setup</td></tr>
+  <tr><th>Licensing</th><td>Perpetual, per-installation</td></tr>
+</table>
+
+<h2>5. Minimum System Requirements</h2>
+<table>
+  <tr><th>Operating System</th><td>Microsoft Windows 10 / 11 (64-bit)</td></tr>
+  <tr><th>Processor</th><td>Dual-core 2.0 GHz or higher</td></tr>
+  <tr><th>Memory (RAM)</th><td>4 GB minimum (8 GB recommended)</td></tr>
+  <tr><th>Storage</th><td>2 GB free disk space (plus space for data and images)</td></tr>
+  <tr><th>Prerequisite Software</th><td>Node.js 18+ and MySQL 8+ (installer detects and warns if missing)</td></tr>
+  <tr><th>Display</th><td>1366 &times; 768 or higher</td></tr>
+  <tr><th>Internet</th><td>Not required for regular operation (offline capable)</td></tr>
+</table>
+
+<h2>6. Documentation &amp; Deliverables</h2>
+<ul>
+  <li>Windows installer executable (.exe)</li>
+  <li>User Manual (PDF)</li>
+  <li>SDLC / System Documentation (PDF)</li>
+  <li>Database schema and setup scripts</li>
+  <li>Default administrator credentials with forced first-login password change</li>
+</ul>
+
+<h2>7. Support, Warranty &amp; Compliance</h2>
+<table>
+  <tr><th>Warranty Period</th><td class="fill">[e.g. 12 months from date of installation]</td></tr>
+  <tr><th>Technical Support</th><td class="fill">[e.g. Email / Phone support, 9 AM – 6 PM, Mon–Sat]</td></tr>
+  <tr><th>Software Updates</th><td class="fill">[e.g. Free bug-fix updates during warranty period]</td></tr>
+  <tr><th>Data Ownership</th><td>All data resides locally on the buyer's machine and is owned by the buyer</td></tr>
+  <tr><th>Data Privacy</th><td>No data is transmitted externally; fully offline operation</td></tr>
+</table>
+
+<h2>8. Seller Details</h2>
+<table>
+  <tr><th>Seller / Company Name</th><td class="fill">[Enter registered company name]</td></tr>
+  <tr><th>GeM Seller ID</th><td class="fill">[Enter GeM Seller ID]</td></tr>
+  <tr><th>GSTIN</th><td class="fill">[Enter GSTIN]</td></tr>
+  <tr><th>Registered Address</th><td class="fill">[Enter address]</td></tr>
+  <tr><th>Contact Person</th><td class="fill">[Name, phone, email]</td></tr>
+  <tr><th>Website</th><td class="fill">[If any]</td></tr>
+</table>
+
+<h2>9. Declaration</h2>
+<p>
+  We hereby declare that the specifications furnished above are true and correct,
+  and that the product offered conforms to the description and technical
+  particulars stated in this document. The product is offered in accordance with
+  the terms and conditions of the Government e-Marketplace (GeM).
+</p>
+
+<div class="sign-grid">
+  <div>Authorised Signatory<br><span class="fill">[Name &amp; Designation]</span></div>
+  <div>Company Seal / Stamp</div>
+  <div>Date &amp; Place</div>
+</div>
+
+<footer>
+  Library Management System — GeM Product / Technical Specification &nbsp;|&nbsp;
+  Version 1.0.0 &nbsp;|&nbsp; Generated for GeM portal submission
+</footer>
+
+</body>
+</html>

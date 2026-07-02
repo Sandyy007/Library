@@ -20,6 +20,7 @@ import '../utils/responsive.dart';
 import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/premium_dialog.dart';
+import '../widgets/app_toast.dart';
 import 'dashboard_screen.dart';
 
 enum MemberStatusFilter { all, active, inactive }
@@ -105,11 +106,7 @@ class _MembersContentState extends State<MembersContent>
       context.read<MemberProvider>().loadMembers().catchError((error) {
         if (kDebugMode) debugPrint('Error loading members: $error');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(getOperationErrorMessage('Load members', error)),
-            ),
-          );
+          AppToast.error(context, getOperationErrorMessage('Load members', error));
         }
       });
     } catch (e) {
@@ -489,13 +486,14 @@ class _MembersContentState extends State<MembersContent>
 
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(SnackBar(content: Text('Exported CSV to: $path')));
+      AppToast.showOnMessenger(messenger,
+          message: 'Exported CSV to: $path', type: ToastType.success);
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
-      messenger.showSnackBar(
-        SnackBar(content: Text(getOperationErrorMessage('Export', e))),
-      );
+      AppToast.showOnMessenger(messenger,
+          message: getOperationErrorMessage('Export', e),
+          type: ToastType.error);
     }
   }
 
@@ -967,7 +965,7 @@ class _MembersContentState extends State<MembersContent>
                                       ),
                                       DataColumn2(
                                         label: Align(
-                                          alignment: Alignment.centerRight,
+                                          alignment: Alignment.center,
                                           child: _buildHeaderLabel('Actions'),
                                         ),
                                       ),
@@ -1187,12 +1185,12 @@ class _MembersContentState extends State<MembersContent>
                                                 child: FittedBox(
                                                   fit: BoxFit.scaleDown,
                                                   alignment:
-                                                      Alignment.centerRight,
+                                                      Alignment.center,
                                                   child: Row(
                                                     mainAxisSize:
                                                         MainAxisSize.min,
                                                     mainAxisAlignment:
-                                                        MainAxisAlignment.end,
+                                                        MainAxisAlignment.center,
                                                     children: [
                                                       _buildActionButton(
                                                         icon: Icons

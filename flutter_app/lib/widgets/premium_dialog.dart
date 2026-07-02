@@ -377,6 +377,120 @@ class _Footer extends StatelessWidget {
   }
 }
 
+/// Shared premium input decoration so every field/dropdown across all dialogs
+/// looks and behaves consistently: soft surface fill, subtle idle border, an
+/// accent focus ring, and clear error states.
+///
+/// Use for `TextFormField`, `TextField`, and `DropdownButtonFormField`.
+InputDecoration premiumInputDecoration(
+  BuildContext context, {
+  required String label,
+  String? hint,
+  IconData? icon,
+  Widget? prefixIcon,
+  Widget? suffixIcon,
+  Color? accent,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  final a = accent ?? cs.primary;
+  OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: color, width: width),
+      );
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    prefixIcon: prefixIcon ??
+        (icon != null
+            ? Icon(icon, size: 20, color: a.withValues(alpha: 0.75))
+            : null),
+    suffixIcon: suffixIcon,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+    filled: true,
+    fillColor: cs.surface,
+    border: border(cs.outlineVariant.withValues(alpha: 0.5), 1),
+    enabledBorder: border(cs.outlineVariant.withValues(alpha: 0.5), 1),
+    focusedBorder: border(a, 1.6),
+    errorBorder: border(cs.error.withValues(alpha: 0.6), 1),
+    focusedErrorBorder: border(cs.error, 1.6),
+    floatingLabelStyle: TextStyle(color: a, fontWeight: FontWeight.w600),
+  );
+}
+
+/// A soft, slightly-elevated card used to group a form section inside a
+/// [PremiumDialogShell], giving dialogs clear visual structure.
+class PremiumSectionCard extends StatelessWidget {
+  const PremiumSectionCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: cs.shadow.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A consistent section header (icon badge + title) for use inside dialogs.
+class PremiumSectionTitle extends StatelessWidget {
+  const PremiumSectionTitle({super.key, required this.title, required this.icon});
+
+  final String title;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                cs.primaryContainer,
+                cs.primaryContainer.withValues(alpha: 0.5),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: cs.primary),
+        ),
+        const SizedBox(width: 14),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Premium footer button used inside [PremiumDialogShell].
 class PremiumDialogButton extends StatelessWidget {
   const PremiumDialogButton._({

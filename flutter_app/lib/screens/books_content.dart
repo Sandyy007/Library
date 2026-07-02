@@ -470,7 +470,10 @@ class _BooksContentState extends State<BooksContent>
                                       label: _buildHeaderLabel('Status'),
                                     ),
                                     DataColumn2(
-                                      label: _buildHeaderLabel('Actions'),
+                                      label: Align(
+                                        alignment: Alignment.center,
+                                        child: _buildHeaderLabel('Actions'),
+                                      ),
                                     ),
                                   ],
                                   rows: filteredBooks.asMap().entries.map((
@@ -807,7 +810,7 @@ class _BooksContentState extends State<BooksContent>
                                               width: 100,
                                               child: Row(
                                                 mainAxisAlignment:
-                                                    MainAxisAlignment.end,
+                                                    MainAxisAlignment.center,
                                                 children: [
                                                   _buildActionButton(
                                                     icon: Icons.edit_rounded,
@@ -2452,31 +2455,19 @@ class _CategoryEditDialogState extends State<_CategoryEditDialog> {
           TextField(
             controller: _nameController,
             autofocus: true,
-            decoration: InputDecoration(
-              labelText: 'Category Name',
-              prefixIcon: const Icon(Icons.category_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            decoration: premiumInputDecoration(
+              context,
+              label: 'Category Name',
+              icon: Icons.category_rounded,
             ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _descController,
-            decoration: InputDecoration(
-              labelText: 'Description (optional)',
-              prefixIcon: const Icon(Icons.notes_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            decoration: premiumInputDecoration(
+              context,
+              label: 'Description (optional)',
+              icon: Icons.notes_rounded,
             ),
             maxLines: 2,
           ),

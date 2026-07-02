@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import 'app_toast.dart';
 
 /// Banner that appears at the top of the dashboard when the JWT is about
 /// to expire (within 5 minutes). Tapping it logs the user out so the
@@ -31,11 +32,7 @@ class SessionExpiringBanner extends StatelessWidget {
               auth.clearSessionRemaining();
               await auth.logout();
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please log in again to continue.'),
-                  ),
-                );
+                AppToast.info(context, 'Please log in again to continue.');
               }
             },
             child: SafeArea(

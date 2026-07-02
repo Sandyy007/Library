@@ -8,6 +8,7 @@ import 'package:printing/printing.dart' show Printing;
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../utils/hindi_pdf_helper.dart';
+import 'app_toast.dart';
 
 class BorrowSlipPreview extends StatefulWidget {
   final Map<String, dynamic> slipData;
@@ -719,9 +720,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
     } catch (e) {
       debugPrint('Print error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Print error: $e')),
-      );
+      AppToast.error(context, 'Print error: $e');
     }
   }
 
@@ -740,15 +739,13 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
       await File(path).writeAsBytes(bytes, flush: true);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloaded: $path')),
-      );
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
+      AppToast.showOnMessenger(messenger,
+          message: 'Downloaded: $path', type: ToastType.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download error: $e')),
-      );
+      AppToast.error(context, 'Download error: $e');
     }
   }
 

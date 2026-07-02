@@ -1809,6 +1809,53 @@ class ApiService {
     throw Exception('Failed to load dashboard stats');
   }
 
+  /// Fetches per-day trend series (last [days] days) for dashboard sparklines.
+  /// Returns a map of series name -> list of daily counts (oldest -> newest).
+  /// Series: `issues`, `returns`, `new_books`, `new_members`.
+  static Future<Map<String, List<int>>> getDashboardTrends({
+    int days = 14,
+  }) async {
+    final headers = await getHeaders();
+    final uri = Uri.parse('$baseUrl/dashboard/trends?days=$days');
+    _log('DEBUG: Fetching dashboard trends from $uri');
+    try {
+      final response = await _getWithRetry(
+        uri,
+        headers: headers,
+        operationName: 'Loading dashboard trends',
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        List<int> series(String key) {
+          final raw = data[key];
+          if (raw is List) {
+            return raw
+                .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
+                .toList();
+          }
+          return const <int>[];
+        }
+
+        return {
+          'issues': series('issues'),
+          'returns': series('returns'),
+          'new_books': series('new_books'),
+          'new_members': series('new_members'),
+        };
+      }
+    } on SocketException catch (e) {
+      _log('DEBUG: Socket error loading dashboard trends: $e');
+      throw Exception(_connectionErrorMessage);
+    } on TimeoutException catch (e) {
+      _log('DEBUG: Timeout loading dashboard trends: $e');
+      throw Exception('Request timeout. Server is not responding.');
+    } catch (e) {
+      _log('DEBUG: Error loading dashboard trends: $e');
+      rethrow;
+    }
+    throw Exception('Failed to load dashboard trends');
+  }
+
   static Future<List<DashboardWidget>> getDashboardSettings(int userId) async {
     final headers = await getHeaders();
     try {

@@ -18,6 +18,7 @@ import 'reports_content.dart';
 import '../widgets/about_content.dart';
 import '../widgets/search_results_dialog.dart';
 import '../widgets/notification_bell.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/session_expiring_banner.dart';
 import '../services/api_service.dart';
 import '../utils/error_utils.dart';
@@ -570,29 +571,17 @@ class _DashboardScreenState extends State<DashboardScreen>
         break;
       case 4:
         // Reports — no single refresh, just notify
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Use the refresh button on each report tab'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        AppToast.info(context, 'Use the refresh button on each report tab',
+            duration: const Duration(seconds: 2));
         break;
       case 5:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('About Us is always up to date'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        AppToast.info(context, 'About Us is always up to date',
+            duration: const Duration(seconds: 2));
         break;
     }
     if (_selectedIndex <= 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Refreshing ${_titles[_selectedIndex]}...'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+      AppToast.info(context, 'Refreshing ${_titles[_selectedIndex]}...',
+          duration: const Duration(seconds: 1));
     }
   }
 

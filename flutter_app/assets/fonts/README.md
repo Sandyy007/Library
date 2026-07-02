@@ -1,40 +1,40 @@
-# Font Files Required
+# Font Files
 
-This folder should contain the following font files for proper Hindi text rendering.
+This folder holds the fonts used for Hindi/Devanagari rendering.
 
-## Required Fonts
+## Bundled fonts (committed & declared in `pubspec.yaml`)
 
-### 1. Kruti Dev 010 (for legacy Hindi text)
-
-- **File**: `kruti_dev_010.ttf`
-- **Source**: Download from trusted font sources or obtain from system fonts
-- **Purpose**: Renders legacy Hindi text encoded in Kruti Dev format
-
-### 2. Noto Sans Devanagari (for Unicode Hindi)
+### Noto Sans Devanagari (Unicode Hindi)
 
 - **Files**:
   - `NotoSansDevanagari-Regular.ttf`
   - `NotoSansDevanagari-Bold.ttf`
 - **Source**: [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Sans+Devanagari)
-- **Purpose**: Renders modern Unicode Hindi/Devanagari text
+- **Purpose**: Renders modern Unicode Hindi/Devanagari text, including in
+  generated PDFs (borrow slips, reports, member history).
 
-## Installation Instructions
+These two files are declared under the `NotoSansDevanagari` family in
+`pubspec.yaml` and are the only font files required for the app to build.
 
-1. Download the font files from their respective sources
-2. Place them in this `assets/fonts/` directory
-3. Run `flutter pub get` to update dependencies
-4. Rebuild the application
+## Legacy Kruti Dev text
 
-## Notes
+Legacy Hindi text stored in the **Kruti Dev** encoding is handled in code by the
+[`krutidevtounicode`](https://pub.dev/packages/krutidevtounicode) package
+(a dependency in `pubspec.yaml`), which converts Kruti Dev text to Unicode at
+runtime. A Kruti Dev `.ttf` font is therefore **not** required or bundled.
 
-- If Kruti Dev font is not available, the app will fall back to system fonts
-- Noto Sans Devanagari is recommended for cross-platform Unicode Hindi support
-- Font files are not included in the repository due to licensing considerations
+See `lib/utils/hindi_text.dart` for the normalization/conversion helpers.
 
-## Alternative: System Fonts
+## Fallback (system) fonts
 
-If you cannot bundle the fonts, the app will automatically use these system fonts:
+If a glyph isn't covered, the theme falls back to platform Devanagari fonts:
 
 - **Windows**: Nirmala UI, Mangal
-- **macOS/iOS**: System fonts with Devanagari support
+- **macOS/iOS**: system fonts with Devanagari support
 - **Android**: Noto Sans Devanagari (usually pre-installed)
+
+## After changing fonts
+
+1. Place/replace the `.ttf` files in this directory.
+2. Update the `fonts:` section of `pubspec.yaml` if you add a new family.
+3. Run `flutter pub get`, then rebuild the app.

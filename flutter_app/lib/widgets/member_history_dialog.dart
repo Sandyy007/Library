@@ -12,6 +12,7 @@ import '../utils/hindi_text.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../utils/theme.dart';
 import 'common_widgets.dart';
+import 'app_toast.dart';
 
 class MemberHistoryDialog extends StatefulWidget {
   final int memberId;
@@ -547,21 +548,11 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
       await File(path).writeAsBytes(bytes, flush: true);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF exported to: $path'),
-            backgroundColor: context.semantic.success,
-          ),
-        );
+        AppToast.success(context, 'PDF exported to: $path');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting PDF: $e'),
-            backgroundColor: context.semantic.danger,
-          ),
-        );
+        AppToast.error(context, 'Error exporting PDF: $e');
       }
     }
   }

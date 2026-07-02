@@ -205,19 +205,34 @@ Use this checklist to verify the app is fully responsive before deploying.
 - [ ] Edge (latest)
 - [ ] Responsive mode in DevTools
 
+### Premium UI
+- [ ] Boot splash appears on launch and cross-fades into the app when ready
+- [ ] Boot splash shows an error + Retry state if the backend fails to start
+- [ ] Dialogs (book/member/issue/category) use the premium shell and inputs
+- [ ] Branded toasts appear for success/error/warning/info actions
+- [ ] Notification bell rings/pops and plays a chime on a new notification
+- [ ] Notification panel + tiles (accent bar for unread) render correctly
+- [ ] Stat cards animate their count-up and respond to hover
+- [ ] Press-scale / hover-elevate micro-interactions feel smooth
+
 ## Automated Testing
 
-### Run Widget Tests
+### Run the full Flutter suite
 ```bash
-flutter test test/responsive_test.dart
+flutter test
 ```
 
-### Run Integration Tests
+### Run responsiveness-focused tests
 ```bash
-flutter test integration_test/
+flutter test test/responsive_test.dart test/responsive_audit_test.dart
 ```
 
-### Check for Responsive Issues
+### Run premium-UI / interaction tests
+```bash
+flutter test test/premium_ui_test.dart test/press_scale_test.dart test/hover_elevate_test.dart
+```
+
+### Check for analyzer issues
 ```bash
 flutter analyze
 ```
