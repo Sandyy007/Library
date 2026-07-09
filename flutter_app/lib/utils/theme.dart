@@ -26,6 +26,69 @@ class AppDurations {
   static const Duration slow = Duration(milliseconds: 420);
 }
 
+/// Layered elevation shadows. Premium surfaces read as "real" depth when two
+/// shadows are stacked: a tight, slightly darker *ambient* shadow that hugs
+/// the element, plus a soft, wide *key* shadow cast further below. A single
+/// drop shadow always looks flat by comparison.
+///
+/// Pass the theme's `colorScheme.shadow` and brightness so shadows adapt to
+/// light/dark (dark surfaces need deeper, more opaque shadows to register).
+///
+/// Usage:
+/// ```dart
+/// decoration: BoxDecoration(
+///   borderRadius: BorderRadius.circular(AppRadii.lg),
+///   boxShadow: AppShadows.md(cs.shadow, isDark),
+/// )
+/// ```
+class AppShadows {
+  const AppShadows._();
+
+  /// Subtle resting elevation for cards, chips, and list tiles.
+  static List<BoxShadow> sm(Color shadow, bool isDark) => [
+        BoxShadow(
+          color: shadow.withValues(alpha: isDark ? 0.44 : 0.05),
+          blurRadius: 2,
+          offset: const Offset(0, 1),
+        ),
+        BoxShadow(
+          color: shadow.withValues(alpha: isDark ? 0.28 : 0.06),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ];
+
+  /// Standard elevation for primary panels and raised content.
+  static List<BoxShadow> md(Color shadow, bool isDark) => [
+        BoxShadow(
+          color: shadow.withValues(alpha: isDark ? 0.5 : 0.06),
+          blurRadius: 3,
+          offset: const Offset(0, 1),
+        ),
+        BoxShadow(
+          color: shadow.withValues(alpha: isDark ? 0.34 : 0.08),
+          blurRadius: 18,
+          spreadRadius: -2,
+          offset: const Offset(0, 8),
+        ),
+      ];
+
+  /// High elevation for hovered cards, popovers, and floating surfaces.
+  static List<BoxShadow> lg(Color shadow, bool isDark) => [
+        BoxShadow(
+          color: shadow.withValues(alpha: isDark ? 0.55 : 0.08),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+        BoxShadow(
+          color: shadow.withValues(alpha: isDark ? 0.4 : 0.12),
+          blurRadius: 30,
+          spreadRadius: -4,
+          offset: const Offset(0, 16),
+        ),
+      ];
+}
+
 class AppPalette {
   static const Color primaryLight = Color(0xFF0059D6);
   static const Color secondaryLight = Color(0xFF0A6A5E);

@@ -4550,12 +4550,60 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
                   ),
                 ),
               ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
+              // Trend line rendered behind the content as a subtle
+              // decoration so it never overlaps the title text.
+              if (widget.trend != null && widget.trend!.length >= 2)
+                Positioned(
+                  bottom: 0,
+                  left: 6,
+                  right: 6,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: isHovered ? 0.55 : 0.4,
+                      child: Sparkline(
+                        values: widget.trend!,
+                        height: widget.isCompact ? 14 : 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: widget.isCompact ? 2 : 3,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(18),
+                      ),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: 0.3),
+                          Colors.white.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              // Reserve space at the bottom equal to the trend line height so
+              // the centered content is nudged up and clears the sparkline.
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: widget.isCompact ? 14 : 18,
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
                   Container(
-                    padding: EdgeInsets.all(widget.isCompact ? 8 : 10),
+                    padding: EdgeInsets.all(widget.isCompact ? 7 : 10),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: isHovered ? 0.28 : 0.22),
                       shape: BoxShape.circle,
@@ -4589,59 +4637,22 @@ class _PremiumStatCardState extends State<_PremiumStatCard> {
                     ),
                   ),
                   SizedBox(height: widget.isCompact ? 2 : 4),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        widget.title,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontWeight: FontWeight.w600,
-                          fontSize: widget.isCompact ? 10 : 11,
-                          letterSpacing: 0.2,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  Text(
+                    widget.title,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w600,
+                      fontSize: widget.isCompact ? 10 : 11,
+                      letterSpacing: 0.2,
                     ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
-              ),
-              if (widget.trend != null && widget.trend!.length >= 2)
-                Positioned(
-                  bottom: 0,
-                  left: 6,
-                  right: 6,
-                  child: IgnorePointer(
-                    child: Sparkline(
-                      values: widget.trend!,
-                      height: widget.isCompact ? 16 : 22,
-                      color: Colors.white,
-                    ),
-                  ),
-                )
-              else
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: widget.isCompact ? 2 : 3,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(18),
-                      ),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 0.3),
-                          Colors.white.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                  ),
                 ),
+                ),
+              ),
             ],
           ),
         ),

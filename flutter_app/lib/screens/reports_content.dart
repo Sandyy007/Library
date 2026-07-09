@@ -18,6 +18,8 @@ import '../utils/hindi_text.dart';
 import '../utils/error_utils.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
+import '../widgets/press_scale.dart';
+import '../widgets/reveal.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/app_toast.dart';
 
@@ -625,6 +627,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .toString(),
                           Icons.arrow_upward,
                           const Color(0xFF3B82F6),
+                          index: 0,
                         ),
                         const SizedBox(height: 12),
                         _buildSummaryCard(
@@ -634,6 +637,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .toString(),
                           Icons.arrow_downward,
                           const Color(0xFF10B981),
+                          index: 1,
                         ),
                         const SizedBox(height: 12),
                         _buildSummaryCard(
@@ -646,6 +650,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .toString(),
                           Icons.trending_up,
                           const Color(0xFFF59E0B),
+                          index: 2,
                         ),
                       ],
                     );
@@ -660,6 +665,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .toString(),
                           Icons.arrow_upward,
                           const Color(0xFF3B82F6),
+                          index: 0,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -671,6 +677,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .toString(),
                           Icons.arrow_downward,
                           const Color(0xFF10B981),
+                          index: 1,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -685,6 +692,7 @@ class _ReportsContentState extends State<ReportsContent>
                               .toString(),
                           Icons.trending_up,
                           const Color(0xFFF59E0B),
+                          index: 2,
                         ),
                       ),
                     ],
@@ -718,15 +726,24 @@ class _ReportsContentState extends State<ReportsContent>
     String title,
     String value,
     IconData icon,
-    Color color,
-  ) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+    Color color, {
+    int index = 0,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return StaggeredReveal(
+      index: index,
+      child: HoverElevate(
+        liftY: 3,
+        borderRadius: 14,
+        child: Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
+        border: Border.all(
           color: color.withValues(alpha: 0.2),
         ),
+        boxShadow: AppShadows.sm(cs.shadow, isDark),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -769,6 +786,8 @@ class _ReportsContentState extends State<ReportsContent>
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

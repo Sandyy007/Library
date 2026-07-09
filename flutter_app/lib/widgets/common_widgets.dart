@@ -468,9 +468,14 @@ class AnimatedCounter extends StatelessWidget {
       duration: duration,
       curve: Curves.easeOutCubic,
       builder: (context, animatedValue, child) {
+        // Tabular figures keep every digit the same width, so the number
+        // doesn't shift/jitter horizontally as it counts up.
+        final effectiveStyle = (style ?? const TextStyle()).copyWith(
+          fontFeatures: const [FontFeature.tabularFigures()],
+        );
         return Text(
           useGrouping ? _grouped.format(animatedValue) : animatedValue.toString(),
-          style: style,
+          style: effectiveStyle,
           textAlign: textAlign,
         );
       },
@@ -487,17 +492,18 @@ class ContentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
       margin: margin ?? EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? cs.surface,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withValues(alpha: 0.2),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.2),
         ),
+        boxShadow: AppShadows.sm(cs.shadow, isDark),
       ),
       clipBehavior: Clip.antiAlias,
       child: child,
