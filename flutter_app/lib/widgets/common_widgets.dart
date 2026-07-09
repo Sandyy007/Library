@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import '../utils/color_extensions.dart';
 import '../utils/theme.dart';
+import 'gradient_button.dart';
 
 /// Network image with on-disk + in-memory caching (via cached_network_image)
 /// and a graceful fade-in. Use this everywhere instead of `Image.network` so
@@ -613,10 +614,10 @@ class _EmptyStateWidgetState extends State<EmptyStateWidget>
           ),
           if (widget.onAction != null) ...[
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            GradientButton(
               onPressed: widget.onAction,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text(widget.actionLabel ?? 'Retry'),
+              icon: Icons.refresh_rounded,
+              label: widget.actionLabel ?? 'Retry',
             ),
           ],
         ],

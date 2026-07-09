@@ -14,6 +14,7 @@ import 'books_content.dart';
 import 'members_content.dart';
 import 'issues_content.dart';
 import '../utils/responsive.dart';
+import '../utils/theme.dart';
 import 'reports_content.dart';
 import '../widgets/about_content.dart';
 import '../widgets/search_results_dialog.dart';
@@ -202,13 +203,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                     height: isVeryCompact ? 80 : 68,
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(alpha: 0.4),
+                          width: 1,
                         ),
-                      ],
+                      ),
+                      boxShadow: AppShadows.sm(
+                        Theme.of(context).colorScheme.shadow,
+                        Theme.of(context).brightness == Brightness.dark,
+                      ),
                     ),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
@@ -271,63 +278,119 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 textField: true,
                                 label:
                                     'Global search. Press Control and F to focus this field.',
-                                child: Container(
-                                  width: searchBarWidth,
-                                  height: r.inputHeight,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outline.withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                  child: TextField(
-                                    focusNode: _searchFocusNode,
-                                    controller: _searchController,
-                                    textInputAction: TextInputAction.search,
-                                    onSubmitted: (value) => _performSearch(value),
-                                    style: _searchTextStyle(context),
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          'Search books, members, issues...',
-                                      hintStyle: _searchHintStyle(context),
-                                      prefixIcon: Padding(
-                                        padding: const EdgeInsets.only(left: 12, right: 4),
-                                        child: Icon(
-                                          Icons.search_rounded,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                          size: 20,
+                                child: AnimatedBuilder(
+                                  animation: Listenable.merge(
+                                      [_searchFocusNode, _searchController]),
+                                  builder: (context, _) {
+                                    final focused = _searchFocusNode.hasFocus;
+                                    final hasText =
+                                        _searchController.text.isNotEmpty;
+                                    final cs = Theme.of(context).colorScheme;
+                                    return AnimatedContainer(
+                                      duration: AppDurations.fast,
+                                      curve: Curves.easeOut,
+                                      width: searchBarWidth,
+                                      height: r.inputHeight,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        color: cs.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: focused
+                                              ? cs.primary
+                                              : cs.outline.withValues(alpha: 0.2),
+                                          width: focused ? 1.6 : 1,
                                         ),
+                                        boxShadow: focused
+                                            ? [
+                                                BoxShadow(
+                                                  color: cs.primary
+                                                      .withValues(alpha: 0.18),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ]
+                                            : null,
                                       ),
-                                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                                      suffixIcon: Padding(
-                                        padding: const EdgeInsets.only(right: 4),
-                                        child: IconButton(
-                                          onPressed: () =>
-                                              _performSearch(_searchController.text),
-                                          icon: Icon(
-                                            Icons.arrow_forward_rounded,
-                                            size: 18,
-                                            color: Theme.of(context).colorScheme.primary,
+                                      // A Row (rather than InputDecoration's
+                                      // prefix/suffix icons) gives precise
+                                      // vertical centering and avoids the ~48px
+                                      // min-height that icon slots force on a
+                                      // TextField, which previously left the
+                                      // content cramped/off-centre.
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.search_rounded,
+                                            color: cs.primary,
+                                            size: 20,
                                           ),
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                                            minimumSize: const Size(32, 32),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: TextField(
+                                              focusNode: _searchFocusNode,
+                                              controller: _searchController,
+                                              textInputAction:
+                                                  TextInputAction.search,
+                                              onSubmitted: (value) =>
+                                                  _performSearch(value),
+                                              style: _searchTextStyle(context),
+                                              decoration: InputDecoration(
+                                                isCollapsed: true,
+                                                hintText:
+                                                    'Search books, members, issues...',
+                                                hintStyle:
+                                                    _searchHintStyle(context),
+                                                border: InputBorder.none,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          if (hasText)
+                                            IconButton(
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                _searchFocusNode.requestFocus();
+                                              },
+                                              icon: const Icon(
+                                                  Icons.close_rounded,
+                                                  size: 18),
+                                              color: cs.onSurface
+                                                  .withValues(alpha: 0.6),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(
+                                                  minWidth: 32, minHeight: 32),
+                                              tooltip: 'Clear',
+                                            ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            onPressed: () => _performSearch(
+                                                _searchController.text),
+                                            icon: Icon(
+                                              Icons.arrow_forward_rounded,
+                                              size: 18,
+                                              color: cs.primary,
+                                            ),
+                                            visualDensity: VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(
+                                                minWidth: 34, minHeight: 34),
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: cs.primary
+                                                  .withValues(alpha: 0.1),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(9),
+                                              ),
+                                            ),
+                                            tooltip: 'Search',
+                                          ),
+                                        ],
                                       ),
-                                      suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                                      border: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),

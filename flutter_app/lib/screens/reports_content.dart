@@ -19,7 +19,6 @@ import '../utils/error_utils.dart';
 import '../utils/hindi_pdf_helper.dart';
 import '../services/api_service.dart';
 import '../widgets/press_scale.dart';
-import '../widgets/reveal.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/app_toast.dart';
 
@@ -731,7 +730,7 @@ class _ReportsContentState extends State<ReportsContent>
   }) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return StaggeredReveal(
+    return StaggeredFadeSlide(
       index: index,
       child: HoverElevate(
         liftY: 3,

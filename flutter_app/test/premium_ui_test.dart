@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:library_management_app/utils/theme.dart';
 import 'package:library_management_app/widgets/common_widgets.dart';
+import 'package:library_management_app/widgets/gradient_button.dart';
 import 'package:library_management_app/widgets/skeleton.dart';
 
 void main() {
@@ -129,8 +130,8 @@ void main() {
           ),
         ),
       );
-      // ElevatedButton.icon shows the action label inside an ElevatedButton
-      final btn = find.widgetWithText(ElevatedButton, 'Add a book');
+      // The empty-state CTA is now a premium GradientButton.
+      final btn = find.widgetWithText(GradientButton, 'Add a book');
       expect(btn, findsOneWidget);
       await tester.tap(btn);
       await tester.pump();

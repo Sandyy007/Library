@@ -18,6 +18,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameFocus = FocusNode();
+  final _passwordFocus = FocusNode();
   bool _isLoading = false;
   bool _obscurePassword = true;
   late AnimationController _animationController;
@@ -518,6 +520,9 @@ class _LoginScreenState extends State<LoginScreen>
                   label: 'Admin Username',
                   hint: 'Enter your username',
                   icon: Icons.person_outline_rounded,
+                  focusNode: _usernameFocus,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                   validator: (value) {
                     if (value?.isEmpty ?? true) {
                       return 'Please enter admin username';
@@ -534,6 +539,11 @@ class _LoginScreenState extends State<LoginScreen>
                   hint: 'Enter your password',
                   icon: Icons.lock_outline_rounded,
                   isPassword: true,
+                  focusNode: _passwordFocus,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!_isLoading) _login();
+                  },
                   validator: (value) {
                     if (value?.isEmpty ?? true) {
                       return 'Please enter admin password';
@@ -654,12 +664,18 @@ class _LoginScreenState extends State<LoginScreen>
     required IconData icon,
     bool isPassword = false,
     String? Function(String?)? validator,
+    FocusNode? focusNode,
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
       obscureText: isPassword ? _obscurePassword : false,
       style: TextStyle(fontSize: 15, color: colorScheme.onSurface),
       decoration: InputDecoration(
@@ -722,31 +738,37 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLoginButton() {
-    return PressScale(
-      onTap: _isLoading ? null : _login,
-      pressedScale: 0.97,
-      child: SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: null, // PressScale handles the tap so we can scale on press
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          padding: EdgeInsets.zero,
-          elevation: _isLoading ? 0 : 8,
-          shadowColor: const Color(0xFF7C3AED).withValues(alpha: 0.4),
-        ),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
-            ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Container(
+    return Semantics(
+      button: true,
+      enabled: !_isLoading,
+      label: 'Sign In',
+      child: MouseRegion(
+        cursor: _isLoading
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
+        child: PressScale(
+          onTap: _isLoading ? null : _login,
+          pressedScale: 0.97,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: double.infinity,
+            height: 54,
             alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF7C3AED)
+                      .withValues(alpha: _isLoading ? 0.2 : 0.4),
+                  blurRadius: 16,
+                  spreadRadius: -2,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
             child: _isLoading
                 ? const SizedBox(
                     width: 24,
@@ -784,7 +806,6 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -973,6 +994,8 @@ class _LoginScreenState extends State<LoginScreen>
     _rotationController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 }

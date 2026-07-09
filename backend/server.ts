@@ -4541,6 +4541,55 @@ const removePidFile = () => {
   }
 };
 
+// ── Cross-platform graceful-shutdown triggers ───────────────────────────────
+// On Windows the desktop launcher can't deliver POSIX signals — Dart's
+// Process.kill hard-terminates the process, so SIGINT/SIGTERM never fire and
+// the graceful path below (drain in-flight requests, close the DB pool) is
+// skipped, risking lost writes. To shut down cleanly on every platform the app
+// asks us to stop through channels we CAN observe:
+//   1. the string "shutdown" written to our stdin — used for a backend the app
+//      spawned itself (it holds the stdio pipe), and
+//   2. creation of a `.backend.shutdown` sentinel file in this folder — used
+//      for a backend adopted from a previous run, which has no stdin pipe.
+const shutdownFilePath = path.join(__dirname, '.backend.shutdown');
+let shutdownWatcher: NodeJS.Timeout | null = null;
+
+const removeShutdownFile = () => {
+  try {
+    if (fs.existsSync(shutdownFilePath)) fs.unlinkSync(shutdownFilePath);
+  } catch (_) {
+    // Best-effort.
+  }
+};
+
+const installShutdownTriggers = () => {
+  // Clear any stale sentinel a previous run may have left so we don't
+  // immediately shut ourselves down on boot.
+  removeShutdownFile();
+
+  // (1) stdin command channel.
+  try {
+    process.stdin.on('data', (chunk: Buffer) => {
+      if (chunk.toString().toLowerCase().includes('shutdown')) {
+        gracefulShutdown('stdin');
+      }
+    });
+    // Never keep the event loop alive just for stdin.
+    if (typeof process.stdin.unref === 'function') process.stdin.unref();
+  } catch (_) {
+    // stdin may be unavailable in some launch modes; ignore.
+  }
+
+  // (2) sentinel-file channel — polled because fs.watch is unreliable across
+  // platforms/filesystems. 500ms is imperceptible at shutdown and cheap.
+  shutdownWatcher = setInterval(() => {
+    if (fs.existsSync(shutdownFilePath)) {
+      gracefulShutdown('shutdown-file');
+    }
+  }, 500);
+  if (typeof shutdownWatcher.unref === 'function') shutdownWatcher.unref();
+};
+
 const startServer = (port = PORT, host = 'localhost') => {
   // HTTPS support: if SSL_KEY and SSL_CERT env vars are set, create an HTTPS server
   const sslKeyPath = process.env.SSL_KEY;
@@ -4563,6 +4612,7 @@ const startServer = (port = PORT, host = 'localhost') => {
 
   activeServer = server;
   writePidFile();
+  installShutdownTriggers();
 
   server.on('error', (err) => {
     if (err && err.code === 'EADDRINUSE') {
@@ -4579,8 +4629,19 @@ const startServer = (port = PORT, host = 'localhost') => {
 };
 
 // Graceful shutdown handling
+let isShuttingDown = false;
 const gracefulShutdown = (signal) => {
+  // Multiple triggers can fire at once (e.g. stdin + sentinel file, or a
+  // signal arriving mid-shutdown). Run the teardown exactly once.
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
   console.log(`\n${signal} received. Starting graceful shutdown...`);
+  if (shutdownWatcher) {
+    clearInterval(shutdownWatcher);
+    shutdownWatcher = null;
+  }
+  removeShutdownFile();
   removePidFile();
 
   // Stop accepting new connections

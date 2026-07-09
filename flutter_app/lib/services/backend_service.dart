@@ -1,4 +1,5 @@
-﻿import 'dart:io';
+﻿import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -35,6 +36,32 @@ class BackendService {
   static void _deletePidFile() {
     try {
       final f = File(_pidFilePath());
+      if (f.existsSync()) f.deleteSync();
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+
+  /// Path to the shutdown sentinel file. Creating it asks the backend to shut
+  /// down gracefully — the universal trigger that works even for a backend we
+  /// adopted from a previous run (which has no stdin pipe we can write to).
+  static String _shutdownFilePath() =>
+      p.join(_getBackendPath(), '.backend.shutdown');
+
+  /// Ask the backend to shut down gracefully by creating the sentinel file.
+  static void _writeShutdownFile() {
+    try {
+      File(_shutdownFilePath()).writeAsStringSync('stop');
+    } catch (e) {
+      debugPrint('Could not write shutdown sentinel: $e');
+    }
+  }
+
+  /// Remove the shutdown sentinel. Called on startup (so a stale sentinel from
+  /// a crashed run doesn't immediately kill the fresh backend) and after stop.
+  static void _deleteShutdownFile() {
+    try {
+      final f = File(_shutdownFilePath());
       if (f.existsSync()) f.deleteSync();
     } catch (_) {
       // Best-effort.
@@ -86,6 +113,12 @@ class BackendService {
       debugPrint('Backend is already starting...');
       return false;
     }
+
+    // A stale shutdown sentinel (left by a crash/hard-kill) would make a
+    // freshly started backend terminate itself immediately. Clear it before we
+    // start or adopt anything. (The backend also clears it on boot as a
+    // belt-and-suspenders measure.)
+    _deleteShutdownFile();
 
     // Check if backend is already running
     if (await isBackendRunning()) {
@@ -192,28 +225,90 @@ class BackendService {
     }
   }
 
-  /// Stop the backend server.
+  /// How long to wait for the backend to finish its own graceful shutdown
+  /// (drain in-flight requests + close the DB pool) before we force-kill it.
+  /// Kept below the backend's internal 10s safety timeout so we still win the
+  /// race and clean up, while giving real work time to complete.
+  static const Duration _gracefulStopTimeout = Duration(seconds: 8);
+
+  /// Stop the backend server **gracefully**, then force-kill only if needed.
   ///
-  /// Terminates the process we spawned. If instead we adopted an already-running
-  /// backend at launch, terminates that one via its PID (read from the PID file)
-  /// so we never leave an orphaned process holding the port.
+  /// Ordinary `kill()` on Windows hard-terminates the process, so the backend's
+  /// SIGTERM/SIGINT graceful handler never runs and in-flight database writes
+  /// can be lost. Instead we:
+  ///   1. Ask the backend to stop cleanly (stdin "shutdown" for a process we
+  ///      spawned; a `.backend.shutdown` sentinel file for any instance,
+  ///      including one adopted from a previous run; plus SIGTERM on POSIX).
+  ///   2. Wait (up to [_gracefulStopTimeout]) for it to actually exit — this is
+  ///      when it finishes serving open requests and closes the MySQL pool.
+  ///   3. Force-kill as a last resort if it didn't stop in time.
   static Future<void> stopBackend() async {
-    if (_backendProcess != null) {
-      debugPrint('Stopping backend we started (PID: ${_backendProcess!.pid})');
-      _backendProcess!.kill();
-      _backendProcess = null;
+    final spawned = _backendProcess;
+    final pid = _adoptedPid ?? _readPidFile();
+
+    // 1) Request a graceful shutdown through every available channel.
+    _writeShutdownFile(); // universal trigger (spawned or adopted)
+    if (spawned != null) {
+      try {
+        debugPrint('Requesting graceful shutdown of backend (PID: ${spawned.pid})');
+        spawned.stdin.write('shutdown\n');
+        await spawned.stdin.flush();
+      } catch (e) {
+        debugPrint('Could not write shutdown to backend stdin: $e');
+      }
+    } else if (pid != null && !Platform.isWindows) {
+      // Adopted backend on POSIX: SIGTERM also triggers the graceful handler.
+      try {
+        Process.killPid(pid, ProcessSignal.sigterm);
+      } catch (e) {
+        debugPrint('Could not signal adopted backend (PID: $pid): $e');
+      }
+    }
+
+    // 2) Wait for the backend to actually exit.
+    var stoppedCleanly = false;
+    if (spawned != null) {
+      try {
+        await spawned.exitCode.timeout(_gracefulStopTimeout);
+        stoppedCleanly = true;
+        debugPrint('Backend exited gracefully.');
+      } on TimeoutException {
+        debugPrint('Backend did not exit within '
+            '${_gracefulStopTimeout.inSeconds}s; forcing termination.');
+      } catch (_) {
+        // exitCode may already be complete; treat as stopped.
+        stoppedCleanly = true;
+      }
     } else {
-      // We didn't spawn it this session — fall back to the adopted/recorded PID.
-      final pid = _adoptedPid ?? _readPidFile();
-      if (pid != null) {
+      final deadline = DateTime.now().add(_gracefulStopTimeout);
+      while (DateTime.now().isBefore(deadline)) {
+        if (!await isBackendRunning()) {
+          stoppedCleanly = true;
+          break;
+        }
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    }
+
+    // 3) Force-kill only if graceful shutdown didn't complete in time.
+    if (!stoppedCleanly) {
+      if (spawned != null) {
         try {
-          debugPrint('Stopping adopted backend (PID: $pid)');
+          spawned.kill(ProcessSignal.sigkill);
+        } catch (e) {
+          debugPrint('Force-kill of spawned backend failed: $e');
+        }
+      } else if (pid != null) {
+        try {
           Process.killPid(pid);
         } catch (e) {
-          debugPrint('Could not stop adopted backend (PID: $pid): $e');
+          debugPrint('Force-kill of adopted backend (PID: $pid) failed: $e');
         }
       }
     }
+
+    _backendProcess = null;
+    _deleteShutdownFile();
     _deletePidFile();
     _adoptedPid = null;
     _isRunning = false;
