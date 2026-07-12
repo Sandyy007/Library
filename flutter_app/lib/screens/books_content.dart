@@ -188,6 +188,7 @@ class _BooksContentState extends State<BooksContent>
     final enabled = onPressed != null;
     return IconButton(
       onPressed: onPressed,
+      tooltip: icon == Icons.chevron_left ? 'Previous page' : 'Next page',
       icon: Icon(icon, size: 18),
       style: ButtonStyle(
         padding: WidgetStateProperty.all(EdgeInsets.zero),

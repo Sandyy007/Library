@@ -1,7 +1,7 @@
 ; Library Management System - Inno Setup Script
 ; This installer bundles the Flutter app, Node.js backend, and MySQL database
 ; Complete Bundle: App + Backend + Database
-; Updated: February 19, 2026
+; Updated: July 12, 2026
 
 #define MyAppName "Library Management System"
 #define MyAppVersion "1.1.2"
@@ -70,8 +70,11 @@ Source: "backend\node_modules\*"; DestDir: "{app}\backend\node_modules"; Flags: 
 ; the app will use it instead of requiring a system-wide Node install.
 Source: "backend\node\*"; DestDir: "{app}\backend\node"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
-; Backend uploads directory (preserve user data on upgrade)
-Source: "backend\uploads\*"; DestDir: "{app}\backend\uploads"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist onlyifdoesntexist
+; Backend uploads directory: ship ONLY the placeholder so the folder exists.
+; We must NOT bundle the developer's local upload images (test book covers /
+; member photos) into every client install. Real uploads are created at runtime
+; and preserved across upgrades by the [Dirs] entry below.
+Source: "backend\uploads\.gitkeep"; DestDir: "{app}\backend\uploads"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; Database schema files
 Source: "database\schema_v2.sql"; DestDir: "{app}\database"; Flags: ignoreversion
@@ -205,11 +208,14 @@ var
   JWTSecret: String;
 begin
   EnvFile := ExpandConstant('{app}\backend\.env');
-  
-  // Delete existing .env file to ensure fresh credentials are used
+
+  // Preserve an existing .env on UPGRADE. Regenerating it would mint a new
+  // JWT secret (logging everyone out) and overwrite working DB credentials.
+  // A fresh install has no .env (uninstall removes it), so this only guards
+  // the upgrade path. To force new credentials, uninstall first or edit .env.
   if FileExists(EnvFile) then
-    DeleteFile(EnvFile);
-  
+    Exit;
+
   // Generate a secure random JWT secret
   JWTSecret := GenerateRandomString(64);
   

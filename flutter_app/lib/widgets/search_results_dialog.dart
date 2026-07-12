@@ -37,6 +37,7 @@ class SearchResultsDialog extends StatelessWidget {
                 ),
                 const Spacer(),
                 IconButton(
+                  tooltip: 'Close',
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close),
                 ),

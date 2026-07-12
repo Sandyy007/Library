@@ -448,6 +448,9 @@ class _SidebarState extends State<Sidebar> with TickerProviderStateMixin {
                                   width: 20,
                                   child: IconButton(
                                     padding: EdgeInsets.zero,
+                                    tooltip: themeProvider.isDarkMode
+                                        ? 'Switch to light mode'
+                                        : 'Switch to dark mode',
                                     constraints: const BoxConstraints(
                                       minWidth: 20,
                                       minHeight: 20,

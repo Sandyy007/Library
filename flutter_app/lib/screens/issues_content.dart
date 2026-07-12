@@ -1164,6 +1164,7 @@ class _IssuesContentState extends State<IssuesContent> {
     final enabled = onPressed != null;
     return IconButton(
       onPressed: onPressed,
+      tooltip: icon == Icons.chevron_left ? 'Previous page' : 'Next page',
       icon: Icon(icon, size: 18),
       style: ButtonStyle(
         padding: WidgetStateProperty.all(EdgeInsets.zero),
@@ -1206,6 +1207,7 @@ class _IssuesContentState extends State<IssuesContent> {
         prefixIcon: const Icon(Icons.search, size: 20),
         suffixIcon: controller.text.isNotEmpty
             ? IconButton(
+                tooltip: 'Clear search',
                 icon: const Icon(Icons.clear, size: 18),
                 onPressed: () {
                   controller.clear();

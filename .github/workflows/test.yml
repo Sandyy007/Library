@@ -7,8 +7,11 @@ on:
     branches: [main, master, develop]
 
 env:
-  NODE_VERSION: 18
-  FLUTTER_VERSION: '3.24'
+  # Node 20 LTS matches the backend's @types/node ^20 dev dependency.
+  NODE_VERSION: 20
+  # Must ship a Dart SDK >= 3.10.4 (see flutter_app/pubspec.yaml `environment`).
+  # Flutter 3.24 bundles Dart 3.5 and would fail `flutter pub get`.
+  FLUTTER_VERSION: '3.41.9'
   JAVA_VERSION: '17'
 
 jobs:

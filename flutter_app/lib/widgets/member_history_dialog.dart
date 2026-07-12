@@ -119,6 +119,7 @@ class _MemberHistoryDialogState extends State<MemberHistoryDialog> {
                       ),
                     ),
                     IconButton(
+                      tooltip: 'Close',
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close, color: Colors.white),
                     ),

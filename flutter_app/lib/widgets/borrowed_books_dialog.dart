@@ -212,6 +212,7 @@ class _BorrowedBooksDialogState extends State<BorrowedBooksDialog> {
                     ),
                     const SizedBox(width: 6),
                     IconButton(
+                      tooltip: 'Close',
                       icon: Icon(Icons.close,
                           color: colorScheme.onPrimaryContainer),
                       onPressed: () => Navigator.of(context).pop(),

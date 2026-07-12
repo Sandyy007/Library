@@ -13,6 +13,7 @@ import '../utils/error_utils.dart';
 import '../utils/responsive.dart';
 import '../utils/theme.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/gradient_button.dart';
 import '../widgets/press_scale.dart';
 import '../widgets/premium_dialog.dart';
 import '../widgets/sparkline.dart';
@@ -1272,7 +1273,7 @@ class _DashboardContentState extends State<DashboardContent>
             context,
             title: 'Overdue',
             icon: Icons.warning_rounded,
-            color: const Color(0xFFEF4444),
+            color: context.semantic.danger,
             section: alerts['overdue'],
             actions: const ['remind', 'return'],
           ),
@@ -1284,7 +1285,7 @@ class _DashboardContentState extends State<DashboardContent>
             context,
             title: 'Due today',
             icon: Icons.today_rounded,
-            color: const Color(0xFFF59E0B),
+            color: context.semantic.warning,
             section: alerts['dueToday'],
             actions: const ['remind', 'return'],
           ),
@@ -1296,7 +1297,7 @@ class _DashboardContentState extends State<DashboardContent>
             context,
             title: 'Due tomorrow',
             icon: Icons.event_rounded,
-            color: const Color(0xFFD97706),
+            color: context.semantic.warning,
             section: alerts['dueTomorrow'],
             actions: const [],
           ),
@@ -1603,20 +1604,36 @@ class _DashboardContentState extends State<DashboardContent>
                       return _buildActivitySkeleton(context);
                     }
                     if (filteredActivity.isEmpty) {
-                      return EmptyStateWidget(
-                        icon: Icons.history_toggle_off_rounded,
-                        title: 'No activity for this filter',
-                        subtitle:
-                            'Try selecting a different filter or keep working and new activity will appear automatically.',
-                        actionLabel: 'Show all activity',
-                        onAction: () {
-                          setState(() {
-                            _activityFilter = DashboardActivityFilter.all;
-                            _viewPreset = DashboardViewPreset.balanced;
-                            _activityPage = 1;
-                          });
-                          unawaited(_persistDashboardUxPreferences());
-                        },
+                      return Column(
+                        children: [
+                          const Expanded(
+                            child: EmptyStateWidget(
+                              icon: Icons.history_toggle_off_rounded,
+                              title: 'No activity for this filter',
+                              subtitle:
+                                  'Try selecting a different filter or keep working and new activity will appear automatically.',
+                            ),
+                          ),
+                          // Pinned to the bottom of the card rather than floating
+                          // in the centred empty message.
+                          SizedBox(
+                            width: double.infinity,
+                            child: GradientButton(
+                              label: 'Show all activity',
+                              icon: Icons.refresh_rounded,
+                              expand: true,
+                              onPressed: () {
+                                setState(() {
+                                  _activityFilter =
+                                      DashboardActivityFilter.all;
+                                  _viewPreset = DashboardViewPreset.balanced;
+                                  _activityPage = 1;
+                                });
+                                unawaited(_persistDashboardUxPreferences());
+                              },
+                            ),
+                          ),
+                        ],
                       );
                     }
 
@@ -1822,13 +1839,10 @@ class _DashboardContentState extends State<DashboardContent>
           color: cs.outlineVariant.withValues(alpha: 0.3),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppShadows.sm(
+          cs.shadow,
+          Theme.of(context).brightness == Brightness.dark,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2407,13 +2421,10 @@ class _DashboardContentState extends State<DashboardContent>
                 decoration: BoxDecoration(
                   color: Theme.of(dialogContext).colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  boxShadow: AppShadows.lg(
+                    Theme.of(dialogContext).colorScheme.shadow,
+                    Theme.of(dialogContext).brightness == Brightness.dark,
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -2473,6 +2484,7 @@ class _DashboardContentState extends State<DashboardContent>
                             ),
                           ),
                           IconButton(
+                            tooltip: 'Close',
                             onPressed: () => Navigator.of(dialogContext).pop(),
                             icon: Container(
                               padding: const EdgeInsets.all(8),
@@ -2892,13 +2904,10 @@ class _DashboardContentState extends State<DashboardContent>
           border: Border.all(
             color: isOverdue ? overdueColor.withValues(alpha: 0.2) : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppShadows.sm(
+            Theme.of(context).colorScheme.shadow,
+            Theme.of(context).brightness == Brightness.dark,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3158,7 +3167,7 @@ class _DashboardContentState extends State<DashboardContent>
         Icon(
           icon,
           size: 18,
-          color: isHighlighted ? const Color(0xFFEF4444) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+          color: isHighlighted ? context.semantic.danger : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
         ),
         const SizedBox(width: 10),
         SizedBox(
@@ -3177,7 +3186,7 @@ class _DashboardContentState extends State<DashboardContent>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isHighlighted ? const Color(0xFFEF4444) : Theme.of(context).colorScheme.onSurface,
+              color: isHighlighted ? context.semantic.danger : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -3431,13 +3440,13 @@ class _DashboardContentState extends State<DashboardContent>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                      color: context.semantic.warningContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '$available left',
                       style: TextStyle(
-                        color: const Color(0xFFF59E0B),
+                        color: context.semantic.warning,
                         fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -3460,7 +3469,7 @@ class _DashboardContentState extends State<DashboardContent>
     final returnedToday = (section is Map ? section['returned_today'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
-    const color = Color(0xFF10B981);
+    final color = context.semantic.success;
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -3583,13 +3592,13 @@ class _DashboardContentState extends State<DashboardContent>
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: status == 'returned'
-                          ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                          : const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                          ? context.semantic.successContainer
+                          : context.semantic.infoContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       status == 'returned' ? Icons.assignment_return_rounded : Icons.assignment_rounded,
-                      color: status == 'returned' ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                      color: status == 'returned' ? context.semantic.success : context.semantic.info,
                       size: 16,
                     ),
                   ),
@@ -3624,14 +3633,14 @@ class _DashboardContentState extends State<DashboardContent>
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: status == 'returned'
-                            ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                            : const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                            ? context.semantic.successContainer
+                            : context.semantic.infoContainer,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         status == 'returned' ? 'Returned' : 'Issued',
                         style: TextStyle(
-                          color: status == 'returned' ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                          color: status == 'returned' ? context.semantic.success : context.semantic.info,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -3652,7 +3661,7 @@ class _DashboardContentState extends State<DashboardContent>
     final count = (section is Map ? section['count'] : 0) ?? 0;
     final items = _normalizeAlertItems(section);
     final previewLimit = _previewItemLimitFor(_resolveDensityMode(context));
-    const color = Color(0xFFD97706);
+    final color = context.semantic.warning;
 
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,

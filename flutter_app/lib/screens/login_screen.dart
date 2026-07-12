@@ -734,6 +734,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         suffixIcon: isPassword
             ? IconButton(
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                 icon: Icon(
                   _obscurePassword
                       ? Icons.visibility_off_outlined
@@ -819,31 +820,14 @@ class _LoginScreenState extends State<LoginScreen>
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.login_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Sign In',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        size: 18,
-                      ),
-                    ],
+                : const Text(
+                    'Sign In',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
                   ),
           ),
         ),

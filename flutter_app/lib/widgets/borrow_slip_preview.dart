@@ -177,6 +177,7 @@ class _BorrowSlipPreviewState extends State<BorrowSlipPreview>
             ),
           ),
           IconButton(
+            tooltip: 'Close',
             icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.85)),
             onPressed: () => Navigator.of(context).pop(),
           ),
