@@ -33,7 +33,7 @@ class DashboardContent extends StatefulWidget {
 }
 
 class _DashboardContentState extends State<DashboardContent>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late AnimationController _floatController;
@@ -44,6 +44,24 @@ class _DashboardContentState extends State<DashboardContent>
   bool _refreshInFlight = false;
   bool _refreshQueued = false;
   static const int _lowStockPopupPageSize = 25;
+
+  // ── Polling backoff ────────────────────────────────────────────────────────
+  // The dashboard polls the backend on a timer. If the backend is unreachable,
+  // firing every tick (each call also retries internally) produces a storm of
+  // connection errors. Instead we count consecutive failures and skip periodic
+  // polls until an exponentially growing backoff window elapses, so a down
+  // backend yields a few quiet retries rather than a flood. User-initiated
+  // refreshes (initial load, pull-to-refresh, post-mutation sync) bypass this.
+  int _consecutivePollFailures = 0;
+  DateTime? _pollBackoffUntil;
+  static const Duration _pollBaseInterval = Duration(seconds: 30);
+  static const Duration _pollMaxBackoff = Duration(minutes: 2);
+
+  // Whether the app window is currently visible/focused. Background polling is
+  // skipped while it isn't (minimized/hidden/unfocused) to avoid pointless
+  // CPU wake-ups and network churn; we do one immediate catch-up refresh when
+  // the window becomes active again.
+  bool _appActive = true;
 
   bool _extrasLoading = false;
   String? _extrasError;
@@ -81,6 +99,7 @@ class _DashboardContentState extends State<DashboardContent>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardUxPreferences();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -106,23 +125,28 @@ class _DashboardContentState extends State<DashboardContent>
       }
       _refreshAll(showLoading: true, includeStats: true);
 
-      // Periodic refresh for realtime-ish updates (other clients).
+      // Periodic refresh for realtime-ish updates (other clients). 30s is
+      // plenty given local mutations refresh instantly via dataChangedStream;
+      // skipped entirely while the window isn't active.
       _refreshTimer?.cancel();
       // Keep this lightweight: refresh alerts + activity only.
-      _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _refreshTimer = Timer.periodic(_pollBaseInterval, (_) {
+        if (!_appActive) return;
         _refreshAll(showLoading: false, includeStats: false);
       });
 
       // Stats are heavier (impact charts); refresh less often.
       _statsRefreshTimer?.cancel();
       _statsRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        if (!_appActive) return;
         _refreshAll(showLoading: false, includeStats: true);
       });
 
       // Instant refresh after local mutations (issue/return/add/update/etc).
+      // Forced: a user-driven change must sync even if polling is backing off.
       _dataChangedSub?.cancel();
       _dataChangedSub = ApiService.dataChangedStream.listen((_) {
-        _refreshAll(showLoading: false, includeStats: true);
+        _refreshAll(showLoading: false, includeStats: true, force: true);
       });
     });
   }
@@ -281,8 +305,18 @@ class _DashboardContentState extends State<DashboardContent>
   Future<void> _refreshAll({
     required bool showLoading,
     required bool includeStats,
+    bool force = false,
   }) async {
     if (!mounted) return;
+    // While the backend is unreachable, skip background polls until the
+    // backoff window elapses. Forced refreshes (user actions/mutations) and
+    // the visible-loading initial fetch always go through.
+    if (!force && !showLoading) {
+      final until = _pollBackoffUntil;
+      if (until != null && DateTime.now().isBefore(until)) {
+        return;
+      }
+    }
     if (_refreshInFlight) {
       // Queue one more refresh to run after the current one finishes.
       _refreshQueued = true;
@@ -318,6 +352,10 @@ class _DashboardContentState extends State<DashboardContent>
 
       final offset = includeStats ? 1 : 0;
 
+      // Success: the backend is reachable again — clear any backoff.
+      _consecutivePollFailures = 0;
+      _pollBackoffUntil = null;
+
       if (!mounted) return;
       setState(() {
         _alerts = results[offset] as Map<String, dynamic>;
@@ -326,6 +364,15 @@ class _DashboardContentState extends State<DashboardContent>
         _lastUpdatedAt = DateTime.now();
       });
     } catch (e) {
+      // Failure: grow the backoff window (30s, 60s, 120s… capped) so we stop
+      // hammering an unreachable backend.
+      _consecutivePollFailures++;
+      final backoffMs = (_pollBaseInterval.inMilliseconds *
+              (1 << (_consecutivePollFailures - 1)))
+          .clamp(_pollBaseInterval.inMilliseconds, _pollMaxBackoff.inMilliseconds);
+      _pollBackoffUntil =
+          DateTime.now().add(Duration(milliseconds: backoffMs));
+
       if (!mounted) return;
       setState(() {
         _extrasError = e.toString();
@@ -336,8 +383,10 @@ class _DashboardContentState extends State<DashboardContent>
 
       if (_refreshQueued && mounted) {
         _refreshQueued = false;
-        // Fire and forget (we just want to ensure UI eventually syncs).
-        unawaited(_refreshAll(showLoading: false, includeStats: true));
+        // Fire and forget (we just want to ensure UI eventually syncs). Forced
+        // so a queued sync isn't dropped while polling is backing off.
+        unawaited(
+            _refreshAll(showLoading: false, includeStats: true, force: true));
       }
     }
   }
@@ -361,7 +410,7 @@ class _DashboardContentState extends State<DashboardContent>
       setState(() {
         _activity = [];
       });
-      await _refreshAll(showLoading: false, includeStats: false);
+      await _refreshAll(showLoading: false, includeStats: false, force: true);
       messenger.showSnackBar(
         const SnackBar(content: Text('Recent activity cleared')),
       );
@@ -372,7 +421,21 @@ class _DashboardContentState extends State<DashboardContent>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Treat only a fully resumed (visible + focused) window as active. When the
+    // window is minimized, hidden, or unfocused we pause background polling;
+    // on return we do a single immediate catch-up so nothing looks stale.
+    final active = state == AppLifecycleState.resumed;
+    if (active == _appActive) return;
+    _appActive = active;
+    if (active && mounted) {
+      _refreshAll(showLoading: false, includeStats: true, force: true);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     _floatController.dispose();
     _alertsScrollController.dispose();
@@ -1005,7 +1068,7 @@ class _DashboardContentState extends State<DashboardContent>
                           _buildHeroChip(
                             context,
                             icon: Icons.bolt_rounded,
-                            label: 'Auto-refresh every 10s',
+                            label: 'Auto-refresh every 30s',
                           ),
                         ],
                       );
@@ -2277,6 +2340,7 @@ class _DashboardContentState extends State<DashboardContent>
                             await _refreshAll(
                               showLoading: false,
                               includeStats: true,
+                              force: true,
                             );
                           },
                           icon: const Icon(
@@ -3023,7 +3087,7 @@ class _DashboardContentState extends State<DashboardContent>
                             await _runAction(context, () async {
                               await this.context.read<IssueProvider>().returnBook(issueId);
                             }, successMessage: 'Book marked as returned');
-                            await _refreshAll(showLoading: false, includeStats: true);
+                            await _refreshAll(showLoading: false, includeStats: true, force: true);
                             if (context.mounted) Navigator.of(context).pop();
                           },
                           icon: const Icon(Icons.assignment_return_rounded, size: 18),
@@ -3184,7 +3248,7 @@ class _DashboardContentState extends State<DashboardContent>
                       await _runAction(this.context, () async {
                         await this.context.read<IssueProvider>().returnBook(issueId);
                       }, successMessage: 'Marked returned');
-                      await _refreshAll(showLoading: false, includeStats: true);
+                      await _refreshAll(showLoading: false, includeStats: true, force: true);
                       if (context.mounted) Navigator.of(context).pop();
                     },
                     icon: const Icon(Icons.assignment_return_rounded, size: 16),

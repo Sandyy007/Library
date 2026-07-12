@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import 'package:flutter/services.dart';
 import '../utils/responsive.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/press_scale.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -22,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordFocus = FocusNode();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _capsLockOn = false;
   late AnimationController _animationController;
   late AnimationController _floatingController;
   late AnimationController _rotationController;
@@ -55,6 +58,39 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
     _animationController.forward();
+
+    // Pause the perpetual decorative animations while the user is actually
+    // interacting with the form. The floating 3D books look nice on an idle
+    // login gate but are pure wasted CPU/GPU once someone is typing.
+    _usernameFocus.addListener(_handleFieldFocusChange);
+    _passwordFocus.addListener(_handleFieldFocusChange);
+  }
+
+  void _handleFieldFocusChange() {
+    final interacting = _usernameFocus.hasFocus || _passwordFocus.hasFocus;
+    if (interacting) {
+      if (_floatingController.isAnimating) _floatingController.stop();
+      if (_rotationController.isAnimating) _rotationController.stop();
+    } else {
+      if (!_floatingController.isAnimating) {
+        _floatingController.repeat(reverse: true);
+      }
+      if (!_rotationController.isAnimating) _rotationController.repeat();
+    }
+  }
+
+  /// Observes key events on the password field to reflect Caps Lock state,
+  /// warning the user before a failed login. Returns [KeyEventResult.ignored]
+  /// so the field still receives every keystroke.
+  KeyEventResult _handlePasswordKeyEvent(FocusNode node, KeyEvent event) {
+    final caps = HardwareKeyboard.instance.lockModesEnabled
+        .contains(KeyboardLockMode.capsLock);
+    if (caps != _capsLockOn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _capsLockOn = caps);
+      });
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -63,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen>
     final screenSize = Size(r.width, r.height);
     final isSmallScreen = r.isCompact;
     final isLargeScreen = r.isExpanded;
-    final isExtraLargeScreen = r.isExtraExpanded;
 
     return Scaffold(
       body: Stack(
@@ -111,7 +146,10 @@ class _LoginScreenState extends State<LoginScreen>
               bottom: screenSize.height * 0.4,
               mirrored: true,
             ),
-            // Extra floating books for large screens
+            // Extra floating books for large screens. Kept intentionally
+            // small: each floating book runs matrix transforms every frame, so
+            // piling on a dozen of them just to fill a login gate is wasted
+            // CPU/GPU. Two extras on large screens is plenty of ambience.
             if (isLargeScreen) ...[
               _buildFloatingBook(
                 left: screenSize.width * 0.15,
@@ -126,47 +164,6 @@ class _LoginScreenState extends State<LoginScreen>
                 rotation: -0.12,
                 scale: 0.95,
                 delay: 0.5,
-              ),
-            ],
-            // Even more decorations for extra-large screens
-            if (isExtraLargeScreen) ...[
-              _buildFloatingBook(
-                left: screenSize.width * 0.22,
-                top: screenSize.height * 0.08,
-                rotation: -0.05,
-                scale: 0.75,
-                delay: 0.4,
-              ),
-              _buildFloatingBook(
-                right: screenSize.width * 0.22,
-                top: screenSize.height * 0.3,
-                rotation: 0.1,
-                scale: 0.8,
-                delay: 0.7,
-              ),
-              _buildFloatingBook(
-                left: screenSize.width * 0.25,
-                bottom: screenSize.height * 0.25,
-                rotation: -0.08,
-                scale: 0.7,
-                delay: 0.8,
-              ),
-              _buildFloatingBook(
-                right: screenSize.width * 0.25,
-                bottom: screenSize.height * 0.12,
-                rotation: 0.06,
-                scale: 0.85,
-                delay: 1.0,
-              ),
-              // Additional book stacks for extra-large screens
-              _buildBookStack(
-                left: screenSize.width * 0.12,
-                bottom: screenSize.height * 0.15,
-              ),
-              _buildBookStack(
-                right: screenSize.width * 0.12,
-                top: screenSize.height * 0.15,
-                mirrored: true,
               ),
             ],
           ],
@@ -283,15 +280,17 @@ class _LoginScreenState extends State<LoginScreen>
           right: right,
           top: top != null ? top + (bob * 14) : null,
           bottom: bottom != null ? bottom + (bob * 14) : null,
-          child: Transform.scale(
-            scale: scale,
-            child: _Book3D(
-              width: 76,
-              height: 104,
-              depth: 20,
-              angleY: angleY,
-              tiltX: tiltX,
-              cover: _coverFor(delay),
+          child: ExcludeSemantics(
+            child: Transform.scale(
+              scale: scale,
+              child: _Book3D(
+                width: 76,
+                height: 104,
+                depth: 20,
+                angleY: angleY,
+                tiltX: tiltX,
+                cover: _coverFor(delay),
+              ),
             ),
           ),
         );
@@ -321,7 +320,8 @@ class _LoginScreenState extends State<LoginScreen>
               ..rotateY(mirrored ? math.pi : 0)
               ..rotateZ(value * 0.02),
             alignment: Alignment.center,
-            child: Opacity(
+            child: ExcludeSemantics(
+              child: Opacity(
               opacity: 0.15,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -337,6 +337,7 @@ class _LoginScreenState extends State<LoginScreen>
                   _buildSingleBook(Colors.purple.shade300, 58, 8),
                 ],
               ),
+            ),
             ),
           ),
         );
@@ -417,7 +418,8 @@ class _LoginScreenState extends State<LoginScreen>
             ],
           ),
           padding: EdgeInsets.all(cardPadding),
-          child: Form(
+          child: AutofillGroup(
+            child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -521,6 +523,8 @@ class _LoginScreenState extends State<LoginScreen>
                   hint: 'Enter your username',
                   icon: Icons.person_outline_rounded,
                   focusNode: _usernameFocus,
+                  autofocus: true,
+                  autofillHints: const [AutofillHints.username],
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                   validator: (value) {
@@ -533,23 +537,55 @@ class _LoginScreenState extends State<LoginScreen>
                 const SizedBox(height: 20),
 
                 // Password Field
-                _buildTextField(
-                  controller: _passwordController,
-                  label: 'Admin Password',
-                  hint: 'Enter your password',
-                  icon: Icons.lock_outline_rounded,
-                  isPassword: true,
-                  focusNode: _passwordFocus,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) {
-                    if (!_isLoading) _login();
-                  },
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Please enter admin password';
-                    }
-                    return null;
-                  },
+                Focus(
+                  canRequestFocus: false,
+                  onKeyEvent: _handlePasswordKeyEvent,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        controller: _passwordController,
+                        label: 'Admin Password',
+                        hint: 'Enter your password',
+                        icon: Icons.lock_outline_rounded,
+                        isPassword: true,
+                        focusNode: _passwordFocus,
+                        autofillHints: const [AutofillHints.password],
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) {
+                          if (!_isLoading) _login();
+                        },
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter admin password';
+                          }
+                          return null;
+                        },
+                      ),
+                      if (_capsLockOn)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.keyboard_capslock_rounded,
+                                size: 15,
+                                color: Theme.of(context).colorScheme.tertiary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Caps Lock is on',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.tertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 32),
 
@@ -590,6 +626,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),
@@ -667,6 +704,8 @@ class _LoginScreenState extends State<LoginScreen>
     FocusNode? focusNode,
     TextInputAction? textInputAction,
     void Function(String)? onFieldSubmitted,
+    bool autofocus = false,
+    List<String>? autofillHints,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
@@ -674,6 +713,8 @@ class _LoginScreenState extends State<LoginScreen>
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
+      autofocus: autofocus,
+      autofillHints: autofillHints,
       textInputAction: textInputAction,
       onFieldSubmitted: onFieldSubmitted,
       obscureText: isPassword ? _obscurePassword : false,
@@ -841,23 +882,7 @@ class _LoginScreenState extends State<LoginScreen>
           errorMessage = 'Too many attempts. Please wait.';
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(child: Text(errorMessage)),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        AppToast.error(context, errorMessage, title: 'Sign in failed');
       }
     } finally {
       if (mounted) {
@@ -994,6 +1019,8 @@ class _LoginScreenState extends State<LoginScreen>
     _rotationController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _usernameFocus.removeListener(_handleFieldFocusChange);
+    _passwordFocus.removeListener(_handleFieldFocusChange);
     _usernameFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();

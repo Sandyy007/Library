@@ -4554,6 +4554,13 @@ const removePidFile = () => {
 const shutdownFilePath = path.join(__dirname, '.backend.shutdown');
 let shutdownWatcher: NodeJS.Timeout | null = null;
 
+// Only honour a sentinel file that was created very recently. The app writes
+// it and we detect it within one poll (500ms), so a genuine request is always
+// fresh. A file older than this is a leftover (a crash that skipped cleanup, a
+// stray file, a test artifact) and must NOT trigger a shutdown — we delete it
+// instead. This makes the kill-switch impossible to trip accidentally.
+const SHUTDOWN_FILE_FRESH_MS = 10_000;
+
 const removeShutdownFile = () => {
   try {
     if (fs.existsSync(shutdownFilePath)) fs.unlinkSync(shutdownFilePath);
@@ -4583,8 +4590,21 @@ const installShutdownTriggers = () => {
   // (2) sentinel-file channel — polled because fs.watch is unreliable across
   // platforms/filesystems. 500ms is imperceptible at shutdown and cheap.
   shutdownWatcher = setInterval(() => {
-    if (fs.existsSync(shutdownFilePath)) {
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(shutdownFilePath);
+    } catch (_) {
+      return; // no sentinel present
+    }
+    const ageMs = Date.now() - stat.mtimeMs;
+    if (ageMs <= SHUTDOWN_FILE_FRESH_MS) {
       gracefulShutdown('shutdown-file');
+    } else {
+      // Stale sentinel — a leftover, not a live request. Remove and ignore.
+      console.warn(
+        `Ignoring stale shutdown sentinel (age ${Math.round(ageMs / 1000)}s); removing it.`
+      );
+      removeShutdownFile();
     }
   }, 500);
   if (typeof shutdownWatcher.unref === 'function') shutdownWatcher.unref();

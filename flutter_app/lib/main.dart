@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
@@ -15,12 +16,25 @@ import 'providers/dashboard_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'utils/theme.dart';
+import 'utils/app_logger.dart';
 import 'services/backend_service.dart';
 import 'widgets/app_error_boundary.dart';
 import 'widgets/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Start the rolling error log early so anything that fails during boot is
+  // captured. Best-effort: never block startup on it.
+  unawaited(AppLogger.instance.init());
+
+  // Capture unhandled async errors (those that bypass FlutterError.onError)
+  // to the same rolling log for field diagnosability.
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    AppLogger.instance.error('Uncaught async error',
+        error: error, stackTrace: stack);
+    return false; // let default handling proceed
+  };
 
   // The backend is started from within the app (see [BootGate]) so we can show
   // a branded splash while it boots instead of a blank window. The app itself

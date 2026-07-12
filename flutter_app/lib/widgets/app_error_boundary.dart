@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 
 /// Wraps the app so that any uncaught Flutter framework error and any
 /// unhandled async error shows a friendly error screen instead of crashing
@@ -23,6 +24,13 @@ class _AppErrorBoundaryState extends State<AppErrorBoundary> {
     super.initState();
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
+      // Always capture to the rolling log (works in release too), so field
+      // crashes are diagnosable — not just visible in a debug console.
+      AppLogger.instance.error(
+        'Flutter error: ${details.exceptionAsString()}',
+        error: details.exception,
+        stackTrace: details.stack,
+      );
       if (!mounted || !kDebugMode) return;
       // Defer the setState to a post-frame callback. Calling it inside
       // the onError handler fires while a build/layout pass is in
